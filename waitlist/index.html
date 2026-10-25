@@ -782,7 +782,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     }
     if (inViewer) throw new Error('Sign in to claude.ai to join.');
     const row = {kind, email: entry.email, role: entry.role || null, agent: entry.agent || null, world_model: entry.world_model || null,
-                 webhook: entry.webhook || null, wallet: entry.wallet || null, source: location.hostname || null};
+                 webhook: entry.webhook || null, wallet: entry.wallet || null, signup_source: location.hostname || null};
     const r = supa
       ? await fetch(SUPABASE_URL + '/rest/v1/waitlist', {method:'POST', headers:{...supaHeaders(), Prefer:'return=minimal'}, body: JSON.stringify(row)})
       : await fetch(WAITLIST_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(row)});
