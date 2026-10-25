@@ -55,9 +55,10 @@ def test_fallback_links_follow_registered_routes(tmp_path, monkeypatch):
 def test_feed_full_then_poll(client):
     qid = next(iter(market.live_book().markets))
     full = client.get("/harvest/api/landing").json()
-    assert {"seq", "markets", "recent", "leaderboard", "fund", "geo", "personas"} <= set(full)
+    assert {"seq", "markets", "recent", "leaderboard", "fund", "geo", "personas", "volume", "anchor"} <= set(full)
+    assert full["anchor"] is None  # HARVEST_ANCHOR=0: nothing confirmed on Solana, and the page says so
     assert any(m["qid"] == qid and len(m["split"]) == 2 for m in full["markets"])
     poll = client.get(f"/harvest/api/landing?since={full['seq']}").json()
-    assert {"seq", "trades", "prices", "bets", "per_min"} <= set(poll)
+    assert {"seq", "trades", "prices", "bets", "per_min", "volume", "treasury", "anchor"} <= set(poll)
     assert qid in poll["prices"]
     assert all(t["seq"] > full["seq"] for t in poll["trades"])
