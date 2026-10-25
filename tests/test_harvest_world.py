@@ -101,7 +101,7 @@ def test_farmer_uses_croppy_when_available(client, monkeypatch):
 @pytest.mark.parametrize("path", ["/app/farmer", "/app/map", "/app/disagreement"])
 def test_pages_serve(client, path):
     r = client.get(path)
-    assert r.status_code == 200 and "world.js" in r.text
+    assert r.status_code == 200 and "/harvest/static/app/world.js?v=" in r.text
 
 
 def test_parse_rejects_looping_reasons():

@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from agent.harvest import fast_llm, market, world
 from agent.routes import harvest as api
+from agent.routes.harvest_pages import versioned
 
 NO_STORE = {"Cache-Control": "no-store"}
 STATIC = Path(__file__).resolve().parent.parent / "harvest" / "static" / "app"
@@ -56,9 +57,9 @@ async def reason(ctx: dict[str, Any]) -> tuple[str, str]:
 
 
 def _page(app: FastAPI, path: str, name: str) -> None:
-    @app.get(path, response_model=None, name=f"harvest-world-{name}")
-    async def page() -> FileResponse:
-        return FileResponse(STATIC / name, media_type="text/html", headers={"Cache-Control": "no-cache"})
+    @app.get(path, response_class=HTMLResponse, name=f"harvest-world-{name}")
+    async def page() -> HTMLResponse:
+        return HTMLResponse(versioned((STATIC / name).read_text()), headers={"Cache-Control": "no-cache"})
 
 
 def register(app: FastAPI) -> None:
