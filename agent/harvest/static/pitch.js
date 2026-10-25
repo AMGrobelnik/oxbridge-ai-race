@@ -63,7 +63,7 @@
       const isNew = prev && !prev.has(b.seq);
       const human = b.who === "human";
       return `<li class="${human ? "human" : "bot"}${isNew ? " new" : ""}"><span class="ic">${human ? "👤" : "🤖"}</span>` +
-        `<span class="nm">${esc(human ? "@" + b.username : b.name)}<small>${human ? "human" : "AI agent"} · ${Math.round(b.spend)} cr · now ${Math.round(b.price_after * 100)}%</small></span>` +
+        `<span class="nm">${esc(human ? "@" + b.username : b.name)}<small>${esc(b.icon || "")} ${esc(b.tag || "")} · ${Math.round(b.spend)} cr</small></span>` +
         `<span class="pill ${b.side}">${b.side}</span></li>`;
     }).join("");
   }
@@ -73,6 +73,22 @@
     const share = s.yes_share == null ? null : s.yes_share;
     $(prefix + "s").textContent = s.bets ? `${fmt(s.traders)} ${prefix === "h" ? "people" : "agents"} · ${share == null ? "-" : Math.round(share * 100) + "% of credits on YES"}` : (prefix === "h" ? "Be the first: scan the code" : "bets so far");
     $(prefix + "b").style.width = (share == null ? 50 : share * 100) + "%";
+  }
+
+  let evSeen = {};
+  function renderEvents(events) {
+    const box = $("events");
+    box.style.setProperty("--n", events.length);
+    const row = (cls, ic, s) => `<div class="w ${cls}"><span>${ic}</span><div class="bar"><i style="width:${s.yes_share == null ? 0 : s.yes_share * 100}%"></i></div>` +
+      `<span>${s.bets ? `${fmt(s.bets)} · ${Math.round(s.yes_share * 100)}% Y` : "-"}</span></div>`;
+    box.innerHTML = events.map((e) => {
+      const hot = evSeen[e.qid] != null && e.human.bets > evSeen[e.qid];
+      return `<div class="ev${e.featured ? " featured" : ""}${hot ? " hot" : ""}"><div class="tag"><span>${esc(e.icon)} ${esc(e.tag)}</span>${e.featured ? "<span>★</span>" : ""}</div>` +
+        `<div class="q">${esc(e.plain)}</div>` +
+        `<div class="pp">${pct(e.p_yes)}<small>YES${e.ai_p == null ? "" : ` · AI ${Math.round(e.ai_p * 100)}%`}</small></div>` +
+        row("h", "👤", e.human) + row("b", "🤖", e.bot) + `</div>`;
+    }).join("");
+    evSeen = Object.fromEntries(events.map((e) => [e.qid, e.human.bets]));
   }
 
   async function tick() {
@@ -96,6 +112,7 @@
       $("rate").textContent = `${lastMin} in the last min`;
       $("guests").innerHTML = s.tally.human.traders ? `<b>${fmt(s.tally.human.traders)}</b> humans have bet so far.` : "";
       renderFeed(s.feed);
+      if (s.events) renderEvents(s.events);
     } catch (e) {
       $("rate").textContent = "reconnecting…";
     }

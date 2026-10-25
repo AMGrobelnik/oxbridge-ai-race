@@ -111,3 +111,37 @@ def test_public_mode_allows_the_audience_routes_only():
     assert public_mode.is_public("GET", "/pitch/api/state") and public_mode.is_public("GET", "/pitch/qr.png")
     assert public_mode.is_public("POST", "/vote/api/guest") and public_mode.is_public("POST", "/vote/api/bet")
     assert not public_mode.is_public("POST", "/pitch/api/featured")
+
+
+def test_vote_lists_the_featured_market_then_the_headline_events(client):
+    s = client.get("/pitch/api/state").json()
+    evs = s["events"]
+    assert evs[0]["qid"] == s["featured"]["qid"] and evs[0]["featured"]
+    drought = next(e for e in evs if e["qid"] == "it-drought-2027")
+    assert drought["tag"] == "Drought" and drought["plain"].startswith("Will Italy") and drought["url"] == "/app/market/it-drought-2027"
+    assert 0 < drought["p_yes"] < 1 and drought["human"]["bets"] == 0
+
+
+def test_guest_bets_on_several_events_share_one_wallet_and_show_on_pitch(client):
+    book = market.live_book()
+    book.place_bet(HOUSE, "it-drought-2027", "NO", 20)
+    tok = client.post("/vote/api/guest", json={}).json()["token"]
+    a = client.post("/vote/api/bet", json={"token": tok, "side": "YES", "spend": 30, "qid": "it-drought-2027"})
+    assert a.status_code == 200, a.text
+    vs = a.json()["vs"]
+    assert vs["qid"] == "it-drought-2027" and vs["you"] == {"yes": 30.0, "no": 0.0}
+    assert vs["bots"]["agents"] == 1 and vs["bots"]["yes_share"] == 0.0 and vs["url"] == "/app/market/it-drought-2027"
+    b = client.post("/vote/api/bet", json={"token": tok, "side": "NO", "spend": 20}).json()
+    assert b["credits_left"] == 50 and b["n_bets"] == 2 and b["mine"]["it-drought-2027"] == {"yes": 30.0, "no": 0.0}
+    s = client.get("/pitch/api/state").json()
+    assert [(f["qid"], f["who"]) for f in s["feed"][:3]] == [(s["featured"]["qid"], "human"), ("it-drought-2027", "human"), ("it-drought-2027", "bot")]
+    drought = next(e for e in s["events"] if e["qid"] == "it-drought-2027")
+    assert drought["human"]["bets"] == 1 and drought["bot"]["bets"] == 1
+    assert s["tally"]["human"]["bets"] == 1  # the headline tally stays on the featured market
+
+
+def test_guest_cannot_bet_outside_the_vote_events(client, monkeypatch):
+    monkeypatch.setattr(pitch, "EVENTS", ())
+    tok = client.post("/vote/api/guest", json={}).json()["token"]
+    r = client.post("/vote/api/bet", json={"token": tok, "side": "YES", "spend": 5, "qid": "it-drought-2027"})
+    assert r.status_code == 422 and "not one of the /vote events" in r.json()["error"]

@@ -18,7 +18,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { background: var(--bg); color: var(--ink); font: 16px/1.4 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
-  .stage { height: 100vh; display: grid; grid-template-columns: minmax(300px, 23vw) minmax(0, 1fr) minmax(340px, 27vw); grid-template-rows: auto 1fr; gap: 2.2vh 2vw; padding: 3vh 2.4vw; }
+  .stage { height: 100vh; display: grid; grid-template-columns: minmax(300px, 23vw) minmax(0, 1fr) minmax(340px, 27vw); grid-template-rows: auto 1fr auto; gap: 2vh 2vw; padding: 2.6vh 2.4vw; }
   header { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 2vw; }
   .brand { font: 600 1.6vh var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   h1 { margin: .4vh 0 0; font: 700 7.2vh/1 var(--display); letter-spacing: -.035em; }
@@ -28,7 +28,7 @@
   @keyframes pulse { 50% { opacity: .25; } }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 2vh; padding: 2.4vh; min-height: 0; }
   .scan { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.6vh; }
-  .qr { background: #fff; border-radius: 1.6vh; padding: 1.4vh; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
+  .qr { background: #fff; border-radius: 1.6vh; padding: 1.4vh; width: min(100%, 30vh); aspect-ratio: 1; display: grid; place-items: center; }
   .qr img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
   .url { font: 700 3.6vh var(--display); letter-spacing: -.02em; color: var(--accent2); }
   .how { color: var(--muted); font-size: 2vh; margin: 0; }
@@ -67,6 +67,18 @@
   .pill.YES { color: var(--yes); background: var(--yes-bg); } .pill.NO { color: var(--no); background: var(--no-bg); }
   .foot { color: var(--faint); font-size: 1.5vh; margin-top: auto; }
   .empty { color: var(--muted); font-size: 2vh; }
+  .events { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(var(--n, 6), 1fr); gap: 1.4vh; }
+  .ev { background: var(--panel); border: 1px solid var(--line); border-radius: 1.6vh; padding: 1.4vh 1.6vh; display: flex; flex-direction: column; gap: .7vh; min-width: 0; }
+  .ev.featured { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .ev.hot { animation: hot 1.2s ease-out; }
+  @keyframes hot { from { background: #3a2f12; } }
+  .ev .tag { font: 600 1.55vh var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: .8vh; white-space: nowrap; }
+  .ev .q { font: 600 1.65vh/1.25 var(--display); height: 6.2vh; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .ev .pp { font: 700 3.6vh/1 var(--display); color: var(--yes); font-variant-numeric: tabular-nums; }
+  .ev .pp small { font: 500 1.4vh var(--mono); color: var(--muted); margin-left: .6vh; }
+  .ev .w { display: grid; grid-template-columns: 2.6vh 1fr auto; align-items: center; gap: .8vh; font: 600 1.55vh var(--mono); }
+  .ev .w .bar { margin: 0; height: .8vh; }
+  .ev .w.h span:last-child { color: var(--human); } .ev .w.b span:last-child { color: var(--bot); }
 </style>
 </head>
 <body>
@@ -82,7 +94,7 @@
   <section class="panel scan">
     <div class="qr"><img src="/pitch/qr.svg" alt="QR code to the vote page"></div>
     <div class="url" id="url">crophecy.bid/vote</div>
-    <p class="how">Scan, get <b>100 play credits</b> and a guest handle. <b>No signup.</b> Bet YES or NO against the AI swarm.</p>
+    <p class="how">Scan, get <b>100 play credits</b> and a guest handle. <b>No signup.</b> Bet YES or NO against the AI swarm on the events below.</p>
     <p class="how" id="guests"></p>
   </section>
 
@@ -102,6 +114,8 @@
     <ul id="feed"><li class="empty">Waiting for bets…</li></ul>
     <div class="foot">Play credits only, no money. Every bet goes into a hash-chained public ledger.</div>
   </section>
+
+  <section class="events" id="events"></section>
 </div>
 <script src="/harvest/static/pitch.js"></script>
 </body>

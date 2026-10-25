@@ -2,14 +2,17 @@
 
 GET  /pitch                      projector page: QR to /vote, the featured market's live chart, human vs swarm bet feed
 GET  /vote                       phone page: a guest handle and PITCH_CREDITS play credits, YES/NO on the featured market
+                                 and on a short list of headline events (EVENTS: heat, drought, wheat, olive oil, water, EU policy)
 GET  /pitch/qr.svg, /pitch/qr.png   QR code of PITCH_VOTE_URL (default https://crophecy.bid/vote)
-GET  /pitch/api/state?minutes=   featured market, price path, feed of the latest bets tagged human or bot, human vs bot tallies
+GET  /pitch/api/state?minutes=   featured market, price path, human vs bot tallies, the headline events with their own human
+                                 vs bot tallies, and a feed of the latest bets across all of them tagged human or bot
 POST /vote/api/guest {token?}    a guest account (no signup); with a known guest token it returns that guest instead
-POST /vote/api/bet {token, side, spend}   a guest bet on the featured market, rate limited per device (guest token) and per IP
+POST /vote/api/bet {token, side, spend, qid?}   a guest bet on the featured market or one of the events (qid), rate limited
+                                 per device (guest token) and per IP; returns "vs", the guest's position next to the swarm's
 POST /pitch/api/featured {qid}   admin only (X-Admin-Token): picks the featured market
 
 Guests are ordinary human accounts in the hash-chained ledger (username guest-xxxx, payload via=vote). Their pitch wallet
-is PITCH_CREDITS: /vote lets a guest spend at most that much in total, while the book keeps the usual account so the
+is PITCH_CREDITS: /vote lets a guest spend at most that much in total across all events, while the book keeps the usual account so the
 leaderboards' PnL stays comparable. The swarm (agent/harvest/swarm.py) bets on every open market through
 /harvest/api/agents/bet, so the featured market already gets its bets; the default is the busiest one, wheat.
 """
@@ -48,6 +51,17 @@ ip_bet_limiter = RateLimiter(int(os.environ.get("PITCH_BETS_PER_IP_MIN") or 400)
 LIMITERS = (guest_limiter, device_bet_limiter, ip_bet_limiter)
 _state_cache: dict[str, Any] = {}
 
+EVENTS: tuple[tuple[str, str, str, str], ...] = (
+    ("wheat-up10-6m", "\U0001f33e", "Wheat price", "Will wheat cost over 10% more by {by}?"),
+    ("eu-cap-heat-2028", "\U0001f525", "Heat", "Will the EU's next farm budget set aside \u20ac10 bn for heat and drought?"),
+    ("it-drought-2027", "\U0001f3dc\ufe0f", "Drought", "Will Italy declare a national drought emergency in 2027?"),
+    ("olive-up15-6m", "\U0001fad2", "Olive oil", "Will olive oil cost over 15% more by {by}?"),
+    ("gr-water-rationing-2027", "\U0001f6b0", "Water", "Will Athens or a Greek island ration household water in 2027?"),
+    ("eu-sovereign-land-2028", "\U0001f1ea\U0001f1fa", "EU policy", "Will an EU country stop foreign state funds buying its farmland by 2028?"),
+)
+"""Headline events on /vote and /pitch: (qid or qid prefix before '@cutoff', icon, tag, the question in plain words)."""
+_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+
 
 def vote_url() -> str:
     return (os.environ.get("PITCH_VOTE_URL") or "https://crophecy.bid/vote").strip()
@@ -72,6 +86,42 @@ def featured_qid(book: LiveBook) -> str:
         return next((q for q, m in book.markets.items() if m["status"] == "open"), "")
 
 
+def _by(resolve_month: Any) -> str:
+    try:
+        y, m = str(resolve_month).split("-")[:2]
+        return f"{_MONTHS[int(m) - 1]} {y}"
+    except (ValueError, IndexError):
+        return "the deadline"
+
+
+def _match(book: LiveBook, key: str) -> str | None:
+    """The open market for an EVENTS key: the exact qid, else the latest open cutoff of 'key@...'."""
+    if key in book.markets and book.markets[key]["status"] == "open":
+        return key
+    hits = sorted(q for q, m in book.markets.items() if q.startswith(key + "@") and m["status"] == "open")
+    return hits[-1] if hits else None
+
+
+def events(book: LiveBook) -> list[dict[str, Any]]:
+    """The featured market first, then the headline EVENTS that are open (each once): qid, icon, tag and plain question."""
+    featured = featured_qid(book)
+    out: list[dict[str, Any]] = []
+    with book.lock:
+        for key, icon, tag, plain in EVENTS:
+            qid = _match(book, key)
+            if qid and all(e["qid"] != qid for e in out):
+                meta = book.meta.get(qid) or {}
+                out.append({"qid": qid, "icon": icon, "tag": tag, "plain": plain.format(by=_by(meta.get("resolve_month")))})
+        if featured:
+            hit = next((e for e in out if e["qid"] == featured), None)
+            if hit is None:
+                hit = {"qid": featured, "icon": "\u2b50", "tag": "Featured", "plain": (book.meta.get(featured) or {}).get("title", featured)}
+            else:
+                out.remove(hit)
+            out.insert(0, {**hit, "featured": True})
+    return out
+
+
 def _who(book: LiveBook, trader: str) -> str:
     return "human" if (book.traders.get(trader) or {}).get("kind") == "human" else "bot"
 
@@ -88,6 +138,8 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
     qid = featured_qid(book)
     if not qid:
         return {"featured": None, "vote_url": vote_url()}
+    evs = events(book)
+    tags = {e["qid"]: e for e in evs}
     with book.lock:
         key = (qid, len(book.trades), book.version, minutes)
         if _state_cache.get("key") == key:
@@ -95,34 +147,70 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
         horizon = time.time() * 1000 - minutes * 60_000
         path: list[list[Any]] = []
         feed: list[dict[str, Any]] = []
-        tally = {w: {"bets": 0, "credits": 0.0, "yes_credits": 0.0, "traders": set()} for w in ("human", "bot")}
+        tallies = {q: {w: {"bets": 0, "credits": 0.0, "yes_credits": 0.0, "traders": set()} for w in ("human", "bot")} for q in tags}
+        tally = tallies[qid]
         for t in reversed(book.trades):
-            if t["qid"] != qid:
+            if t["qid"] not in tags:
                 continue
             who = _who(book, t["trader"])
-            s = tally[who]
+            s = tallies[t["qid"]][who]
             s["bets"] += 1
             s["credits"] += t["spend"]
             s["yes_credits"] += t["spend"] if t["side"] == "YES" else 0.0
             s["traders"].add(t["trader"])
+            if len(feed) < FEED_LEN:
+                ev = tags[t["qid"]]
+                feed.append({"seq": t["seq"], "at": t.get("at"), "who": who, "name": book.display_name(t["trader"]).removeprefix("\U0001f916").strip(),
+                             "username": book.username_of(t["trader"]), "side": t["side"], "spend": round(t["spend"], 2),
+                             "price_after": round(t["price_after"], 4), "qid": t["qid"], "icon": ev["icon"], "tag": ev["tag"]})
+            if t["qid"] != qid:
+                continue
             ms = _epoch_ms(str(t.get("at") or ""))
             if ms is not None and ms >= horizon:
                 path.append([ms, round(t["price_after"], 4), "h" if who == "human" else "b"])
-            if len(feed) < FEED_LEN:
-                feed.append({"seq": t["seq"], "at": t.get("at"), "who": who, "name": book.display_name(t["trader"]).removeprefix("\U0001f916").strip(),
-                             "username": book.username_of(t["trader"]), "side": t["side"], "spend": round(t["spend"], 2),
-                             "price_after": round(t["price_after"], 4)})
         path.reverse()
         view = book.market_view(qid)
+
+        def summary(s: dict[str, Any]) -> dict[str, Any]:
+            return {"bets": s["bets"], "credits": round(s["credits"], 2), "traders": len(s["traders"]),
+                    "yes_share": round(s["yes_credits"] / s["credits"], 4) if s["credits"] else None}
+
+        event_rows = [{**e, "p_yes": round(book.price(e["qid"]), 4), "ai_p": _ai_p(book, e["qid"]), "url": f"/app/market/{e['qid']}",
+                       "human": summary(tallies[e["qid"]]["human"]), "bot": summary(tallies[e["qid"]]["bot"])} for e in evs]
         body = {
             "vote_url": vote_url(), "credits": PITCH_CREDITS,
             "featured": {k: view.get(k) for k in ("qid", "title", "kind", "region", "crop", "p_yes", "volume", "resolve_month")},
             "path": path, "feed": feed, "now": int(time.time() * 1000),
-            "tally": {w: {"bets": s["bets"], "credits": round(s["credits"], 2), "traders": len(s["traders"]),
-                          "yes_share": round(s["yes_credits"] / s["credits"], 4) if s["credits"] else None} for w, s in tally.items()},
+            "tally": {w: summary(s) for w, s in tally.items()}, "events": event_rows,
         }
         _state_cache.update(key=key, body=body)
         return body
+
+
+def _ai_p(book: LiveBook, qid: str) -> float | None:
+    """The swarm's average forecast of YES on a market (caller holds book.lock)."""
+    ps = [float(f["p_yes"]) for f in book.agent_forecasts.get(qid, []) if f.get("p_yes") is not None]
+    return round(sum(ps) / len(ps), 4) if ps else None
+
+
+def you_vs_bots(book: LiveBook, trader: str, qid: str) -> dict[str, Any]:
+    """The guest's credits on YES and NO in one market next to the bots': their credit split and average forecast."""
+    with book.lock:
+        you = {"YES": 0.0, "NO": 0.0}
+        bots = {"YES": 0.0, "NO": 0.0}
+        n_bots: set[str] = set()
+        for t in book.trades:
+            if t["qid"] != qid:
+                continue
+            if t["trader"] == trader:
+                you[t["side"]] += t["spend"]
+            elif _who(book, t["trader"]) == "bot":
+                bots[t["side"]] += t["spend"]
+                n_bots.add(t["trader"])
+        bot_total = bots["YES"] + bots["NO"]
+        return {"qid": qid, "p_yes": round(book.price(qid), 4), "url": f"/app/market/{qid}",
+                "you": {"yes": round(you["YES"], 2), "no": round(you["NO"], 2)},
+                "bots": {"agents": len(n_bots), "yes_share": round(bots["YES"] / bot_total, 4) if bot_total else None, "ai_p": _ai_p(book, qid)}}
 
 
 def guest_spent(book: LiveBook, trader: str) -> float:
@@ -133,12 +221,17 @@ def guest_spent(book: LiveBook, trader: str) -> float:
 def guest_view(book: LiveBook, trader: str, qid: str) -> dict[str, Any]:
     with book.lock:
         info = book.traders.get(trader) or {}
-        mine = [{"seq": t["seq"], "side": t["side"], "spend": round(t["spend"], 2), "price_after": round(t["price_after"], 4)}
-                for t in book.trades if t["trader"] == trader and t["qid"] == qid]
+        everything = [t for t in book.trades if t["trader"] == trader]
+        mine = [{"seq": t["seq"], "qid": t["qid"], "side": t["side"], "spend": round(t["spend"], 2), "price_after": round(t["price_after"], 4)}
+                for t in everything if t["qid"] == qid]
         pos = next((p for p in book.positions(trader) if p.get("qid") == qid), None)
-    spent = sum(b["spend"] for b in mine)
+        per_qid: dict[str, dict[str, float]] = {}
+        for t in everything:
+            row = per_qid.setdefault(t["qid"], {"yes": 0.0, "no": 0.0})
+            row[t["side"].lower()] = round(row[t["side"].lower()] + t["spend"], 2)
+    spent = sum(t["spend"] for t in everything)
     return {"user_id": trader, "username": info.get("username"), "credits_left": round(max(PITCH_CREDITS - spent, 0.0), 2),
-            "credits": PITCH_CREDITS, "bets": mine[-10:], "n_bets": len(mine), "position": pos}
+            "credits": PITCH_CREDITS, "bets": mine[-10:], "n_bets": len(everything), "position": pos, "mine": per_qid}
 
 
 def _new_guest(book: LiveBook, token: str) -> tuple[str, str]:
@@ -249,7 +342,10 @@ def register(app: FastAPI) -> None:
             return api._error("side must be YES or NO", 422)
         if spend is None:
             return api._error("spend must be a number", 422)
-        qid = featured_qid(book)
+        allowed = [e["qid"] for e in await asyncio.to_thread(events, book)]
+        qid = str(data.get("qid") or "") or (allowed[0] if allowed else "")
+        if qid not in allowed:
+            return api._error(f"{qid!r} is not one of the /vote events", 422)
         left = PITCH_CREDITS - await asyncio.to_thread(guest_spent, book, trader)
         spend = round(min(market.clamp(spend, SPEND_MIN, SPEND_MAX), left), 2)
         if spend < SPEND_MIN:
@@ -263,7 +359,8 @@ def register(app: FastAPI) -> None:
         with book.lock:
             mv = book.market_view(qid)
         return JSONResponse({"trade": {k: trade.get(k) for k in ("seq", "side", "spend", "price_before", "price_after")},
-                             "market": {"qid": qid, "p_yes": mv["p_yes"]}, **guest_view(book, trader, qid)}, headers=NO_STORE)
+                             "market": {"qid": qid, "p_yes": mv["p_yes"]}, "vs": you_vs_bots(book, trader, qid),
+                             **guest_view(book, trader, qid)}, headers=NO_STORE)
 
 
 def _page(app: FastAPI, path: str, name: str) -> None:

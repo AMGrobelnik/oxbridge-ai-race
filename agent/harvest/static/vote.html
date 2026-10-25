@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beat the Bots</title>
-<meta name="description" content="Bet 100 play credits against the AI swarm on Europe's harvest. No signup.">
+<meta name="description" content="Bet 100 play credits against the AI swarm on heat, drought, wheat, olive oil, water and EU farm policy. No signup.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
@@ -35,16 +35,35 @@
   h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), var(--heat)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .me { color: var(--muted); margin: 0 0 14px; font-size: 14.5px; }
   .me b { color: var(--ink); font-family: var(--mono); font-size: 14px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .events { display: flex; flex-direction: column; gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+  .card.featured { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .badge { float: right; font: 700 10.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--bg); background: var(--accent); padding: 3px 7px; border-radius: 999px; }
+  .odds { display: flex; align-items: baseline; gap: 14px; margin: 2px 0 10px; }
+  .odds .crowd { font: 700 30px/1 var(--display); letter-spacing: -.02em; color: var(--yes); font-variant-numeric: tabular-nums; }
+  .odds .crowd small, .odds .ai small { display: block; font: 500 11px var(--mono); color: var(--muted); letter-spacing: .03em; margin-top: 3px; }
+  .odds .ai { font: 700 18px/1 var(--display); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .card .bet { padding: 11px 6px; border-radius: 12px; font-size: 18px; }
+  .card .bet small { font-size: 11.5px; margin-top: 2px; }
+  .vs { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line2); font-size: 13.5px; }
+  .vs[hidden] { display: none; }
+  .vs .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+  .vs .row b { font-family: var(--mono); font-size: 13px; }
+  .vs h4 { margin: 0 0 4px; font: 600 13px var(--display); color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+  .vs a { display: inline-block; margin-top: 6px; color: var(--accent); font-weight: 600; text-decoration: none; }
+  .card .msg { min-height: 0; margin: 8px 0 0; font-size: 13.5px; }
+  .card .msg:empty { display: none; }
   .qmeta { font: 500 11.5px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
-  .qtitle { font: 600 20px/1.25 var(--display); margin: 6px 0 10px; }
+  .qtitle { font: 600 18px/1.25 var(--display); margin: 6px 0 8px; }
   .prob { display: flex; align-items: baseline; gap: 8px; }
   .prob .big { font: 700 44px/1 var(--display); letter-spacing: -.03em; color: var(--yes); font-variant-numeric: tabular-nums; }
   .prob .lbl { color: var(--muted); font-weight: 600; }
-  .spark { height: 64px; margin-top: 10px; }
+  .spark { height: 48px; margin: 0 0 10px; }
   .spark svg { width: 100%; height: 100%; display: block; }
-  .amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0 10px; }
-  .amounts button { padding: 10px 0; border-radius: 10px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); font: 700 16px var(--mono); }
+  .stake { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0 10px; display: flex; align-items: center; gap: 10px; }
+  .stake span { font: 600 12px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .amounts { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .amounts button { padding: 8px 0; border-radius: 10px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); font: 700 16px var(--mono); }
   .amounts button[aria-pressed="true"] { border-color: var(--accent); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--accent); }
   .bets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .bet { padding: 18px 8px; border-radius: 14px; border: 0; font: 700 24px/1.1 var(--display); color: #fff; }
@@ -71,21 +90,14 @@
   <h1>Can you <em>beat the bots?</em></h1>
   <p class="me" id="me">Getting you a guest handle…</p>
 
-  <section class="card">
-    <div class="qmeta" id="qmeta">Featured market</div>
-    <div class="qtitle" id="qtitle">Loading…</div>
-    <div class="prob"><span class="big" id="p">--</span><span class="lbl">chance of YES, set by the market</span></div>
-    <div class="spark" id="spark"></div>
-    <div class="amounts" id="amounts" role="group" aria-label="Credits to bet">
+  <div class="stake"><span>Stake</span>
+    <div class="amounts" id="amounts" role="group" aria-label="Credits per bet">
       <button type="button" data-v="5">5</button><button type="button" data-v="10" aria-pressed="true">10</button>
       <button type="button" data-v="25">25</button><button type="button" data-v="50">50</button>
     </div>
-    <div class="bets">
-      <button class="bet YES" id="yes" type="button" disabled>YES<small id="yesq">--</small></button>
-      <button class="bet NO" id="no" type="button" disabled>NO<small id="noq">--</small></button>
-    </div>
-    <p class="msg" id="msg" role="status"></p>
-  </section>
+  </div>
+  <section class="events" id="events"><div class="card"><div class="qtitle">Loading the live events…</div></div></section>
+  <p class="msg" id="msg" role="status"></p>
 
   <h2>Latest bets: 👤 humans vs 🤖 bots</h2>
   <ul id="feed"></ul>
