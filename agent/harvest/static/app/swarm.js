@@ -2,7 +2,7 @@
 (function () {
   const box = document.createElement("section");
   box.id = "swarm";
-  box.style.cssText = "max-width:960px;margin:8px auto;padding:8px 12px;border:1px solid #ccc;border-radius:8px;font:14px system-ui,sans-serif";
+  box.style.cssText = "box-sizing:border-box;width:calc(100% - 32px);max-width:728px;margin:8px auto;padding:8px 12px;border:1px solid #ccc;border-radius:8px;font:14px system-ui,sans-serif";
   const main = document.getElementById("main");
   main.parentNode.insertBefore(box, main);
   const text = (tag, s, css) => { const e = document.createElement(tag); e.textContent = s; if (css) e.style.cssText = css; return e; };
