@@ -718,9 +718,9 @@
       try {
         const r = await call("/farmer/chat", { message: text });
         wait.classList.remove("fm-wait");
-        wait.innerHTML = `${escH(r.reply).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
+        wait.innerHTML = `${escH(r.reply).replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, (u) => `<a href="${u}">${u.replace(/^https?:\/\/[^/]+/, "")}</a>`).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
       } catch (err) { wait.classList.remove("fm-wait"); wait.textContent = err.message; }
-      log.scrollTop = log.scrollHeight;
+      log.scrollTop = Math.max(0, wait.offsetTop - log.offsetTop - 8); // start reading at the top of the answer
     };
     f.addEventListener("submit", (e) => { e.preventDefault(); const t = f.m.value.trim(); if (t) { f.m.value = ""; ask(t); } });
     qa("[data-fq]", view).forEach((b) => b.addEventListener("click", () => ask(b.dataset.fq)));
