@@ -19,6 +19,8 @@ from agent.routes.challenge import _qr_svg, public_base_url
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "harvest" / "static"
 PAGES = {"/harvest": "index.html", "/harvest/play": "play.html", "/harvest/board": "board.html", "/harvest/terms": "terms.html", "/harvest/news": "news.html"}
+APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app/market/{qid:path}": "app/market.html", "/app/live": "app/live.html",
+             "/app/theory": "app/theory.html", "/app/leaderboard": "app/leaderboard.html"}
 PRICES_FROM = "2021-01"
 _story_cache: dict[str, Any] = {}
 
@@ -110,6 +112,8 @@ def _story_cached() -> dict[str, Any]:
 def register(app: FastAPI) -> None:
     app.mount("/harvest/static", StaticFiles(directory=STATIC_DIR, check_dir=False), name="harvest-static")
     for path, name in PAGES.items():
+        _page(app, path, name)
+    for path, name in APP_PAGES.items():  # the simple multi-page UI
         _page(app, path, name)
 
     @app.get("/harvest/api/story")
