@@ -409,8 +409,7 @@
       else { orig.go(route, opt); setPath(pathFor(route, opt)); }
       const cur = board || route === "theory" ? "leaderboard" : route.startsWith("m-") ? "markets" : route;
       const mark = () => qa("[data-nav]").forEach((a) => { if (a.dataset.nav === cur) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
-      mark(); requestAnimationFrame(() => requestAnimationFrame(mark)); // the page's own go() may re-mark after its view transition
-      heroVideo();
+      mark(); heroVideo(); requestAnimationFrame(() => requestAnimationFrame(() => { mark(); heroVideo(); })); // the page's own go() switches view after its view transition
     };
     initHome = function () { orig.initHome(); paintStatic(); };
     initLive = function () { orig.initLive(); paintLive(); };
