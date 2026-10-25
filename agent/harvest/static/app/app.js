@@ -36,6 +36,8 @@
     return data;
   }
   const pct = (p) => (p == null ? "–" : `${Math.round(p * 100)}%`);
+  const cr = (n) => `${n} ${Number(n) === 1 ? "credit" : "credits"}`;
+  const pctMove = (a, b) => (pct(a) === pct(b) ? [`${(a * 100).toFixed(1)}%`, `${(b * 100).toFixed(1)}%`] : [pct(a), pct(b)]);
   const b3 = (x) => (x == null ? "–" : Number(x).toFixed(3));
   const ordinal = (n) => { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
   function ago(iso) {
@@ -271,7 +273,7 @@
         const views = agentViews(m).filter((v) => v.source !== "fallback");
         const avg = views.length ? views.reduce((a, v) => a + v.p_yes, 0) / views.length : null;
         return h("a", { class: "row", href: `/app/market/${encodeURIComponent(m.qid)}` },
-          h("span", { class: "q" }, m.title, h("span", { class: "sub" }, `${m.region} · ${m.crop}` + (avg != null ? ` · ${views.length} AI agents average ${pct(avg)}` : ""))),
+          h("span", { class: "q" }, m.title, h("span", { class: "sub" }, `${m.region} · ${m.crop}` + (avg != null ? ` · ${views.length} AI ${views.length === 1 ? "agent" : "agents"} average ${pct(avg)}` : ""))),
           h("span", { class: "pct" }, pct(m.p_yes), h("small", {}, "YES")));
       }) : [h("p", { class: "muted" }, "No markets match.")]));
     }
@@ -313,7 +315,7 @@
         me.credits = info.balance; save(me); document.getElementById("badge").textContent = badgeText();
         const pos = (info.positions || []).find((p) => p.qid === qid);
         position.replaceChildren(pos ? h("div", { class: "card" }, h("b", {}, "Your position: "),
-          `${Number(pos.yes).toFixed(1)} YES shares, ${Number(pos.no).toFixed(1)} NO shares. Spent ${Number(pos.spent).toFixed(0)} credits, worth about ${Number(pos.value).toFixed(0)} now.`) : "");
+          `${Number(pos.yes).toFixed(1)} YES shares, ${Number(pos.no).toFixed(1)} NO shares. Spent ${cr(Number(pos.spent).toFixed(0))}, worth about ${Number(pos.value).toFixed(0)} now.`) : "");
       } catch (e) { if (e.status === 401) { save(null); position.replaceChildren(); } }
     }
     async function bet(side) {
@@ -325,8 +327,8 @@
         const r = await api("/bet", { token: me.token, qid, side, spend });
         m = { ...m, ...r.market, agent_forecasts: m.agent_forecasts, history: r.market.history || m.history };
         drawPrice();
-        result.replaceChildren(h("div", { class: "card good" }, h("b", {}, `You bet ${spend} credits on ${side}. `),
-          `Your bet moved the YES price from ${pct(r.trade.price_before)} to ${pct(r.trade.price_after)}. You have ${Math.round(r.balance)} credits left.`));
+        result.replaceChildren(h("div", { class: "card good" }, h("b", {}, `You bet ${cr(spend)} on ${side}. `),
+          `Your bet moved the YES price from ${pctMove(r.trade.price_before, r.trade.price_after).join(" to ")}. You have ${cr(Math.round(r.balance))} left.`));
         me.credits = r.balance; save(me); document.getElementById("badge").textContent = badgeText();
         drawPosition();
       } catch (e) {
@@ -415,7 +417,7 @@
         const ext = new Map();
         try { for (const b of (await api("/swarm")).recent || []) if (b.agent_id && b.name) ext.set(b.agent_id, b.name); } catch (e) { /* names are optional */ }
         feed.replaceChildren(...[...s.recent_trades].reverse().slice(0, 40).map((t) => h("div", { class: "feed-item" },
-          h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, who(t.trader, names, ext)), ` bet ${Math.round(t.spend)} credits `,
+          h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, who(t.trader, names, ext)), ` bet ${cr(Math.round(t.spend))} `,
           h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, titles.get(t.qid) || t.qid), h("span", { class: "muted small" }, ` · ${ago(t.at)}`),
           t.rationale ? h("div", { class: "muted", style: "font-size:15px;margin-top:4px" }, t.rationale) : null)));
       } catch (e) { feed.replaceChildren(failure(e)); }
@@ -491,7 +493,7 @@
             : h("p", { class: "muted" }, "You follow nobody yet. Follow agents from the ", h("a", { href: "/app/leaderboard" }, "Leaderboard"), "."),
           feed.items.length ? h("h2", {}, "Their latest bets") : null,
           feed.items.map((t) => h("div", { class: "feed-item" }, h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, t.name),
-            ` bet ${Math.round(t.spend)} credits `, h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, t.title),
+            ` bet ${cr(Math.round(t.spend))} `, h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, t.title),
             t.copied_from ? h("span", { class: "tag", style: "margin-left:6px" }, `copied from ${t.copied_from_name}`) : null,
             h("span", { class: "muted small" }, ` · ${ago(t.at)}`)))].flat().filter(Boolean));
       } catch (e) { box.replaceChildren(failure(e)); }

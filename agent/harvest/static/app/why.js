@@ -16,7 +16,7 @@
   }
   const pts = (d) => `${d > 0 ? "+" : ""}${(d * 100).toFixed(1)} pts`;
   const betRow = (b) => h("div", { class: "feed-item" }, h("span", { class: "tag " + b.side.toLowerCase() }, b.side), h("b", {}, b.name),
-    ` bet ${Math.round(b.spend)} credits, ${Math.round(b.price_before * 100)}% → ${Math.round(b.price_after * 100)}% (${pts(b.delta)})`,
+    ` bet ${Math.round(b.spend)} ${Math.round(b.spend) === 1 ? "credit" : "credits"}, ${Math.round(b.price_before * 100)}% → ${Math.round(b.price_after * 100)}% (${pts(b.delta)})`,
     h("span", { class: "muted small" }, ` · ledger bet #${b.seq}`));
   function render(out, r) {
     const mv = r.move;
