@@ -1,16 +1,22 @@
 """The Crophecy pages /harvest, /harvest/play, /harvest/board, /harvest/terms, /harvest/news, /harvest/qr.svg (SPEC.md section 12, addendum R3). Owner: UI.
 
+/waitlist/ serves the static waitlist landing page in waitlist/ with SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY injected, so
+its form inserts straight into the Supabase "waitlist" table (row-level security only lets the publishable key insert).
+
 GET /harvest/api/story is a compact digest of the frozen replay for the pages (the full replay is ~2 MB of trades):
 per-quarter Brier and PnL per world model, the commodity price paths, the sealed holdout with its commitment, and the
 replay price path of every live market.
 """
 
 import asyncio
+import json
+import os
+import re
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from agent.harvest import scoring
@@ -22,6 +28,9 @@ PAGES = {"/harvest": "index.html", "/harvest/play": "play.html", "/harvest/board
 APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app/market/{qid:path}": "app/market.html", "/app/live": "app/live.html",
              "/app/theory": "app/theory.html", "/app/leaderboard": "app/leaderboard.html"}
 PRICES_FROM = "2021-01"
+WAITLIST_DIR = Path(__file__).resolve().parents[2] / "waitlist"
+WAITLIST_ASSETS = {"hero-loop.mp4": "video/mp4", "hero.jpg": "image/jpeg"}
+_WAITLIST_CONST = {"SUPABASE_URL": re.compile(r"const SUPABASE_URL = '[^']*';"), "SUPABASE_ANON_KEY": re.compile(r"const SUPABASE_ANON_KEY = '[^']*';")}
 _story_cache: dict[str, Any] = {}
 
 
@@ -109,12 +118,42 @@ def _story_cached() -> dict[str, Any]:
     return _story_cache["body"]
 
 
+def _js_str(value: str) -> str:
+    return json.dumps(value).replace("<", "\\u003c")
+
+
+def waitlist_html() -> str:
+    """The waitlist page with the server's Supabase project URL and publishable (browser-safe) key filled in."""
+    body = (WAITLIST_DIR / "index.html").read_text()
+    url = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
+    key = os.environ.get("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    if url and key:
+        for name, value in (("SUPABASE_URL", url), ("SUPABASE_ANON_KEY", key)):
+            body = _WAITLIST_CONST[name].sub(lambda _m, n=name, v=value: f"const {n} = {_js_str(v)};", body, count=1)
+    return body
+
+
 def register(app: FastAPI) -> None:
     app.mount("/harvest/static", StaticFiles(directory=STATIC_DIR, check_dir=False), name="harvest-static")
     for path, name in PAGES.items():
         _page(app, path, name)
     for path, name in APP_PAGES.items():  # the simple multi-page UI
         _page(app, path, name)
+
+    @app.get("/waitlist", include_in_schema=False)
+    async def waitlist_redirect(request: Request) -> RedirectResponse:  # the page loads hero.jpg etc. relative to /waitlist/
+        query = request.url.query
+        return RedirectResponse("/waitlist/" + (f"?{query}" if query else ""), status_code=308)
+
+    @app.get("/waitlist/", response_class=HTMLResponse)
+    async def waitlist_page() -> HTMLResponse:
+        return HTMLResponse(waitlist_html(), headers={"Cache-Control": "no-cache"})
+
+    @app.get("/waitlist/{name}", response_model=None)
+    async def waitlist_asset(name: str) -> Response:
+        if name not in WAITLIST_ASSETS:
+            return JSONResponse({"error": "Not found."}, status_code=404)
+        return FileResponse(WAITLIST_DIR / name, media_type=WAITLIST_ASSETS[name], headers={"Cache-Control": "public, max-age=3600"})
 
     @app.get("/harvest/api/story")
     async def story_route() -> JSONResponse:
