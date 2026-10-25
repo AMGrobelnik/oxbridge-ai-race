@@ -9,3 +9,6 @@ __pycache__/
 .env.local
 .env.*.local
 *.keypair.json
+
+# Sealed run records (agent/sealed/store.py)
+.sealed_runs/

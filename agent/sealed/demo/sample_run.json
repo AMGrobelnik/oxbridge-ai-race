@@ -1,0 +1,807 @@
+{
+  "schema": "sealed.run/v1",
+  "run_id": "sample-epidemic-0001",
+  "env": "epidemic",
+  "title": "Winter epidemic policy",
+  "goal": "Minimise winter hospital-days for 10M people with GBP 40M, no school closures over 3 weeks, without widening the age gap.",
+  "metric_label": "Hospital-days averted per GBP 1m, net of penalties",
+  "mode": "cached",
+  "proposer": "gemini",
+  "iterations_planned": 8,
+  "status": "done",
+  "created_at": "2026-10-25T13:30:00Z",
+  "updated_at": "2026-10-25T13:31:10Z",
+  "preregistration": {
+    "env": "epidemic",
+    "run_id": "sample-epidemic-0001",
+    "code_sha256": "c0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
+    "dev_seeds": [
+      101,
+      102,
+      103,
+      104,
+      105
+    ],
+    "holdout_commitment": "1e3b0f48949fd591c86e83bf3ffaac56521b46cfb4e5093f31b0cc951c1a8fe6",
+    "commitment": "4439b07698b8bfdaebc5873cff1837bd561f9aa1effd408e3e6f2cbda39f9a6c",
+    "memo": "sealed:v1:commit:sample-epidemic-0001:4439b07698b8bfdaebc5873cff1837bd561f9aa1effd408e3e6f2cbda39f9a6c",
+    "sealed_at": "2026-10-25T13:30:00Z",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:commit:sample-epidemic-0001:4439b07698b8bfdaebc5873cff1837bd561f9aa1effd408e3e6f2cbda39f9a6c",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:30:00Z",
+      "error": "pending on-chain: agent wallet not funded"
+    }
+  },
+  "iterations": [
+    {
+      "index": 0,
+      "proposer": "baseline",
+      "hypothesis": "Naive baseline: spread doses, moderate triggers, some surge beds.",
+      "rationale": "Starting point.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.2,
+          "60-74": 0.25,
+          "75+": 0.25
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_beds": 400
+      },
+      "diff": [],
+      "dev": {
+        "score": 28.4,
+        "per_seed": [
+          27.2,
+          28.8,
+          29.3,
+          27.9,
+          28.8
+        ],
+        "breakdown": {
+          "hospital_days": 203200,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "BASELINE",
+      "errors": [],
+      "champion_score": 28.4,
+      "duration_s": 0.4,
+      "at": "2026-10-25T13:30:05Z"
+    },
+    {
+      "index": 1,
+      "proposer": "gemini",
+      "hypothesis": "Shifting doses to the over-75s cuts admissions most per dose.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_beds": 400
+      },
+      "diff": [
+        {
+          "path": "vaccine_share.0-17",
+          "before": 0.1,
+          "after": 0.05
+        },
+        {
+          "path": "vaccine_share.18-39",
+          "before": 0.2,
+          "after": 0.1
+        },
+        {
+          "path": "vaccine_share.60-74",
+          "before": 0.25,
+          "after": 0.3
+        },
+        {
+          "path": "vaccine_share.75+",
+          "before": 0.25,
+          "after": 0.35
+        }
+      ],
+      "dev": {
+        "score": 31.8,
+        "per_seed": [
+          30.6,
+          32.2,
+          32.7,
+          31.3,
+          32.2
+        ],
+        "breakdown": {
+          "hospital_days": 196400,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 31.8,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:11Z"
+    },
+    {
+      "index": 2,
+      "proposer": "gemini",
+      "hypothesis": "Earlier school closures flatten the peak enough to pay for themselves.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 25,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_beds": 400
+      },
+      "diff": [
+        {
+          "path": "school_close_trigger_per_100k",
+          "before": 40,
+          "after": 25
+        }
+      ],
+      "dev": {
+        "score": 30.1,
+        "per_seed": [
+          28.9,
+          30.5,
+          31.0,
+          29.6,
+          30.5
+        ],
+        "breakdown": {
+          "hospital_days": 199800,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 31.8,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:17Z"
+    },
+    {
+      "index": 3,
+      "proposer": "gemini",
+      "hypothesis": "Cutting surge beds frees budget for test-and-isolate, which averts more.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.45,
+        "surge_beds": 150
+      },
+      "diff": [
+        {
+          "path": "surge_beds",
+          "before": 400,
+          "after": 150
+        },
+        {
+          "path": "test_isolate_level",
+          "before": 0.3,
+          "after": 0.45
+        }
+      ],
+      "dev": {
+        "score": 35.6,
+        "per_seed": [
+          34.4,
+          36.0,
+          36.5,
+          35.1,
+          36.0
+        ],
+        "breakdown": {
+          "hospital_days": 188800,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 35.6,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:23Z"
+    },
+    {
+      "index": 4,
+      "proposer": "gemini",
+      "hypothesis": "Workplace closure trigger at 45 per 100k avoids the late peak.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 45,
+        "test_isolate_level": 0.45,
+        "surge_beds": 150
+      },
+      "diff": [
+        {
+          "path": "work_close_trigger_per_100k",
+          "before": 60,
+          "after": 45
+        }
+      ],
+      "dev": {
+        "score": 36.4,
+        "per_seed": [
+          35.2,
+          36.8,
+          37.3,
+          35.9,
+          36.8
+        ],
+        "breakdown": {
+          "hospital_days": 187200,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 36.4,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:29Z"
+    },
+    {
+      "index": 5,
+      "proposer": "gemini",
+      "hypothesis": "Raising test-and-isolate further beats more vaccine to 18-39s.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 45,
+        "test_isolate_level": 0.6,
+        "surge_beds": 60
+      },
+      "diff": [
+        {
+          "path": "surge_beds",
+          "before": 150,
+          "after": 60
+        },
+        {
+          "path": "test_isolate_level",
+          "before": 0.45,
+          "after": 0.6
+        }
+      ],
+      "dev": {
+        "score": 41.2,
+        "per_seed": [
+          40.0,
+          41.6,
+          42.1,
+          40.7,
+          41.6
+        ],
+        "breakdown": {
+          "hospital_days": 177600,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 41.2,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:35Z"
+    },
+    {
+      "index": 6,
+      "proposer": "gemini",
+      "hypothesis": "Moving 5% of doses to 0-17 cuts school transmission.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.05,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 45,
+        "test_isolate_level": 0.6,
+        "surge_beds": 60
+      },
+      "diff": [
+        {
+          "path": "vaccine_share.0-17",
+          "before": 0.05,
+          "after": 0.1
+        },
+        {
+          "path": "vaccine_share.18-39",
+          "before": 0.1,
+          "after": 0.05
+        }
+      ],
+      "dev": {
+        "score": 39.9,
+        "per_seed": [
+          38.7,
+          40.3,
+          40.8,
+          39.4,
+          40.3
+        ],
+        "breakdown": {
+          "hospital_days": 180200,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 41.2,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:41Z"
+    },
+    {
+      "index": 7,
+      "proposer": "gemini",
+      "hypothesis": "Dropping surge beds entirely and closing schools later maximises averted days per pound.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 55,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 45,
+        "test_isolate_level": 0.6,
+        "surge_beds": 0
+      },
+      "diff": [
+        {
+          "path": "school_close_trigger_per_100k",
+          "before": 40,
+          "after": 55
+        },
+        {
+          "path": "surge_beds",
+          "before": 60,
+          "after": 0
+        }
+      ],
+      "dev": {
+        "score": 44.7,
+        "per_seed": [
+          43.5,
+          45.1,
+          45.6,
+          44.2,
+          45.1
+        ],
+        "breakdown": {
+          "hospital_days": 170600,
+          "cost_gbp_m": 39.5,
+          "icu_overflow_days": 0.0,
+          "age_gap": 0.04,
+          "closure_days": 12.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 44.7,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:47Z"
+    },
+    {
+      "index": 8,
+      "proposer": "gemini",
+      "hypothesis": "Spending the remainder on isolation pay lifts compliance.",
+      "rationale": "Proposed from the champion's breakdown.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.05,
+          "18-39": 0.1,
+          "40-59": 0.2,
+          "60-74": 0.3,
+          "75+": 0.35
+        },
+        "school_close_trigger_per_100k": 55,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 45,
+        "test_isolate_level": 0.7,
+        "surge_beds": 0,
+        "isolation_pay_gbp_m": 9
+      },
+      "diff": [
+        {
+          "path": "isolation_pay_gbp_m",
+          "before": null,
+          "after": 9
+        },
+        {
+          "path": "test_isolate_level",
+          "before": 0.6,
+          "after": 0.7
+        }
+      ],
+      "dev": null,
+      "decision": "INVALID",
+      "errors": [
+        "isolation_pay_gbp_m: unknown field",
+        "budget: GBP 48.5M exceeds GBP 40M"
+      ],
+      "champion_score": 44.7,
+      "duration_s": 3.1,
+      "at": "2026-10-25T13:30:53Z"
+    }
+  ],
+  "reveal": {
+    "salt": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "holdout": {
+      "seeds": [
+        9001,
+        9002,
+        9003,
+        9004,
+        9005,
+        9006,
+        9007,
+        9008,
+        9009,
+        9010,
+        9011,
+        9012,
+        9013,
+        9014,
+        9015,
+        9016,
+        9017,
+        9018,
+        9019,
+        9020
+      ],
+      "shifts": [
+        {
+          "id": "transmissibility_1_4x",
+          "label": "1.4x transmissibility",
+          "params": {
+            "beta_mult": 1.4
+          }
+        },
+        {
+          "id": "uptake_minus_30",
+          "label": "30% lower vaccine uptake",
+          "params": {
+            "uptake_mult": 0.7
+          }
+        },
+        {
+          "id": "delayed_start",
+          "label": "Wave starts 3 weeks later",
+          "params": {
+            "start_delay_days": 21
+          }
+        },
+        {
+          "id": "new_variant",
+          "label": "New variant (immune escape)",
+          "params": {
+            "escape": 0.3,
+            "beta_mult": 1.15
+          }
+        }
+      ]
+    },
+    "revealed_at": "2026-10-25T13:31:00Z",
+    "results": [
+      {
+        "iteration": 0,
+        "dev_score": 28.4,
+        "per_shift": {
+          "base": 27.1,
+          "transmissibility_1_4x": 18.9,
+          "uptake_minus_30": 22.4,
+          "delayed_start": 26.0,
+          "new_variant": 20.3
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 22.94,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": 18.9,
+        "relative_gap": 0.1923,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 1,
+        "dev_score": 31.8,
+        "per_shift": {
+          "base": 30.2,
+          "transmissibility_1_4x": 21.7,
+          "uptake_minus_30": 24.0,
+          "delayed_start": 29.1,
+          "new_variant": 23.5
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 25.7,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": 21.7,
+        "relative_gap": 0.1918,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 3,
+        "dev_score": 35.6,
+        "per_shift": {
+          "base": 33.9,
+          "transmissibility_1_4x": 24.8,
+          "uptake_minus_30": 27.2,
+          "delayed_start": 32.5,
+          "new_variant": 26.1
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 28.9,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": 24.8,
+        "relative_gap": 0.1882,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 4,
+        "dev_score": 36.4,
+        "per_shift": {
+          "base": 34.6,
+          "transmissibility_1_4x": 25.5,
+          "uptake_minus_30": 27.9,
+          "delayed_start": 33.0,
+          "new_variant": 26.6
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 29.52,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": 25.5,
+        "relative_gap": 0.189,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 5,
+        "dev_score": 41.2,
+        "per_shift": {
+          "base": 38.8,
+          "transmissibility_1_4x": 16.2,
+          "uptake_minus_30": 25.1,
+          "delayed_start": 37.0,
+          "new_variant": 19.4
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 27.3,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": 16.2,
+        "relative_gap": 0.3374,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "holdout mean 27.3 is 34% below its dev score 41.2 (limit 25%)",
+          "collapses under 1.4x transmissibility: 16.2 vs naive baseline 18.9",
+          "collapses under New variant (immune escape): 19.4 vs naive baseline 20.3"
+        ]
+      },
+      {
+        "iteration": 7,
+        "dev_score": 44.7,
+        "per_shift": {
+          "base": 41.0,
+          "transmissibility_1_4x": -12.6,
+          "uptake_minus_30": 14.3,
+          "delayed_start": 39.2,
+          "new_variant": -3.8
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "transmissibility_1_4x": "1.4x transmissibility",
+          "uptake_minus_30": "30% lower vaccine uptake",
+          "delayed_start": "Wave starts 3 weeks later",
+          "new_variant": "New variant (immune escape)"
+        },
+        "holdout_mean": 15.62,
+        "worst_shift_id": "transmissibility_1_4x",
+        "worst_score": -12.6,
+        "relative_gap": 0.6506,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "holdout mean 15.6 is 65% below its dev score 44.7 (limit 25%)",
+          "collapses under 1.4x transmissibility: -12.6 vs naive baseline 18.9",
+          "collapses under 30% lower vaccine uptake: 14.3 vs naive baseline 22.4",
+          "collapses under New variant (immune escape): -3.8 vs naive baseline 20.3"
+        ]
+      }
+    ],
+    "dev_champion_iteration": 7,
+    "selected_iteration": 4,
+    "verdict": "OVERFIT",
+    "result_sha256": "a756635a4b36b6bfd33f1525b86f706abf99bdedd2694a9281bab3c99f96cf05",
+    "memo": "sealed:v1:reveal:sample-epidemic-0001:5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a:a756635a4b36b6bfd33f1525b86f706abf99bdedd2694a9281bab3c99f96cf05:OVERFIT:4",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:reveal:sample-epidemic-0001:5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a:a756635a4b36b6bfd33f1525b86f706abf99bdedd2694a9281bab3c99f96cf05:OVERFIT:4",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:30:00Z",
+      "error": "pending on-chain: agent wallet not funded"
+    }
+  },
+  "error": null,
+  "_note": "SAMPLE FIXTURE with made-up scores (code_sha256 is a placeholder); replaced by epidemic_demo.json once W1 freezes a real run."
+}
