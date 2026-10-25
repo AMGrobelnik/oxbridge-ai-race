@@ -796,6 +796,119 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 @media (max-width:700px){.lv-main{grid-template-columns:1fr;gap:16px}.lv-kpis{gap:12px;padding-block:20px 16px}.kpi{padding:14px 16px}.kpi b{font-size:20px}.kpi small{display:block;margin:2px 0 0}.lv-main>.lv-pane:last-of-type{order:0}.lv-main>.lv-pane:first-of-type{order:1}.lv-stage{height:560px}.lv-body .od:nth-child(n+7),[data-stream] .st:nth-child(n+7){display:none}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* =============================== MARKETS (human view: the waitlist look; the terminal sits behind a toggle) =============================== */
+.mk{background:var(--mist)}
+.mk-wrap{padding-block:48px 120px}
+.mk .kicker{display:inline-flex;align-items:center;gap:8px;color:var(--wheat-ink)}
+.mk-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px 56px;align-items:end;padding-bottom:30px;border-bottom:1px solid var(--hairline)}
+.mk-title h1{margin:16px 0 14px;font:400 clamp(48px,5.4vw,72px)/.92 var(--f-display);letter-spacing:-.03em;color:var(--soil)}
+.mk-title h1 em.s{color:var(--wheat-ink)}
+.mk-title p{max-width:54ch;color:var(--stalk);font:16px/1.6 var(--f-body)}
+.mk-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--glass-edge);border-radius:var(--r-panel);box-shadow:var(--shadow-lift)}
+.mk-stats div{display:flex;flex-direction:column;padding:16px 22px;min-width:132px}
+.mk-stats dt{flex:1}
+.mk-stats small{margin-top:6px;color:var(--up);font:11px var(--f-mono);white-space:nowrap}
+.mk-stats div+div{border-left:1px solid var(--hairline)}
+.mk-stats dt{font:500 11px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase;color:var(--chaff);white-space:nowrap}
+.mk-stats dd{margin:8px 0 0;font:400 38px/1 var(--f-display);color:var(--soil);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mk-stats dd.tick{animation:mktick .9s ease-out}
+@keyframes mktick{from{color:var(--wheat-ink)}}
+.mk-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:26px}
+.mk-cats{display:flex;gap:6px;flex-wrap:wrap}
+.mk-cats button{height:36px;padding:0 15px;border-radius:var(--r-pill);border:1px solid var(--hairline);background:var(--paper);color:var(--stalk);font:500 13px var(--f-body);cursor:pointer;transition:background .25s,color .25s,border-color .25s}
+.mk-cats button small{margin-left:6px;color:var(--chaff);font:11px var(--f-mono)}
+.mk-cats button:hover{border-color:var(--hairline-strong);color:var(--soil)}
+.mk-cats button[aria-pressed="true"]{background:var(--soil);border-color:var(--soil);color:var(--paper)}
+.mk-cats button[aria-pressed="true"] small{color:var(--chaff)}
+.mk-search{display:flex;align-items:center;gap:9px;height:38px;margin-left:auto;padding:0 16px;flex:0 1 320px;min-width:0;border:1px solid var(--hairline-strong);border-radius:var(--r-pill);background:var(--paper);transition:border-color .2s,box-shadow .2s}
+.mk-search svg{width:15px;height:15px;flex:none;color:var(--chaff)}
+.mk-search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:transparent;color:var(--soil);font:14px var(--f-body)}
+.mk-search input::placeholder{color:var(--chaff)}
+.mk-search:focus-within{border-color:var(--wheat);box-shadow:0 0 0 4px var(--cream-soft)}
+.mk-term-t{height:36px;padding:0 14px;border:1px dashed var(--hairline-strong);border-radius:var(--r-pill);background:transparent;color:var(--stalk);font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s,color .2s}
+.mk-term-t:hover{color:var(--soil);background:var(--paper)}
+.mk-term-t[aria-pressed="true"]{border-style:solid;border-color:var(--wheat);background:var(--cream);color:var(--wheat-deep)}
+.mk-msg{min-height:18px;margin:12px 0 0;color:var(--chaff);font:12px var(--f-mono)}
+.mk-main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:28px;margin-top:10px;align-items:start}
+.mk-sub{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px}
+.mk-sub h2,.mk-tape h2{font:400 28px/1.1 var(--f-display);letter-spacing:-.01em;color:var(--soil)}
+.mk-sub span{color:var(--chaff);font:500 11px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase}
+.mk-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:18px}
+.mk-card{position:relative;display:flex;flex-direction:column;gap:14px;padding:20px 20px 16px;min-width:0;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--shadow-lift);color:inherit;text-decoration:none;transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s,border-color .3s;animation:mkin .5s cubic-bezier(.2,.7,.2,1) both}
+.mk-card:hover{transform:translateY(-3px);border-color:var(--hairline-strong);box-shadow:var(--shadow-card)}
+.mk-card:focus-visible{outline:2px solid var(--wheat);outline-offset:3px}
+@keyframes mkin{from{opacity:0;transform:translateY(8px)}}
+.mk-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.mk-card-top .mono{color:var(--chaff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-card h3{min-height:4.05em;font:500 16px/1.35 var(--f-body);letter-spacing:-.01em;color:var(--soil);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.mk-odds{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.mk-odds b{display:block;font:400 56px/.86 var(--f-display);letter-spacing:-.03em;color:var(--soil);font-variant-numeric:tabular-nums;border-radius:8px;transition:color .4s}
+.mk-odds b small{font-size:.48em;margin-left:2px;color:var(--stalk)}
+.mk-odds .lab{display:block;margin-top:8px;color:var(--chaff);font:500 11px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase}
+.mk-chg{text-align:right;font:500 13px var(--f-mono);white-space:nowrap}
+.mk-chg small{display:block;margin-top:3px;color:var(--chaff);font:500 10px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase}
+.mk-card.fu .mk-odds b{animation:mkup 1.4s ease-out}
+.mk-card.fd .mk-odds b{animation:mkdn 1.4s ease-out}
+@keyframes mkup{0%{color:var(--up);background:color-mix(in srgb,var(--up) 12%,transparent)}}
+@keyframes mkdn{0%{color:var(--down);background:color-mix(in srgb,var(--down) 12%,transparent)}}
+.mk-spark{display:block;width:100%;height:46px}
+.mk-buy{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mk-buy span{display:flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:var(--r-field);font:500 13px var(--f-body);transition:background .25s}
+.mk-buy span b{font:500 13px var(--f-mono)}
+.mk-buy .y{background:color-mix(in srgb,var(--up) 10%,transparent);color:var(--up)}
+.mk-buy .n{background:color-mix(in srgb,var(--down) 9%,transparent);color:var(--down)}
+.mk-card:hover .mk-buy .y{background:color-mix(in srgb,var(--up) 16%,transparent)}
+.mk-card:hover .mk-buy .n{background:color-mix(in srgb,var(--down) 14%,transparent)}
+.mk-cons{display:flex;align-items:center;gap:10px;color:var(--stalk);font:12px/1.4 var(--f-body)}
+.mk-cons-bar{position:relative;flex:0 0 64px;height:4px;border-radius:99px;background:var(--field)}
+.mk-cons-bar i{position:absolute;top:-4px;width:2px;height:12px;margin-left:-1px;border-radius:1px;background:var(--soil)}
+.mk-cons-bar u{position:absolute;top:-3px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--wheat);box-shadow:0 0 0 2px var(--paper)}
+.mk-cons b{color:var(--soil);font-weight:500}
+.mk-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;border-top:1px solid var(--hairline);color:var(--stalk);font:12px var(--f-mono)}
+.mk-foot .go{color:var(--wheat-ink);font:500 13px var(--f-body);transition:transform .25s}
+.mk-card:hover .mk-foot .go{transform:translateX(3px)}
+.mk-empty{grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--stalk);background:var(--paper);border:1px dashed var(--hairline-strong);border-radius:var(--r-card)}
+.mk-tape{position:sticky;top:84px;overflow:hidden;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-card);box-shadow:var(--shadow-lift)}
+.mk-tape header{display:flex;align-items:center;justify-content:space-between;padding:20px 20px 10px}
+.mk-live{display:inline-flex;align-items:center;gap:7px;color:var(--up);font:500 11px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase}
+.mk-tstats{display:flex;flex-wrap:wrap;gap:4px 14px;padding:0 20px 14px;border-bottom:1px solid var(--hairline);color:var(--stalk);font:12px var(--f-body)}
+.mk-tstats b{color:var(--soil);font:500 12px var(--f-mono)}
+.mk-trades{margin:0;padding:4px 0 8px;list-style:none}
+.mk-trades li{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:11px 20px;cursor:pointer;transition:background .2s}
+.mk-trades li+li{border-top:1px solid var(--hairline)}
+.mk-trades li:hover{background:var(--cream-soft)}
+.mk-trades li.new{animation:mkslide .55s cubic-bezier(.2,.7,.2,1),mkwash 2.2s ease-out}
+@keyframes mkslide{from{opacity:0;transform:translateY(-10px)}}
+@keyframes mkwash{from{background:var(--cream)}}
+.mk-trades .side{text-align:center;padding:3px 0}
+.mk-trades .w{display:flex;align-items:baseline;gap:8px;min-width:0;font:500 13px var(--f-body);color:var(--soil)}
+.mk-trades .w b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-trades .w span{flex:none;color:var(--wheat-ink);font:500 12px var(--f-mono)}
+.mk-trades .q{grid-column:2/-1;color:var(--stalk);font:12px/1.35 var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-trades time{color:var(--chaff);font:11px var(--f-mono)}
+.mk-sec{margin-top:80px}
+.mk-sec-h{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 56px;align-items:end;margin-bottom:24px}
+.mk-sec-h h2{margin-top:12px;font:400 clamp(34px,4vw,52px)/1 var(--f-display);letter-spacing:-.02em;color:var(--soil)}
+.mk-sec-h p{max-width:52ch;color:var(--stalk);font:15px/1.6 var(--f-body)}
+.mk-risk{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,3fr);gap:18px;align-items:start}
+.mk .tp{border-radius:var(--r-card);border-color:var(--hairline);box-shadow:var(--shadow-lift)}
+.mk .tp>header{padding:16px 18px;font:400 22px/1.1 var(--f-display);letter-spacing:-.01em}
+.mk .tp>header .r{font:12px var(--f-body)}
+.mk .tm-heads{padding:14px 14px 0}
+.mk .tm-heads button{border-radius:var(--r-pill);background:var(--paper)}
+.mk .tm-map{margin:10px 14px 0;border-radius:var(--r-panel)}
+.mk .tm-last{padding:12px 16px 16px}
+.mk .tm-last .r{margin-left:auto;color:var(--chaff)}
+.mk .tp-rg .tt-wrap{max-height:470px}
+.mk .tp-rg .tt td:first-child{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.mk-term{margin-top:64px}
+.mk-term-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.mk-term-bar .tm-keys{padding-bottom:0;flex:1;min-width:0}
+.mk-term .tm-grid{grid-template-columns:1fr;padding-block:0 16px}
+.mk-term .tm-news{border-radius:var(--r-panel);border:1px solid var(--hairline)}
+@media (max-width:1120px){.mk-main{grid-template-columns:1fr}.mk-tape{position:static}.mk-trades li:nth-child(n+7){display:none}.mk-risk{grid-template-columns:1fr}}
+@media (max-width:860px){.mk-head,.mk-sec-h{grid-template-columns:1fr}.mk-wrap{padding-block:30px 120px}.mk-search{margin-left:0;flex:1 1 100%;order:-1}}
+@media (max-width:560px){.mk-wrap{padding-inline:16px}.mk-stats div{min-width:0;padding:12px 12px}.mk-stats dt{font-size:9.5px;letter-spacing:.08em;white-space:normal}.mk-stats dd{font-size:28px}.mk-stats small{white-space:normal;font-size:10px}.mk-cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px;width:calc(100% + 32px)}.mk-cats::-webkit-scrollbar{display:none}.mk-cards{grid-template-columns:1fr}.mk-term-t{display:none}.mk .tm-map{height:300px}.mk-sec{margin-top:56px}}
 </style>
 <link rel="stylesheet" href="/frontend/assets/theme.css?v=2" onerror="this.onerror=null;this.href='assets/theme.css'">
 
@@ -991,39 +1104,61 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 
 
 <!-- =============================== MARKETS =============================== -->
-<main class="view tm" data-view="markets" hidden>
-  <div class="tm-bar"><div class="wrap">
-    <div class="tm-bar1">
-      <span class="tm-brand">Crophecy <i>terminal</i> &lt;GO&gt;</span>
-      <form class="tm-input" data-cmd><span>&gt;</span><input id="tm-q" placeholder="Type M02, HAWK, Andalusia, wheat, policy…" autocomplete="off" spellcheck="false" aria-label="Terminal command"><button type="submit">GO</button></form>
-      <span class="tm-st"><i class="dot-live"></i>LIVE SOLANA DEVNET · SLOT <b data-slot>416,222,978</b> · <b data-utc>--:--:--</b> UTC</span>
+<main class="view tm mk" data-view="markets" hidden>
+  <div class="wrap mk-wrap">
+    <header class="mk-head">
+      <div class="mk-title">
+        <span class="kicker"><i class="dot-live"></i>Live · play credits only</span>
+        <h1>Markets <em class="s">on the harvest</em></h1>
+        <p>Yes-or-no questions on Europe's crops, weather and farm policy. People trade them beside AI forecasters, and every price is the crowd's live chance of YES.</p>
+      </div>
+      <dl class="mk-stats">
+        <div><dt>Open markets</dt><dd data-mk-open>–</dd></div>
+        <div><dt>Trades placed</dt><dd data-mk-n>–</dd><small data-mk-5m></small></div>
+        <div><dt>Credits traded</dt><dd data-mk-vol>–</dd></div>
+      </dl>
+    </header>
+    <div class="mk-tools">
+      <div class="mk-cats" data-tcats role="group" aria-label="Category"></div>
+      <form class="mk-search" data-cmd role="search"><svg aria-hidden="true"><use href="#srch"/></svg><input id="tm-q" type="search" placeholder="Search a crop, region or question" autocomplete="off" spellcheck="false" aria-label="Search markets"></form>
+      <button type="button" class="mk-term-t" data-term aria-pressed="false" title="Show the trading terminal panels">Terminal mode</button>
     </div>
-    <div class="tm-keys" data-keys></div>
-    <div class="tm-cats" data-tcats role="group" aria-label="Category"></div>
-    <div class="tm-msg" data-msg>Type a ticker, agent, region or keyword and press GO. Press / to jump here.</div>
-  </div></div>
-  <div class="wrap tm-grid">
-    <section class="tp tp-geo"><header><span class="n">1</span>Geo · risk grid · order routing<span class="r" data-pkts>0 pkts in flight</span></header>
-      <div class="tm-heads" data-heads></div>
-      <div class="tm-map"><canvas id="t-map" aria-label="Map of crop regions. Orders route from each agent column to the region they bet on. Click a region for its DES page."></canvas></div>
-      <div class="tm-last"><span data-lastpkt>LAST —</span><span class="tm-legend">RISK <span><i style="background:#b98a1c"></i>LOW</span><span><i style="background:#d9731a"></i>MED</span><span><i style="background:#b8432f"></i>HIGH</span> · PKT <span><i style="background:#2f7a45"></i>YES</span><span><i style="background:#b8432f"></i>NO</span></span><em data-lastq></em></div>
+    <p class="mk-msg" data-msg aria-live="polite"></p>
+    <div class="mk-main">
+      <section class="mk-list" id="t-mon" aria-labelledby="mk-list-h">
+        <div class="mk-sub"><h2 id="mk-list-h">All markets</h2><span data-open></span></div>
+        <div class="mk-cards" data-mon></div>
+      </section>
+      <aside class="mk-tape" aria-labelledby="mk-tape-h">
+        <header><h2 id="mk-tape-h">Live trades</h2><span class="mk-live"><i class="dot-live"></i>Live</span></header>
+        <div class="mk-tstats"><span><b data-tbpm>0</b> trades/min</span><span><b data-tnot>0 cr</b> in 60 s</span><span>YES/NO <b data-tyn>0/0</b></span></div>
+        <ol class="mk-trades" data-ts></ol>
+      </aside>
+    </div>
+    <section class="mk-sec" aria-labelledby="mk-risk-h">
+      <header class="mk-sec-h"><div><span class="kicker">Climate risk map</span><h2 id="mk-risk-h">Where the trades <em class="s">land</em>.</h2></div><p>Each square is a region, coloured by its market-implied climate risk. Every trade drops from its trader's column to the region it bets on. Click a region for its markets.</p></header>
+      <div class="mk-risk">
+        <div class="tp tp-geo">
+          <div class="tm-heads" data-heads></div>
+          <div class="tm-map"><canvas id="t-map" aria-label="Map of crop regions. Trades route from each trader's column to the region they bet on. Click a region for details."></canvas></div>
+          <div class="tm-last"><span data-lastpkt>Waiting for the next trade</span><span class="r" data-pkts>0 in flight</span><span class="tm-legend">Risk <span><i style="background:#b98a1c"></i>low</span><span><i style="background:#d9731a"></i>medium</span><span><i style="background:#b8432f"></i>high</span> · Trade <span><i style="background:#2f7a45"></i>YES</span><span><i style="background:#b8432f"></i>NO</span></span><em data-lastq></em></div>
+        </div>
+        <div class="tp tp-rg"><header>Resilience Fund by region</header>
+          <div class="tm-stats"><span>Balance <b data-fund>–</b></span><span>Inflow since open <b data-inflow>–</b></span></div>
+          <div class="tt-wrap"><table class="tt"><thead><tr><th>Region</th><th>Risk</th><th class="r">Alloc</th><th class="r">Flow</th></tr></thead><tbody data-rgb></tbody></table></div>
+        </div>
+      </div>
     </section>
-    <section class="tp tp-ts"><header><span class="n">3</span>Time &amp; sales · all actors</header>
-      <div class="tm-stats"><span>BETS/MIN <b data-tbpm>0</b></span><span>NOTIONAL 60S <b data-tnot>$0</b></span><span>YES/NO <b data-tyn>0/0</b></span></div>
-      <div class="tt-wrap"><table class="tt"><thead><tr><th>TIME</th><th>WHO</th><th>MKT</th><th>DESC</th><th>SIDE</th><th class="r">SIZE</th><th class="r">PX</th></tr></thead><tbody data-ts></tbody></table></div>
+    <section class="mk-term" data-termx hidden aria-label="Terminal">
+      <div class="mk-term-bar"><span class="tm-brand">Crophecy <i>terminal</i></span><div class="tm-keys" data-keys></div><span class="tm-st"><span data-slot hidden></span><b data-utc>--:--:--</b> UTC</span></div>
+      <div class="tm-grid">
+        <section class="tp tp-mx"><header>Agent × market · position matrix<span class="r">green YES · red NO · bright = size</span></header><div class="mx-wrap" data-mx></div></section>
+        <section class="tp tp-wire"><header>Behaviour wire · agents and people<span class="r">notes refresh every few seconds</span></header><div class="tt-wrap" style="max-height:340px"><table class="tt"><thead><tr><th>TIME</th><th>TAG</th><th>NOTE</th></tr></thead><tbody data-wire></tbody></table></div></section>
+      </div>
+      <div class="tm-news"><span>NEWS</span><div class="tm-news-in" data-news></div></div>
     </section>
-    <section class="tp tp-mon" id="t-mon"><header><span class="n">2</span>Mkt monitor · YES px (¢)<span class="tm-lay" role="group" aria-label="Layout"><button type="button" data-tl="mon" aria-pressed="true">MONITOR</button><button type="button" data-tl="cards" aria-pressed="false">CARDS</button></span><span class="r" data-open>16 OPEN</span></header>
-      <div data-mon></div>
-    </section>
-    <section class="tp tp-mx"><header><span class="n">4</span>Agent × market · position matrix<span class="r">green YES · red NO · bright = size</span></header><div class="mx-wrap" data-mx></div></section>
-    <section class="tp tp-rg"><header><span class="n">5</span>Region risk board · resilience fund<span class="r">click for DES</span></header>
-      <div class="tm-stats"><span>FUND BAL <b data-fund>$184,317</b></span><span>CUT OF VOL <b>1.00%</b></span><span>INFLOW TODAY <b data-inflow>$0</b></span></div>
-      <div class="tt-wrap"><table class="tt"><thead><tr><th>REGION</th><th>RISK</th><th class="r">ALLOC</th><th class="r">FLOW</th></tr></thead><tbody data-rgb></tbody></table></div>
-    </section>
-    <section class="tp tp-wire"><header><span class="n">6</span>Behaviour wire · agents and people<span class="r">notes refresh every few seconds</span></header><div class="tt-wrap" style="max-height:340px"><table class="tt"><thead><tr><th>TIME</th><th>TAG</th><th>NOTE</th></tr></thead><tbody data-wire></tbody></table></div></section>
   </div>
-  <div class="tm-news"><span>CRPH NEWS</span><div class="tm-news-in" data-news></div></div>
-  <div class="des" data-des hidden><div class="des-in" role="dialog" aria-modal="true" aria-labelledby="des-t"><div class="des-h"><span id="des-t" data-des-t>DES</span><button type="button" data-des-x>[X] CLOSE</button></div><div class="des-b" data-des-b></div></div></div>
+  <div class="des" data-des hidden><div class="des-in" role="dialog" aria-modal="true" aria-labelledby="des-t"><div class="des-h"><span id="des-t" data-des-t>DES</span><button type="button" data-des-x>Close</button></div><div class="des-b" data-des-b></div></div></div>
 </main>
 
 
@@ -1580,71 +1715,94 @@ function b40(m,n=40){const a=[...m.h.slice(-(n-1)),m.last],lo=Math.min(...a)-1,h
 function initMarkets(){
   $('[data-keys]').innerHTML=[['F1','LIVE'],['F2','MKTS'],['F3','AGNT'],['F4','FUND'],['F5','BKTST'],['F6','SEAL'],['F7','NOTE'],['F8','NEWS'],['F9','HELP']].map(([k,l])=>`<button type="button" data-fk="${l}"><b>${k}</b>${l}</button>`).join('');
   $('[data-keys]').addEventListener('click',e=>{const b=e.target.closest('[data-fk]');if(!b)return;({LIVE:()=>go('live'),MKTS:()=>{$('#t-mon').scrollIntoView({behavior:'smooth'})},AGNT:desAgents,FUND:desFund,BKTST:desAgents,SEAL:desSeal,NOTE:desNotes,NEWS:desNews,HELP:desHelp})[b.dataset.fk]()});
-  $('[data-tcats]').innerHTML=['ALL',...CATS.map(c=>c.toUpperCase())].map(c=>`<button type="button" data-tc="${c}" aria-pressed="${c==='ALL'}">${c} <small>${c==='ALL'?MARKETS.length:MARKETS.filter(m=>m.cat.toUpperCase()===c).length}</small></button>`).join('');
-  $('[data-tcats]').addEventListener('click',e=>{const b=e.target.closest('[data-tc]');if(!b)return;TS.cat=b.dataset.tc;TS.q='';$('#tm-q').value='';$$('[data-tc]').forEach(x=>x.setAttribute('aria-pressed',x===b));msg(TS.cat==='ALL'?'ALL MARKETS':`CATEGORY ${TS.cat}`);renderMon()});
-  $('[data-heads]').innerHTML=HEAD_ORDER.map(i=>`<button type="button" data-hd="${i}" title="${i<NA?esc(AGENTS[i].n):i===EXT_I?'External API traders':'Human traders'}">${CODES[i]} <b>0</b></button>`).join('');
+  $('[data-tcats]').innerHTML=['ALL',...CATS].map(c=>`<button type="button" data-tc="${c}" aria-pressed="${c==='ALL'}">${c==='ALL'?'All':esc(c)}<small>${c==='ALL'?MARKETS.length:MARKETS.filter(m=>m.cat===c).length}</small></button>`).join('');
+  $('[data-tcats]').addEventListener('click',e=>{const b=e.target.closest('[data-tc]');if(!b)return;TS.cat=b.dataset.tc;$$('[data-tc]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderMon()});
+  $('[data-heads]').innerHTML=HEAD_ORDER.map(i=>`<button type="button" data-hd="${i}" title="${i<NA?esc(AGENTS[i].n):i===EXT_I?'External API traders':'Human traders'}">${CODES[i]} <b>${HEADS[i]||0}</b></button>`).join('');
   $('[data-heads]').addEventListener('click',e=>{const b=e.target.closest('[data-hd]');if(!b)return;const i=+b.dataset.hd;i<NA?desAgent(i):desActors(i===EXT_I?'ext':'hum')});
-  $$('[data-tl]').forEach(b=>b.addEventListener('click',()=>{TS.lay=b.dataset.tl;$$('[data-tl]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderMon()}));
-  $('[data-cmd]').addEventListener('submit',e=>{e.preventDefault();runCmd($('#tm-q').value)});
-  $('[data-mon]').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)desMarket(r.dataset.id)});
-  $('[data-mon]').addEventListener('keydown',e=>{const r=e.target.closest('[data-id]');if(r&&e.key==='Enter')desMarket(r.dataset.id)});
+  $('#tm-q').addEventListener('input',()=>{TS.q=$('#tm-q').value.trim().toLowerCase();renderMon()});
+  $('[data-cmd]').addEventListener('submit',e=>{e.preventDefault();TS.q=$('#tm-q').value.trim().toLowerCase();renderMon();if(TS.term)runCmd($('#tm-q').value)});
+  $('[data-term]').addEventListener('click',e=>{TS.term=!TS.term;e.currentTarget.setAttribute('aria-pressed',TS.term);$('[data-termx]').hidden=!TS.term;if(TS.term){renderMatrix();$('[data-termx]').scrollIntoView({behavior:'smooth',block:'start'})}});
   $('[data-mx]').addEventListener('click',e=>{const c=e.target.closest('[data-mxm]');if(c)desMarket(c.dataset.mxm);const a=e.target.closest('[data-mxa]');if(a)desAgent(+a.dataset.mxa)});
   $('[data-rgb]').addEventListener('click',e=>{const r=e.target.closest('[data-rk]');if(r)desRegion(+r.dataset.rk)});
-  $('[data-ts]').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)desMarket(r.dataset.id)});
+  $('[data-ts]').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)go('m-'+r.dataset.id)});
+  $('[data-ts]').addEventListener('keydown',e=>{const r=e.target.closest('[data-id]');if(r&&e.key==='Enter')go('m-'+r.dataset.id)});
   $('[data-des-x]').addEventListener('click',closeDes);
   $('[data-des]').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDes()});
   $('[data-des-b]').addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const [k,v]=b.dataset.act.split(':');closeDes();
     if(k==='page')go('m-'+v);else if(k==='mkt')desMarket(v);else if(k==='agent')desAgent(+v);else if(k==='region')desRegion(+v);else if(k==='live')go('live',{agent:+v});else if(k==='liveregion'){go('live');requestAnimationFrame(()=>pickRegion(+v))}});
   document.addEventListener('keydown',e=>{if(VIEW!=='markets')return;if(e.key==='Escape')closeDes();if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();$('#tm-q').focus()}});
-  const news=['EU Commission weighs drought reserve for southern member states','SEAL VERIFIED: backtest holdout committed on slot 412,980,113','Jaén cooperatives report 41% soil moisture into flowering','Rhine at Kaub forecast 92 cm by mid-November','Ukraine corridor insurance premium falls to 0.6%','Poland’s farm ministry confirms import ban review in January','Euronext wheat open interest at a 3-month high','EDO raises Great Plain drought indicator to warning','Resilience Fund passes $184k, first payout vote in March'];
+  const news=['EU Commission weighs drought reserve for southern member states','Jaén cooperatives report 41% soil moisture into flowering','Rhine at Kaub forecast 92 cm by mid-November','Euronext wheat open interest at a 3-month high'];
   const nh=news.map(n=>`<span>■ ${esc(n.toUpperCase())}</span>`).join('');$('[data-news]').innerHTML=nh+nh;
   tMap=new TermMap($('#t-map'));
   NOTES.slice(0,12).reverse().forEach(n=>wireRow(n));
-  renderMon();renderMatrix();renderRegionBoard();
-  $('[data-ts]').innerHTML=EVENTS.slice(0,18).map(e=>tsRow(e)).join('');
-  setInterval(()=>{if(VIEW==='markets')$('[data-utc]').textContent=new Date().toISOString().slice(11,19)},1000);
+  renderMon();renderRegionBoard();
+  $('[data-ts]').innerHTML=EVENTS.slice(0,TS_ROWS).map(e=>tsRow(e)).join('');
+  setInterval(()=>{if(VIEW!=='markets')return;$('[data-utc]').textContent=new Date().toISOString().slice(11,19);mkStats();$$('[data-ts] time[data-t]').forEach(t=>{t.textContent=ago2(+t.dataset.t)})},1000);
+}
+const TS_ROWS=9;
+const ago2=t=>{const s=Math.max(0,(Date.now()-t)/1000|0);return s<60?s+'s':s<3600?(s/60|0)+'m':(s/3600|0)+'h'};
+function mkSet(sel,v){const el=$(sel);if(el&&el.textContent!==v){const first=el.textContent==='–';el.textContent=v;if(!first){el.classList.remove('tick');void el.offsetWidth;el.classList.add('tick')}}}
+function mkStats(){
+  const now=Date.now(),total=Math.max(0,...EVENTS.map(e=>+e.seq||0))||EVENTS.length;let n5=0; // every trade has a ledger seq; each market's history keeps its recent trades with their times
+  for(const m of MARKETS){const ht=m.ht||[];for(let i=ht.length-1;i>=0&&ht[i]&&now-ht[i]<3e5;i--)n5++}
+  mkSet('[data-mk-open]',String(MARKETS.length));mkSet('[data-mk-n]',total.toLocaleString('en-US'));const s5=$('[data-mk-5m]');if(s5)s5.textContent=n5?`+${n5.toLocaleString('en-US')} in the last 5 min`:'';
+  mkSet('[data-mk-vol]',kfmt(MARKETS.reduce((s,m)=>s+(m.vol||0),0)).replace(/ cr$/,''));
 }
 function msg(t){$('[data-msg]').textContent=t}
 function runCmd(v){
   const s=v.trim().toUpperCase();
-  if(!s){TS.q='';msg('FILTER CLEARED');renderMon();return}
+  if(!s){TS.q='';msg('');renderMon();return}
   if(s==='LIVE'){go('live');return}if(s==='HELP'){desHelp();return}if(s==='FUND'){desFund();return}if(s==='SEAL'){desSeal();return}if(s==='NEWS'){desNews();return}if(s==='AGNT'||s==='AGENTS'||s==='BKTST'){desAgents();return}
-  const m=MARKETS.find(x=>x.tk===s||x.code===s);if(m){msg(`DES ${m.tk} · ${m.code}`);desMarket(m.id);return}
+  const m=MARKETS.find(x=>x.tk===s||x.code===s);if(m){desMarket(m.id);return}
   if(s==='NOTE'||s==='NOTES'){desNotes();return}
   const ci=CODES.indexOf(s);if(ci>=0&&ci<NA){desAgent(ci);return}if(s==='HUM'||s==='HUMANS'){desActors('hum');return}if(s==='EXT'){desActors('ext');return}
   const rk=s.length>=3?REGIONS.findIndex(r=>r.n.toUpperCase().includes(s)):-1;if(rk>=0){desRegion(rk);return}
   const ai=AGENTS.findIndex(a=>a.n.toUpperCase().includes(s));if(ai>=0&&s.length>=4){desAgent(ai);return}
-  TS.q=s.toLowerCase();TS.cat='ALL';$$('[data-tc]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.tc==='ALL'));
-  const n=monList().length;msg(n?`FILTER ${s} · ${n} MATCH${n>1?'ES':''}`:`NO MARKET MATCHES ${s}. TRY WHEAT, OIL, POLICY, DROUGHT, M05 OR HAWK.`);renderMon();
 }
-function monList(){const w=TS.q.split(/\s+/).filter(Boolean);return MARKETS.filter(m=>(TS.cat==='ALL'||m.cat.toUpperCase()===TS.cat)&&w.every(x=>(m.q+' '+m.reg+' '+m.cat+' '+m.tags+' '+m.code+' '+m.tk).toLowerCase().includes(x)))}
-function monRow(m,fl){const t=topPos(m);return `<tr data-id="${m.id}" tabindex="0" class="${fl||''}"><td class="tk">${m.tk}</td><td class="q">${esc(m.q)}</td><td class="r" style="color:var(--t-tx)">${m.last.toFixed(1)}</td><td class="r">${tchg(m.last-m.prev)}</td><td>${b40(m)}</td><td class="r">${kfmt(m.vol)}</td><td class="r" style="color:var(--t-vi)">${m.agt}</td><td class="lg"><b style="color:${t.side==='YES'?'var(--t-up)':'var(--t-dn)'}">${CODES[t.ai]} ${t.side} ${t.est}</b> ${esc(t.why)}</td></tr>`}
-function monCard(m,fl){const t=topPos(m);return `<button type="button" class="tc ${fl||''}" data-id="${m.id}"><span class="h"><span class="tk">${m.tk} · ${m.code}</span><span>${m.cat.toUpperCase()} · ${daysLeft(m)}D</span></span><span class="q">${esc(m.q)}</span><span class="px"><b>${m.last.toFixed(1)}¢</b>${tchg(m.last-m.prev)}<span style="margin-left:auto;color:var(--t-mu)">${kfmt(m.vol)}</span></span>${b40(m)}<span class="lg"><b style="color:${t.side==='YES'?'var(--t-up)':'var(--t-dn)'}">${CODES[t.ai]} ${t.side} ${t.est}%</b> ${esc(t.why)}</span><span class="f"><span>SPREAD ${spread(m).toFixed(1)}</span><span>AGT ${m.agt}</span></span></button>`}
+function monList(){const w=TS.q.split(/\s+/).filter(Boolean);return MARKETS.filter(m=>(TS.cat==='ALL'||m.cat===TS.cat)&&w.every(x=>(m.q+' '+m.reg+' '+m.cat+' '+m.tags+' '+m.code+' '+m.tk).toLowerCase().includes(x))).sort((a,b)=>(b.vol||0)-(a.vol||0))}
+function mkCons(m){const f=(POS[m.id]||[]).filter(p=>!p.nf);if(!f.length)return null;return Math.round(f.reduce((s,p)=>s+p.est,0)/f.length)}
+function monCard(m,fl,i=0){
+  const p=Math.round(m.last),d=m.d1!=null?m.d1:m.last-m.prev,c=mkCons(m),gap=c==null?0:c-p;
+  const cons=c==null?`<span>No AI forecasts yet</span>`:`<span class="mk-cons-bar" aria-hidden="true"><i style="left:${p}%"></i><u style="left:${c}%"></u></span><span>AI consensus <b>${c}%</b> · ${gap===0?'level with the market':`${Math.abs(gap)} pts ${gap>0?'above':'below'} market`}</span>`;
+  return `<a class="mk-card ${fl||''}" href="#m-${m.id}" data-id="${m.id}" style="animation-delay:${Math.min(i,12)*35}ms">
+  <div class="mk-card-top"><span class="chip">${esc(m.cat)}</span><span class="mono">${esc(m.reg.split(',')[0])} · ${daysLeft(m)}d left</span></div>
+  <h3>${esc(m.q)}</h3>
+  <div class="mk-odds"><div><b>${p}<small>%</small></b><span class="lab">chance of yes</span></div><div class="mk-chg"><span class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pts</span><small>24 h</small></div></div>
+  ${sparkSVG(m.h,60,'mk-spark')}
+  <div class="mk-buy" aria-hidden="true"><span class="y">Yes <b>${p}¢</b></span><span class="n">No <b>${100-p}¢</b></span></div>
+  <div class="mk-cons">${cons}</div>
+  <div class="mk-foot"><span>${kfmt(m.vol||0)} traded</span><span class="go">Trade →</span></div></a>`;
+}
 function renderMon(){
-  const list=monList(),host=$('[data-mon]');$('[data-open]').textContent=`${list.length} OF ${MARKETS.length} OPEN`;
-  if(!list.length){host.innerHTML=`<div class="tm-empty">NO MARKETS MATCH. TRY WHEAT, OIL, POLICY, WEATHER, ODESA.</div>`;return}
-  host.innerHTML=TS.lay==='mon'?`<div class="tt-wrap"><table class="tt" style="min-width:1050px"><thead><tr><th>TKR</th><th>MARKET</th><th class="r">LAST</th><th class="r">CHG</th><th>40D</th><th class="r">VOL</th><th class="r">AGT</th><th>AGENT LOGIC (LOUDEST)</th></tr></thead><tbody>${list.map(m=>monRow(m)).join('')}</tbody></table></div>`:`<div class="tm-cards">${list.map(m=>monCard(m)).join('')}</div>`;
+  const list=monList(),host=$('[data-mon]');$('[data-open]').textContent=`${list.length} of ${MARKETS.length} open`;
+  $('#mk-list-h').textContent=TS.cat==='ALL'?'All markets':TS.cat;
+  msg(TS.q?(list.length?`${list.length} market${list.length>1?'s':''} match “${TS.q}”`:''):'');
+  mkStats();
+  if(!list.length){host.innerHTML=`<div class="mk-empty">No market matches “${esc(TS.q)}”. Try wheat, olive, drought or policy.</div>`;return}
+  host.innerHTML=list.map((m,i)=>monCard(m,'',i)).join('');
 }
 function renderMatrix(){
-  const mx=Math.max(...MARKETS.flatMap(m=>POS[m.id].map(p=>p.stake)));
-  $('[data-mx]').innerHTML=`<table class="mx"><thead><tr><th></th>${MARKETS.map(m=>`<th title="${esc(m.q)}">${m.tk.slice(1)}</th>`).join('')}</tr></thead><tbody>${AGENTS.map((a,ai)=>`<tr><th class="a" data-mxa="${ai}" style="cursor:pointer">${CODES[ai]}</th>${MARKETS.map(m=>{const p=POS[m.id][ai],al=(.14+.8*p.stake/mx).toFixed(2);return `<td data-mxm="${m.id}" data-c="${ai}-${m.id}" style="background:${p.side==='YES'?`rgba(14,143,91,${al})`:`rgba(207,61,87,${al})`}" title="${CODES[ai]} ${p.side} ${money(p.stake)} on ${m.tk} · thinks ${p.est}%"></td>`}).join('')}</tr>`).join('')}</tbody></table>`;
+  const mx=Math.max(1,...MARKETS.flatMap(m=>POS[m.id].map(p=>p.stake)));
+  $('[data-mx]').innerHTML=`<table class="mx"><thead><tr><th></th>${MARKETS.map(m=>`<th title="${esc(m.q)}">${m.tk.slice(1)}</th>`).join('')}</tr></thead><tbody>${AGENTS.map((a,ai)=>`<tr><th class="a" data-mxa="${ai}" style="cursor:pointer">${CODES[ai]}</th>${MARKETS.map(m=>{const p=POS[m.id][ai],al=(.14+.8*p.stake/mx).toFixed(2);return `<td data-mxm="${m.id}" data-c="${ai}-${m.id}" style="background:${p.side==='YES'?`rgba(47,122,69,${al})`:`rgba(184,67,47,${al})`}" title="${CODES[ai]} ${p.side} ${money(p.stake)} on ${m.tk} · thinks ${p.est}%"></td>`}).join('')}</tr>`).join('')}</tbody></table>`;
 }
 function renderRegionBoard(){
   const tot=REGIONS.reduce((s,r)=>s+r.risk*r.vol,0);
   $('[data-rgb]').innerHTML=[...REGIONS].map((r,k)=>({r,k})).sort((a,b)=>b.r.risk-a.r.risk).map(({r,k})=>`<tr data-rk="${k}"><td>${esc(r.n.split(',')[0].toUpperCase())}</td><td><span class="rbar"><i style="width:${r.risk}%;background:${RISKC[riskWord(r.risk)]}"></i></span><span style="color:${RISKC[riskWord(r.risk)]}">${r.risk}</span></td><td class="r">${(r.risk*r.vol/tot*100).toFixed(1)}%</td><td class="r" data-flow="${k}">${money(r.flow)}</td></tr>`).join('');
 }
-function tsRow(e,fl){return `<tr data-id="${e.m.id}" class="${fl?(e.side==='YES'?'fu':'fd'):''}"><td>${e.time}</td><td style="color:${e.kind==='ai'?'var(--t-vi)':e.kind==='ext'?'var(--t-am)':'var(--t-tx)'}">${esc(e.code)}</td><td class="tk">${e.m.tk}</td><td class="q" style="max-width:150px">${esc(e.m.q)}</td><td class="${e.side==='YES'?'t-up':'t-dn'}">${e.side}</td><td class="r">${money(e.stake)}</td><td class="r">${e.px}</td></tr>`}
+function tsRow(e,fl){const who=e.kind==='ai'&&AGENTS[e.ai]?AGENTS[e.ai].n:(e.a&&e.a.n)||e.code;
+  return `<li data-id="${e.m.id}" tabindex="0" class="${fl?'new':''}" title="${esc(who)} · ${e.side} · ${esc(e.m.q)}">${sideHTML(e.side)}<span class="w"><b>${esc(who)}</b><span>${money(e.stake)}</span></span><time${e.ts?` data-t="${e.ts}"`:''}>${e.ts?ago2(e.ts):e.time}</time><span class="q">${esc(e.m.q)}</span></li>`}
 function termOnBet(ev){
   const m=ev.m,fl=m.dir>=0?'fu':'fd';
-  const tb=$('[data-ts]');tb.insertAdjacentHTML('afterbegin',tsRow(ev,true));while(tb.children.length>18)tb.lastElementChild.remove();
+  const tb=$('[data-ts]');tb.insertAdjacentHTML('afterbegin',tsRow(ev,true));while(tb.children.length>TS_ROWS)tb.lastElementChild.remove();
   const nt=bpmW.reduce((s,x)=>s+x[1],0);$('[data-tbpm]').textContent=bpmW.length;$('[data-tnot]').textContent=money(nt);$('[data-tyn]').textContent=`${YN[0]}/${YN[1]}`;
-  const row=$(`[data-mon] [data-id="${m.id}"]`);if(row){const tmp=document.createElement(TS.lay==='mon'?'tbody':'div');tmp.innerHTML=TS.lay==='mon'?monRow(m,fl):monCard(m,fl);row.replaceWith(tmp.firstElementChild)}
-  if(ev.ai<NA){const c=$(`[data-c="${ev.ai}-${m.id}"]`);if(c){c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),500)}}
+  const card=$(`[data-mon] [data-id="${m.id}"]`);if(card){const tmp=document.createElement('div');tmp.innerHTML=monCard(m,fl);const n=tmp.firstElementChild;n.style.animation='none';card.replaceWith(n)}
+  mkStats();
+  if(TS.term&&ev.ai<NA){const c=$(`[data-c="${ev.ai}-${m.id}"]`);if(c){c.classList.add('hit');setTimeout(()=>c.classList.remove('hit'),500)}}
   const fc=$(`[data-flow="${m.ri}"]`);if(fc){fc.textContent=money(REGIONS[m.ri].flow);fc.classList.remove('fl');void fc.offsetWidth;fc.classList.add('fl')}
   $('[data-inflow]').textContent=money(INFLOW);
-  const hd=$(`[data-hd="${ev.ai}"]`);if(hd){HEADS[ev.ai]++;$('b',hd).textContent=HEADS[ev.ai];hd.classList.add('hot');setTimeout(()=>hd.classList.remove('hot'),260)}
+  const hd=$(`[data-hd="${ev.ai}"]`);if(hd){HEADS[ev.ai]=(HEADS[ev.ai]||0)+1;$('b',hd).textContent=HEADS[ev.ai];hd.classList.add('hot');setTimeout(()=>hd.classList.remove('hot'),260)}
   tMap.send(ev);
-  $('[data-lastpkt]').innerHTML=`LAST <b>${esc(ev.code)}</b> → <b>${m.tk}</b> ${ev.side} ${money(ev.stake)}`;
+  $('[data-lastpkt]').innerHTML=`Last: <b>${esc(ev.code)}</b> → <b>${esc(m.reg.split(',')[0])}</b> ${ev.side} ${money(ev.stake)}`;
   $('[data-lastq]').textContent=quoteFor(ev);
 }
 /* ---- DES windows ---- */
@@ -1697,7 +1855,7 @@ class TermMap{
     const cr=this.c.getBoundingClientRect();this.hx={};$$('[data-hd]').forEach(bt=>{const r=bt.getBoundingClientRect();this.hx[+bt.dataset.hd]=r.left+r.width/2-cr.left});
   }
   xy(lat,lon){const G=this.G;return[(lon-G.lon0)/G.lonS*this.w,(G.lat1-lat)/G.latS*this.h]}
-  send(ev){if(this.pk.length>40)return;this.pk.push({k:ev.m.ri,a:ev.ai,col:ev.side==='YES'?'#2f7a45':'#b8432f',b:this.t,d:1500+Math.random()*700,l:`${ev.code.slice(0,4)} ${ev.side[0]} $${fmt(ev.stake)}`})}
+  send(ev){if(this.pk.length>40)return;this.pk.push({k:ev.m.ri,a:ev.ai,col:ev.side==='YES'?'#2f7a45':'#b8432f',b:this.t,d:1500+Math.random()*700,l:`${ev.code.slice(0,4)} ${ev.side[0]} ${money(ev.stake)}`})}
   frame(){
     if(this.bw!==this.w||this.bh!==this.h)this.build();
     const g=this.x,w=this.w,h=this.h;g.clearRect(0,0,w,h);g.drawImage(this.bg,0,0,w,h);
@@ -1720,7 +1878,7 @@ class TermMap{
       if(u<1){g.fillStyle=p.col;g.fillRect(px-3,py-3,6,6);g.fillText(p.l,px+6,py-5)}else if(!p.done){p.done=1;this.hits[p.k]=this.t}
       if(u<1.4)keep.push(p)}
     this.pk=keep;
-    if(!this.f||this.t-this.f>300){this.f=this.t;const n=keep.filter(p=>(this.t-p.b)/p.d<1).length;$('[data-pkts]').textContent=`${n} PKTS IN FLIGHT`}
+    if(!this.f||this.t-this.f>300){this.f=this.t;const n=keep.filter(p=>(this.t-p.b)/p.d<1).length;$('[data-pkts]').textContent=`${n} trade${n===1?'':'s'} in flight`}
   }
 }
 
