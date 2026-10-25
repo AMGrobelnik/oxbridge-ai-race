@@ -25,7 +25,7 @@ PAGE = Path(__file__).resolve().parent.parent / "harvest" / "static" / "app" / "
 CACHE_MAX = 256
 GROUP = 3  # personas per LLM call: smaller groups answer faster, in parallel
 
-scenario_limiter = RateLimiter(int(os.environ.get("SCENARIO_PER_MIN") or 30))
+scenario_limiter = RateLimiter(int(os.environ.get("SCENARIO_PER_MIN") or 300))
 ask = fast_llm.ask  # module attribute so tests can stub the model
 _llm_cache: "OrderedDict[str, dict[tuple[str, str], tuple[float, str]]]" = OrderedDict()
 _warming: list["asyncio.Task[None]"] = []  # the one preset warm-up task per process

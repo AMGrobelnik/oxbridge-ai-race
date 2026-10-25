@@ -15,7 +15,7 @@ Without an admin token a request may only reach:
 Everything else (starting Sealed runs, anchoring, co-sign approve/reject and
 listings, payments and buys, paid routes, API docs) needs `X-Admin-Token: <ADMIN_TOKEN>`:
 401 without the header, 403 with a wrong one or when ADMIN_TOKEN is unset. Every public
-client also gets a coarse per-IP request cap (PUBLIC_REQUESTS_PER_MIN, default 300).
+client also gets a coarse per-IP request cap (PUBLIC_REQUESTS_PER_MIN, default 3000: about 60 people behind one venue NAT).
 """
 
 import hmac
@@ -40,7 +40,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
 }
 
-request_limiter = RateLimiter(int(os.environ.get("PUBLIC_REQUESTS_PER_MIN") or 300))
+request_limiter = RateLimiter(int(os.environ.get("PUBLIC_REQUESTS_PER_MIN") or 3000))
 verify_limiter = RateLimiter(int(os.environ.get("PUBLIC_VERIFY_PER_MIN") or 12))
 
 

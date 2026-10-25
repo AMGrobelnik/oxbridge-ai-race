@@ -184,3 +184,20 @@ def test_public_sealed_verify_is_open_and_capped(client, monkeypatch):
     # The admin routes next to it stay closed.
     assert client.post("/sealed/api/runs", json={}).status_code == 401
     assert client.post("/sealed/api/runs/sample-epidemic-0001/anchor", json={}).status_code == 401
+
+
+def test_client_ip_trusts_forwarding_headers_only_from_the_local_proxy():
+    from starlette.requests import Request
+
+    def req(peer: str, headers: dict[str, str]) -> Request:
+        raw = [(k.lower().encode(), v.encode()) for k, v in headers.items()]
+        return Request({"type": "http", "headers": raw, "client": (peer, 1234)})
+
+    from agent.challenge.ratelimit import client_ip
+    assert client_ip(req("127.0.0.1", {"CF-Connecting-IP": "5.6.7.8"})) == "5.6.7.8"
+    assert client_ip(req("127.0.0.1", {})) == "127.0.0.1"
+    assert client_ip(req("8.8.4.4", {"CF-Connecting-IP": "5.6.7.8"})) == "8.8.4.4"
+
+
+def test_default_public_get_limit_fits_a_venue_nat():
+    assert public_mode.request_limiter.limit >= 3000

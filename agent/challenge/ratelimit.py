@@ -1,5 +1,6 @@
 """In-memory sliding-window rate limits keyed by client IP (one process, so no shared store)."""
 
+import ipaddress
 import threading
 import time
 from collections import deque
@@ -9,9 +10,25 @@ from starlette.requests import Request
 MAX_KEYS = 50_000
 
 
+def _from_proxy(host: str | None) -> bool:
+    """True when the socket peer is local or private (cloudflared on this machine), so the
+    forwarding headers can be believed; a direct public peer could forge them."""
+    if not host:
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:  # a unix socket or the test client carries no IP
+        return True
+    return ip.is_loopback or ip.is_private
+
+
 def client_ip(request: Request) -> str:
     """The visitor's IP: Cloudflare's CF-Connecting-IP, else the first X-Forwarded-For hop,
-    else the socket peer. Behind a tunnel the peer is always 127.0.0.1, so the headers matter."""
+    else the socket peer. Behind a tunnel the peer is always 127.0.0.1, so the headers matter,
+    but they are read only when the peer is the local proxy."""
+    peer = request.client.host if request.client else None
+    if not _from_proxy(peer):
+        return peer or "unknown"
     for header in ("cf-connecting-ip", "x-real-ip"):
         value = request.headers.get(header, "").strip()
         if value:
@@ -19,7 +36,7 @@ def client_ip(request: Request) -> str:
     forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
     if forwarded:
         return forwarded[:64]
-    return request.client.host if request.client else "unknown"
+    return peer or "unknown"
 
 
 class RateLimiter:

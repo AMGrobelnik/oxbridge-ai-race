@@ -21,7 +21,7 @@ GEMINI_TIMEOUT_S = 12.0
 TOTAL_TIMEOUT_S = 28.0
 NO_STORE = {"Cache-Control": "no-store"}
 
-croppy_limiter = RateLimiter(int(os.environ.get("CROPPY_PER_MIN") or 10))
+croppy_limiter = RateLimiter(int(os.environ.get("CROPPY_PER_MIN") or 300))
 ask = gemini.ask_gemini  # module attribute so tests can stub the model
 
 

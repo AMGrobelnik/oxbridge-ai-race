@@ -108,12 +108,13 @@ def test_byo_times_out_into_the_deterministic_fallback(client, monkeypatch):
     assert r.status_code == 200 and r.json()["source"] == "fallback" and r.json()["brier_holdout"] is not None
 
 
-def test_byo_validation_and_rate_limit(client):
+def test_byo_validation_and_rate_limit(client, monkeypatch):
+    monkeypatch.setattr(routes, "byo_limiter", routes.RateLimiter(6))
     assert client.post("/harvest/api/byo", json={"world_model": THEORY}).status_code == 422
     assert client.post("/harvest/api/byo", json={"name": "x", "world_model": "short"}).status_code == 422
     assert client.post("/harvest/api/byo", json={"name": "x", "world_model": "y" * 1201}).status_code == 422
     codes = [client.post("/harvest/api/byo", json={"name": "", "world_model": THEORY}).status_code for _ in range(5)]
-    assert codes[:3] == [422, 422, 422] and codes[3] == 429  # 6 per minute per IP
+    assert codes[:3] == [422, 422, 422] and codes[3] == 429  # capped per minute per IP
     assert "Retry-After" in client.post("/harvest/api/byo", json={}).headers
 
 

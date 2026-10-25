@@ -20,7 +20,7 @@ from agent.routes import harvest as api
 NO_STORE = {"Cache-Control": "no-store"}
 CACHE_MAX = 256
 
-why_limiter = RateLimiter(int(os.environ.get("WHY_PER_MIN") or 30))
+why_limiter = RateLimiter(int(os.environ.get("WHY_PER_MIN") or 300))
 ask = fast_llm.ask  # module attribute so tests can stub the model
 _cache: "OrderedDict[tuple[str, int, int], str]" = OrderedDict()
 

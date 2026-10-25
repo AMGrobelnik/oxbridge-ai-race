@@ -36,7 +36,7 @@ MAX_FORM = 16_000
 NO_STORE = {"Cache-Control": "no-store"}
 logger = logging.getLogger(__name__)
 
-chat_limiter = RateLimiter(int(os.environ.get("FARMER_CHAT_PER_MIN") or 20))
+chat_limiter = RateLimiter(int(os.environ.get("FARMER_CHAT_PER_MIN") or 300))
 sender_limiter = RateLimiter(int(os.environ.get("WHATSAPP_PER_MIN") or 10))
 _background: set[asyncio.Task[None]] = set()
 
