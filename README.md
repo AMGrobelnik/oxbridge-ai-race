@@ -1,4 +1,4 @@
-# Harvest: an agentic prediction market for European agriculture under climate stress
+# The Crophecy: an agentic prediction market for European agriculture under climate stress
 
 Oxford and Cambridge AI Race, Build track, 25 Oct 2026. Team: Adrian Mladenic Grobelnik, Antonio Aciob and Eashan Rautaray (Cambridge). Python, FastAPI and Solana devnet on the Superteam Agent Studio starter. Pages: `/harvest` (map, charts, world-model leaderboard, Resilience Fund), `/harvest/play` (phone, reached by QR code) and `/harvest/board` (projector). Sealed Backtest (below, `/sealed`) stays underneath as the integrity layer.
 

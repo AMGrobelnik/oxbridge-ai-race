@@ -1,4 +1,4 @@
-"""Harvest pages /harvest, /harvest/play, /harvest/board, /harvest/terms, /harvest/qr.svg (SPEC.md section 12, addendum R3). Owner: UI.
+"""The Crophecy pages /harvest, /harvest/play, /harvest/board, /harvest/terms, /harvest/qr.svg (SPEC.md section 12, addendum R3). Owner: UI.
 
 GET /harvest/api/story is a compact digest of the frozen replay for the pages (the full replay is ~2 MB of trades):
 per-quarter Brier and PnL per world model, the commodity price paths, the sealed holdout with its commitment, and the
@@ -133,5 +133,5 @@ def _page(app: FastAPI, path: str, name: str) -> None:
     @app.get(path, response_class=HTMLResponse, name=f"harvest-{name}")
     async def page() -> HTMLResponse:
         file = STATIC_DIR / name
-        body = file.read_text() if file.exists() else "<!doctype html><title>Harvest</title><p>Harvest is being built.</p>"
+        body = file.read_text() if file.exists() else "<!doctype html><title>The Crophecy</title><p>The Crophecy is being built.</p>"
         return HTMLResponse(body, headers={"Cache-Control": "no-cache"})

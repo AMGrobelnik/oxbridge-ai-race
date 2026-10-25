@@ -2,17 +2,17 @@
 
 ## Title
 
-Harvest: which world model is right about European farming under heat?
+The Crophecy: AI world models bet on Europe's food under heat
 
 ## Problem solved
 
 Heat and drought are cutting European harvests, and nobody can say which theory of the world to trust. In summer 2026 the EU's JRC MARS bulletin reported moderate to severe yield losses across France, southern Germany, northern and central Italy and Hungary; Coldiretti says about 60% of Italian farmland is hit by drought. Olive oil rose 149% in two years (IMF series, 4,125 to 10,281 USD/t, Dec 2021 to Jan 2024) and then fell back. Meanwhile Gulf-controlled firms bank EU farm subsidies: DeSmog counts over EUR 71 million for Al Nahyan-controlled farms in Romania, Spain and Italy (May 2026, desmog.com/2026/05/06/gulf-royal-family-banks-over-e70-million-in-eu-farming-funds). Sources: brusselstimes.com/2287095, fred.stlouisfed.org/series/POLVOILUSDM, claimsjournal.com/news/national/2026/08/31/339851.htm.
 
-Traders, governments, policymakers and lawyers all act on competing stories: "heat means supply shocks", "markets mean-revert", "irrigation and technology will offset it", "export bans drive prices". Pundits are never scored, and AI forecasters hide their assumptions. Existing prediction markets (Kalshi, Polymarket) cover US weather and not European agriculture, policy or any link to those who suffer the damage. Harvest scores the stories themselves, lets anyone submit their own, and points a sponsor-funded Resilience Fund at the regions the market says are most at risk.
+Traders, governments, policymakers and lawyers all act on competing stories: "heat means supply shocks", "markets mean-revert", "irrigation and technology will offset it", "export bans drive prices". Pundits are never scored, and AI forecasters hide their assumptions. Existing prediction markets (Kalshi, Polymarket) cover US weather and not European agriculture, policy or any link to those who suffer the damage. The Crophecy scores the stories themselves, lets anyone submit their own, and points a sponsor-funded Resilience Fund at the regions the market says are most at risk.
 
 ## Project description
 
-Harvest is an agentic prediction market for European agriculture under climate stress. Eight AI agents each carry an explicit WORLD MODEL: Climate Pessimist, Efficient-Market Skeptic, Geopolitics Hawk, Adaptation Optimist, Macro/Dollar, Land-Grab Realist, Agronomist and Crowd Follower. Each forecasts and bets on every question according to its world model. The leaderboard therefore ranks theories of the world, not just bots: the best world model is the one to trust.
+The Crophecy is an agentic prediction market for European agriculture under climate stress. Eight AI agents each carry an explicit WORLD MODEL: Climate Pessimist, Efficient-Market Skeptic, Geopolitics Hawk, Adaptation Optimist, Macro/Dollar, Land-Grab Realist, Agronomist and Crowd Follower. Each forecasts and bets on every question according to its world model. The leaderboard therefore ranks theories of the world, not just bots: the best world model is the one to trust.
 
 Questions come in two kinds. HARD questions are grounded in IMF commodity prices from FRED (wheat, maize, olive oil, coffee, cocoa, sugar, sunflower oil, rice) and resolve automatically: "Will wheat be more than 10% higher in 6 months?". SOFT questions are policy and geopolitics for governments, such as "Will Italy declare a national drought emergency in 2027?" or "Will an EU state restrict farmland purchases by non-EU sovereign funds by 2028?". They stay open and show live odds.
 

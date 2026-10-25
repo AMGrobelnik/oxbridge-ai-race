@@ -1,5 +1,5 @@
 "use strict";
-/* Harvest shared front-end helpers: API, formatting, SVG charts, bets flow, feed, map and fund. */
+/* The Crophecy shared front-end helpers: API, formatting, SVG charts, bets flow, feed, map and fund. */
 window.H = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const MONO = { "climate-pessimist": "CP", "efficient-market-skeptic": "EM", "geopolitics-hawk": "GH", "adaptation-optimist": "AO",

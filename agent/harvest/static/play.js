@@ -282,7 +282,7 @@
       w.append(line, el("div", "r", `“${x.rationale}”`));
       c.append(w);
     }
-    const text = `My world model "${r.name}" scored ${b3(r.brier_holdout)} Brier on Harvest's sealed holdout: rank ${r.rank} of ${r.of} against 8 AI world models and the market. Beat it: ${location.origin}/harvest/play`;
+    const text = `My world model "${r.name}" scored ${b3(r.brier_holdout)} Brier on The Crophecy's sealed holdout: rank ${r.rank} of ${r.of} against 8 AI world models and the market. Beat it: ${location.origin}/harvest/play`;
     const share = el("div", "share");
     const code = el("code", null, text);
     const copy = el("button", "btn", "Copy");
