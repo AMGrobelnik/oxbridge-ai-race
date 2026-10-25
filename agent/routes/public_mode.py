@@ -9,7 +9,7 @@ Without an admin token a request may only reach:
   - POST /sealed/api/verify (read-only bundle check; capped here at PUBLIC_VERIFY_PER_MIN, default 12);
   - the AI Race verifier routes /agent-studio/v1/* (they check their own bearer token).
   - Harvest: GET /harvest and /app (the simple UI) and everything under them (incl. the /harvest/api/news feed); POST /harvest/api/join|bet|forecast|verify|byo|croppy|
-    agents/register|agents/bet (each rate-limited per IP there).
+    agents/register|agents/bet|farmer/chat|whatsapp/twilio|whatsapp/meta (each rate-limited per IP or sender there).
 Everything else (starting Sealed runs, anchoring, co-sign approve/reject and
 listings, payments and buys, paid routes, API docs) needs `X-Admin-Token: <ADMIN_TOKEN>`:
 401 without the header, 403 with a wrong one or when ADMIN_TOKEN is unset. Every public
@@ -29,7 +29,7 @@ from agent.challenge.ratelimit import RateLimiter, client_ip
 
 ADMIN_HEADER = "x-admin-token"
 PUBLIC_GET = re.compile(r"^/(?:|race|favicon\.ico|challenge(?:/.*)?|sealed(?:/.*)?|harvest(?:/.*)?|app(?:/.*)?|map(?:/static/[\w.-]+|/api/(?:state|ledger)|/verify)?)$")
-PUBLIC_POST = re.compile(r"^/(?:challenge/api/(?:score|parse|submit)|map/api/(?:onboard|reverify)|sealed/api/verify|harvest/api/(?:join|bet|forecast|verify|byo|croppy|agents/register|agents/bet))$")
+PUBLIC_POST = re.compile(r"^/(?:challenge/api/(?:score|parse|submit)|map/api/(?:onboard|reverify)|sealed/api/verify|harvest/api/(?:join|bet|forecast|verify|byo|croppy|agents/register|agents/bet|farmer/chat|whatsapp/(?:twilio|meta)))$")
 SEALED_VERIFY = "/sealed/api/verify"
 VERIFIER = re.compile(r"^/agent-studio/v1/[A-Za-z0-9_/-]*$")
 SECURITY_HEADERS = {
