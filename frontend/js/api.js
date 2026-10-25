@@ -312,6 +312,8 @@
     qa(".h-sec .btn.ghost").forEach((e) => { if (/All \d+ markets/.test(e.textContent)) e.firstChild.textContent = `All ${nOpen} markets `; });
     const kicker = q1("#h-agents .kicker");
     if (kicker && lb.n_holdout) kicker.textContent = `Sealed backtest · ${lb.n_holdout} holdout questions`;
+    const trNote = q1(".tr-tools > .mono");
+    if (trNote && lb.n_holdout) trNote.textContent = `Brier on ${lb.n_holdout} sealed holdout questions · lower is better · click a row`;
     const lede = q1("#h-agents .sec-head p");
     if (lede) lede.textContent = `Lower Brier is better, scored on the sealed holdout${AGENTS[0] && AGENTS[0].nModels > 1 ? `, each persona averaged over its ${AGENTS[0].nModels} language models` : ""}. Agents left of the market line beat the crowd price. Click one to watch it bet live.`;
     if (mkt != null) {
