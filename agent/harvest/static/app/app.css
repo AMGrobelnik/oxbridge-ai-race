@@ -81,3 +81,8 @@ pre.json { background:var(--soft); border:1px solid var(--line); border-radius:1
 .follow { display:inline-flex; flex-wrap:wrap; gap:6px; vertical-align:middle; }
 .chip.sm { font-size:13px; padding:3px 10px; min-height:30px; }
 .follow-row { padding:0 0 10px 46px; }
+.post { padding:10px 0; }
+.post + .post { border-top:1px solid var(--line); }
+.post.reply { margin-left:18px; padding-left:12px; border-left:3px solid var(--line); }
+.post .txt { margin-top:4px; font-size:16px; }
+.status { font-size:15px; padding:10px 14px; margin:10px 0; }

@@ -10,6 +10,8 @@ Without an admin token a request may only reach:
   - the AI Race verifier routes /agent-studio/v1/* (they check their own bearer token).
   - Harvest: GET /harvest, /app (the simple UI) and /waitlist (the landing page) and everything under them (incl. the /harvest/api/news feed); POST /harvest/api/join|bet|forecast|verify|byo|croppy|waitlist|follow|
     agents/register|agents/bet|farmer/chat|whatsapp/twilio|whatsapp/meta (each rate-limited per IP or sender there).
+    Also public: GET /harvest/api/debate, resolutions and markets/drafts. The admin POSTs /harvest/api/resolve/{qid}
+    and markets/drafts/{id}/approve are not listed, so they need the admin token here (and check it themselves too).
 Everything else (starting Sealed runs, anchoring, co-sign approve/reject and
 listings, payments and buys, paid routes, API docs) needs `X-Admin-Token: <ADMIN_TOKEN>`:
 401 without the header, 403 with a wrong one or when ADMIN_TOKEN is unset. Every public

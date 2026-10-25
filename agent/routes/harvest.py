@@ -128,6 +128,9 @@ def _schedule_anchor() -> None:
 def _ensure_house_agents() -> None:
     """Starts the background loop where house world models trade live markets on their forecasts, and the news poller."""
     news.ensure_poller()
+    from agent.routes import crophecy_agents
+
+    crophecy_agents.ensure_jobs()  # debate, resolution and news-drafted markets
     interval = market.house_tick_s()
     if interval <= 0:
         return
@@ -191,7 +194,12 @@ def _human_rows(book: LiveBook) -> list[dict[str, Any]]:
 def leaderboard_view(book: LiveBook) -> dict[str, Any]:
     result = replay_result() or {"personas": book.personas, "cutoffs": []}
     lb = scoring.leaderboard(result, external=_external_scores(book), humans=_human_rows(book))
+    from agent.harvest import resolve
+
+    live = resolve.live_scores()  # house agents' Brier on resolved live markets
     for m in lb["world_models"]:
+        if m["persona_id"] in live:
+            m.update(live[m["persona_id"]])  # type: ignore[typeddict-item]
         if byo.is_byo(m["persona_id"]):
             m["origin"] = byo.ORIGIN  # type: ignore[typeddict-item]
         if m["origin"] in scoring.HOUSE_ORIGINS:

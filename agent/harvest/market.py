@@ -376,6 +376,8 @@ class LiveBook(Book):
                 if p.get(k):
                     trade[k] = p[k]  # type: ignore[literal-required]
             return trade
+        elif e["kind"] == "resolve" and replaying and p.get("qid") in self.markets and self.markets[p["qid"]]["status"] == "open":
+            self.resolve(p["qid"], int(p["outcome"]))
         return None
 
     def record(self, *, kind: str, trader: str, payload: dict[str, Any]) -> LedgerEntry:
@@ -552,6 +554,12 @@ def live_book() -> LiveBook:
         if book is None:
             book = LiveBook()
             book.seed(load_replay(), load_soft_specs())
+            try:
+                from . import market_gen
+
+                market_gen.reopen_approved(book)  # news-drafted markets, before their bets replay
+            except Exception:  # noqa: BLE001 - a bad drafts table must never stop the live book
+                logger.exception("harvest: could not re-open approved news markets")
             book.replay_ledger()
             _LIVE.clear()
             _LIVE[key] = book

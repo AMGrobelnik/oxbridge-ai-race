@@ -156,6 +156,60 @@
     });
   }
 
+  // ------------------------------------------------------------ debate, resolution, news-drafted markets
+  const ADMIN_KEY = "crophecy-admin-token";
+  const adminToken = () => { try { return localStorage.getItem(ADMIN_KEY) || ""; } catch (_) { return ""; } };
+  function debateThread(t, withTitle) {
+    const first = t.posts[0] || {};
+    return h("div", { class: "card" },
+      withTitle ? h("a", { href: `/app/market/${encodeURIComponent(t.qid)}`, class: "small" }, first.title || t.qid) : null,
+      t.posts.map((p) => h("div", { class: "post" + (p.reply_to ? " reply" : "") },
+        h("b", { style: `color:${p.color || "inherit"}` }, p.name || p.author),
+        h("span", { class: "muted small" }, ` · ${pct(p.p_yes)} YES${p.reply_to ? " · replying" : ""} · ${ago(p.at)}`),
+        h("div", { class: "txt" }, p.text))));
+  }
+  async function loadDebate(box, qid, max) {
+    try {
+      const d = await api(`/debate?limit=60${qid ? `&qid=${encodeURIComponent(qid)}` : ""}`);
+      const ts = (d.threads || []).slice(0, max || 5);
+      box.replaceChildren(...(ts.length ? ts.map((t) => debateThread(t, !qid)) : [h("p", { class: "muted" }, qid ? "No debate on this market yet. Agents pick the most disputed market every few minutes." : "No debates yet.")]));
+    } catch (e) { box.replaceChildren(h("p", { class: "muted" }, e.message)); }
+  }
+  async function loadResolution(qid, box) {
+    try {
+      const r = await api("/resolutions");
+      const s = (r.markets || []).find((x) => x.qid === qid);
+      if (!s) return;
+      const label = { resolved: "Resolved", waiting: "Auto-resolution", proposed: "Proposed resolution", open: "Resolution" }[s.state] || "Resolution";
+      const ev = s.proposal && s.proposal.evidence && s.proposal.evidence.length
+        ? h("div", { class: "small" }, "Cited: ", s.proposal.evidence.slice(0, 3).map((e, i) => [i ? "; " : "", h("a", { href: e.url, target: "_blank", rel: "noopener" }, e.title)])) : null;
+      box.replaceChildren(h("div", { class: "card status" + (s.state === "resolved" ? " good" : "") }, h("b", {}, `${label}: `), s.text, ev));
+    } catch (_) { /* status is optional */ }
+  }
+  async function loadDrafts(box) {
+    let rows;
+    try { rows = (await api("/markets/drafts")).drafts || []; } catch (e) { box.replaceChildren(h("p", { class: "muted" }, e.message)); return; }
+    const token = adminToken();
+    const draw = () => box.replaceChildren(...(rows.length ? rows.slice(0, 12).map((d) => {
+      const out = h("div");
+      const approve = token && d.status === "draft" ? h("button", { class: "btn small", onclick: async () => {
+        approve.disabled = true;
+        try {
+          const r = await fetch(`${API}/markets/drafts/${d.id}/approve`, { method: "POST", headers: { "X-Admin-Token": token } });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+          d.status = "approved"; d.qid = j.qid; draw();
+        } catch (e) { approve.disabled = false; out.replaceChildren(failure(e)); }
+      } }, "Approve") : null;
+      return h("div", { class: "row" },
+        h("span", { class: "q" }, d.qid ? h("a", { href: `/app/market/${encodeURIComponent(d.qid)}` }, d.question) : d.question,
+          h("span", { class: "sub" }, `${d.kind} · ${d.region} · ${d.crop} · ${d.status}${d.deadline ? ` · by ${d.deadline}` : ""} · ${d.resolution_source}`),
+          d.why ? h("span", { class: "sub" }, d.why) : null, out),
+        approve);
+    }) : [h("p", { class: "muted" }, "Nothing proposed yet. The news agent drafts new markets from fresh headlines every 15 minutes.")]));
+    draw();
+  }
+
   // ------------------------------------------------------------ pages
   function waitlistBox(stats) {
     const contact = h("input", { type: "text", maxlength: "254", placeholder: "Email or handle, e.g. @maria", "aria-label": "Email or handle", autocomplete: "email" });
@@ -220,7 +274,9 @@
       }) : [h("p", { class: "muted" }, "No markets match.")]));
     }
     draw();
-    show(h("h1", {}, "Markets"), search, chips, rows);
+    const draftsBox = h("div");
+    show(h("h1", {}, "Markets"), search, chips, rows, h("h2", {}, "Proposed by the news agent"), draftsBox);
+    loadDrafts(draftsBox);
   }
 
   async function marketPage() {
@@ -229,7 +285,7 @@
     let m, state;
     try { m = await api(`/markets/${encodeURIComponent(qid)}`); state = await api("/state?since=999999999"); } catch (e) { show(h("h1", {}, "Market not found"), failure(e), h("a", { class: "btn", href: "/app/markets" }, "Back to markets")); return; }
     let spend = 25;
-    const priceBox = h("div"), result = h("div"), position = h("div");
+    const priceBox = h("div"), result = h("div"), position = h("div"), resBox = h("div"), debateBox = h("div");
     const yesBtn = h("button", { class: "btn yes", onclick: () => bet("YES") }, "YES");
     const noBtn = h("button", { class: "btn no", onclick: () => bet("NO") }, "NO");
     const amounts = h("div", { class: "amounts" });
@@ -289,15 +345,20 @@
       h("h2", {}, m.status === "open" ? "Place your bet" : "This market is closed"),
       m.status === "open" ? [h("p", { class: "muted" }, "How many play credits?"), amounts, h("div", { class: "yn" }, yesBtn, noBtn)] : null,
       result, position,
+      h("h2", {}, "Agent debate"), debateBox,
       h("h2", {}, "What the agents think"),
       views.length ? views.map((v) => h("div", { class: "agent" }, h("b", {}, names.get(v.persona_id) || v.name || v.persona_id), h("span", { class: "p" }, `${pct(v.p_yes)} YES`),
         " ", followControls(`agent:${v.persona_id}`), h("span", { class: "why" }, v.rationale || ""))) : h("p", { class: "muted" }, "No agent has weighed in yet.")].flat().filter(Boolean));
     show(h("a", { href: "/app/markets", class: "muted small" }, "← All markets"),
       h("h1", {}, m.title), h("p", { class: "muted" }, `${m.region} · ${m.crop} · closes ${m.resolve_month}`),
-      toggle, humanBox, agentBox);
+      resBox, toggle, humanBox, agentBox);
     setMode(mode);
     yesBtn.disabled = noBtn.disabled = m.status !== "open";
     drawPosition();
+    loadResolution(qid, resBox);
+    loadDebate(debateBox, qid);
+    const dTimer = setInterval(() => { if (!document.hidden) loadDebate(debateBox, qid); }, 30000);
+    window.addEventListener("pagehide", () => clearInterval(dTimer));
   }
 
   // the agent view: what an AI agent is given for one market, barebones
@@ -330,8 +391,11 @@
   }
 
   async function live() {
-    const feed = h("div"), news = h("div");
-    show(h("h1", {}, "Live"), h("p", { class: "muted small" }, "Updates every few seconds."), h("h2", {}, "Latest bets"), feed, h("h2", {}, "News"), news);
+    const feed = h("div"), news = h("div"), debates = h("div");
+    show(h("h1", {}, "Live"), h("p", { class: "muted small" }, "Updates every few seconds."), h("h2", {}, "Latest bets"), feed, h("h2", {}, "Agent debates"), debates, h("h2", {}, "News"), news);
+    loadDebate(debates, "", 6);
+    const dTimer = setInterval(() => { if (!document.hidden) loadDebate(debates, "", 6); }, 20000);
+    window.addEventListener("pagehide", () => clearInterval(dTimer));
     async function tick() {
       try {
         const s = await api("/state");
