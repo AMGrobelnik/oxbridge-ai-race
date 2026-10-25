@@ -13,6 +13,7 @@ import asyncio
 import calendar
 import json
 import re
+import sqlite3
 import time
 from pathlib import Path
 from typing import Any
@@ -20,12 +21,14 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from agent.harvest import ledger
 from agent.routes import harvest as api
 
 LANDING_DIR = Path(__file__).resolve().parents[2] / "landing"
 PAGE = LANDING_DIR / "index.html"
 FALLBACK_LINK = re.compile(r'href="(/[\w/-]*)" data-fallback="([^"]*)"')
 FULL_TTL_S = 15.0
+ANCHOR_TTL_S = 4.0
 POLL_TRADES = 150
 SPLIT_TRADES = 3000  # recent bets counted for each market's YES/NO split
 _cache: dict[str, Any] = {}
@@ -89,6 +92,28 @@ def _leaderboard(book: Any) -> dict[str, Any]:
             "n_models": len(wm), "house": house[:10], "best": {k: wm[0].get(k) for k in keep} if wm else None}
 
 
+def _anchor() -> dict[str, Any] | None:
+    """The latest ledger head confirmed on Solana devnet: {count, signature, explorer_url, at}, or None before the first one.
+    Cached for ANCHOR_TTL_S, since every open landing page polls it."""
+    hit = _cache.get("anchor")
+    if hit and time.monotonic() - hit[0] < ANCHOR_TTL_S:
+        return hit[1]
+    try:
+        with ledger.connect() as conn:
+            row = conn.execute("SELECT count, signature, explorer_url, at FROM anchors WHERE kind = 'ledger' AND status = 'confirmed' "
+                               "AND signature IS NOT NULL ORDER BY id DESC LIMIT 1").fetchone()
+    except sqlite3.Error:
+        return None
+    out = dict(row) if row else None
+    _cache["anchor"] = (time.monotonic(), out)
+    return out
+
+
+def _volume(book: Any) -> float:
+    """Credits traded across the open markets."""
+    return round(sum(float(m.get("volume") or 0) for m in book.markets.values() if m.get("status") == "open"), 2)
+
+
 def _market(view: dict[str, Any], split: list[int]) -> dict[str, Any]:
     out = {k: view.get(k) for k in ("qid", "title", "kind", "region", "crop", "adverse_if", "p_yes", "volume", "status")}
     out["split"] = split
@@ -110,6 +135,7 @@ def full_view(book: Any) -> dict[str, Any]:
         "agents": sum(1 for t in book.traders.values() if t["kind"] == "external"), "users": book.users(),
         "fund": {"treasury": fund.get("treasury"), "fee_rate": fund.get("fee_rate"), "allocations": fund.get("allocations", [])[:6]},
         "ledger_head": {"seq": book.ledger_head[0], "hash": book.ledger_head[1]}, "leaderboard": _leaderboard(book),
+        "volume": _volume(book),
     }
 
 
@@ -122,7 +148,8 @@ def poll_view(book: Any, since: int) -> dict[str, Any]:
             "trades": [_trade(t) for t in new], "names": {t["trader"]: names[t["trader"]] for t in new if t["trader"] in names},
             "prices": {q: book.market_view(q)["p_yes"] for q in book.markets},
             "agents": sum(1 for t in book.traders.values() if t["kind"] == "external"),
-            "ledger_head": {"seq": book.ledger_head[0], "hash": book.ledger_head[1]}}
+            "ledger_head": {"seq": book.ledger_head[0], "hash": book.ledger_head[1]},
+            "volume": _volume(book), "treasury": round(float(book.fund), 4)}
 
 
 def _geo() -> dict[str, Any]:
@@ -148,13 +175,16 @@ def register(app: FastAPI) -> None:
         def build() -> dict[str, Any]:
             if since is not None:
                 with book.lock:
-                    return poll_view(book, since)
+                    body = poll_view(book, since)
+                body["anchor"] = _anchor()
+                return body
             hit = _cache.get("full")
             if hit and time.monotonic() - hit[0] < FULL_TTL_S:
                 return hit[1]
             with book.lock:
                 body = full_view(book)
             body["geo"] = _geo().get("regions", [])
+            body["anchor"] = _anchor()
             _cache["full"] = (time.monotonic(), body)
             return body
 

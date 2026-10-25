@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@700;800&text=%E3%82%AF%E3%83%AD%E3%83%95%E3%82%A7%E3%82%B7%E3%83%BC%E4%B8%80%E4%BA%8C%E4%B8%89%E7%90%86%E8%AB%96%E5%9F%BA%E9%87%91%E4%BA%88%E8%A8%80%E5%8F%8E%E7%A9%AB%E5%B0%81%E5%8D%B0&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@700;800&text=%E3%82%AF%E3%83%AD%E3%83%95%E3%82%A7%E3%82%B7%E3%83%BC%E4%B8%80%E4%BA%8C%E4%B8%89%E7%90%86%E8%AB%96%E5%9F%BA%E9%87%91%E4%BA%88%E8%A8%80%E5%8F%8E%E7%A9%AB%E5%B0%81%E5%8D%B0%E8%BB%8C%E9%81%93&display=swap">
 <style>
 /* Layout: a sticky misty-field stage with the hanko seal logo at its centre; the video fades
    away as you scroll and the waitlist rises out of the haze, then a quiet column of sections. */
@@ -239,7 +239,7 @@ section.s{padding-block:clamp(80px,11vw,140px)}
 @media (max-width:480px){.flow-row{grid-template-columns:1fr 44px}.flow-row .track{grid-column:1 / -1;grid-row:2}}
 @media (max-width:860px){.fund{grid-template-columns:1fr}}
 
-.close{text-align:center;padding-block:clamp(90px,12vw,160px);display:grid;justify-items:center}
+.close{text-align:center;padding-block:clamp(24px,4vw,56px) clamp(90px,12vw,160px);display:grid;justify-items:center}
 .close h2{font:400 clamp(48px,8vw,120px)/.92 var(--f-display);letter-spacing:-.03em}
 .close h2 em{color:var(--wheat-ink)}
 .close p{color:var(--stalk);margin:20px auto 32px;max-width:40ch;font-size:17px}
@@ -272,7 +272,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .globe-col{display:grid;gap:14px;min-width:0}
 .globe-box{position:relative;aspect-ratio:1/1;border-radius:28px;overflow:hidden;border:1px solid var(--line);
   background:radial-gradient(circle at 50% 42%,var(--paper) 0%,var(--mist) 70%);box-shadow:0 30px 70px -40px rgba(30,40,20,.35)}
-#g-live{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#g-live,#g-orbit{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
 .globe-tag{position:absolute;left:16px;top:16px;font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stalk);
   background:rgba(251,252,249,.78);border:1px solid var(--glass-line);padding:7px 11px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .globe-focus{position:absolute;left:16px;right:16px;bottom:16px;font:400 12px/1.45 var(--f-mono);color:var(--soil);background:rgba(251,252,249,.82);
@@ -293,14 +293,45 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .feed-list .bet{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
 .yes{color:var(--leaf)} .no{color:var(--hanko)}
 @keyframes feedin{from{opacity:0;transform:translateY(-6px)}}
-@media (max-width:900px){.live-grid{grid-template-columns:1fr;gap:36px}.globe-col{order:-1}}
+@media (max-width:900px){.live-grid{grid-template-columns:1fr;gap:36px}}
+.stats.strip{grid-template-columns:repeat(3,minmax(0,1fr));max-width:none;margin-top:clamp(40px,5vw,64px)}
+.strip .stat{padding:18px 20px}
+.strip .stat b{font-size:clamp(28px,3vw,38px)}
+.strip a{color:var(--sol);text-decoration:none}.strip a:hover{text-decoration:underline}
+.strip small{font:400 11px/1.4 var(--f-mono);color:#8a9180;overflow-wrap:anywhere}
+@media (max-width:700px){.stats.strip{grid-template-columns:1fr}}
+
+/* orbit: a second globe tours six live bets, west to east */
+.orbit{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:56px;align-items:center}
+.orbit h2{font:400 clamp(40px,5.2vw,70px)/.98 var(--f-display);letter-spacing:-.02em;margin-top:14px}
+.orbit h2 em{color:var(--wheat-ink)}
+.orbit .sub{color:var(--stalk);font-size:17px;max-width:44ch;margin-top:18px}
+.tour{list-style:none;margin:26px 0 0;padding:0;border-top:1px solid var(--line)}
+.tour button{width:100%;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 6px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font:15px/1.3 var(--f-body);color:var(--soil);cursor:pointer;transition:background .2s}
+.tour button:hover{background:rgba(20,25,15,.035)}
+.tour button.on{background:rgba(201,154,59,.12)}
+.tour .i{font:500 11px var(--f-mono);color:var(--wheat-ink)}
+.tour .r{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tour .r small{color:var(--stalk);font-size:12.5px}
+.tour .px{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums}
+.orbit-hud{position:absolute;left:16px;right:16px;bottom:16px;padding:14px 16px;border-radius:16px;background:rgba(251,252,249,.86);border:1px solid var(--glass-line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:grid;gap:6px;transition:opacity .35s}
+.orbit-hud.chg{opacity:.25}
+.orbit-hud .top{font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stalk)}
+.orbit-hud h3{font:400 21px/1.15 var(--f-display)}
+.orbit-hud .ln{display:flex;flex-wrap:wrap;gap:4px 14px;font:400 11.5px/1.4 var(--f-mono);color:var(--stalk)}
+.orbit-hud .ln b{font-weight:500;color:var(--soil)}
+@media (max-width:900px){.orbit{grid-template-columns:1fr;gap:32px}}
+.watch{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:-2px 0 8px;padding:7px 10px;border-radius:10px;background:rgba(201,154,59,.12);font:400 12px/1.35 var(--f-mono);color:var(--soil)}
+.watch button{border:0;background:none;font:500 12px var(--f-mono);color:var(--wheat-ink);cursor:pointer;white-space:nowrap;padding:0}
 
 .board{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);gap:40px;align-items:start}
 .board .stats{margin-top:0}
 .board-chart{padding:22px 22px 16px;display:grid;gap:4px;min-width:0}
-.bk-row{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 52px;gap:14px;align-items:center;font-size:14px;min-height:30px}
-.bk-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bk-name small{color:var(--stalk);font:400 11px var(--f-mono);margin-left:6px}
+.bk-row{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr) 52px;gap:14px;align-items:center;font-size:14px;min-height:40px;padding:3px 8px;margin-inline:-8px;border-radius:10px;cursor:pointer;transition:background .2s}
+.bk-row:hover{background:rgba(20,25,15,.04)}
+.bk-row.on{background:rgba(201,154,59,.14)}
+.bk-name{min-width:0;line-height:1.25;overflow-wrap:anywhere}
+.bk-name small{display:block;color:var(--stalk);font:400 11px var(--f-mono);margin-top:2px}
 .bk-val{font:500 12px var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
 .bk-track{position:relative;height:22px}
 .bk-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line)}
@@ -308,7 +339,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .bk-dot{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid var(--paper);box-shadow:0 0 0 1px rgba(20,25,15,.18)}
 .bk-line{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1.5px dashed var(--wheat-ink)}
 .bk-line.coin{border-left-color:var(--stalk);border-left-style:dotted}
-.bk-axis{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 52px;gap:14px;margin-top:8px;font:400 11px var(--f-mono);color:var(--stalk)}
+.bk-axis{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr) 52px;gap:14px;margin-top:8px;font:400 11px var(--f-mono);color:var(--stalk)}
 .bk-axis .ticks{position:relative;height:30px}
 .bk-axis .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
 .bk-axis .ticks span.tk-m{color:var(--wheat-ink);top:14px}
@@ -335,10 +366,19 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .flash-up{color:var(--leaf)!important} .flash-dn{color:var(--hanko)!important}
 @media (max-width:980px){.mk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){.mk-grid{grid-template-columns:1fr}}
-.mini-flow{padding:14px;gap:10px;margin-top:4px;background:var(--mist)}
-.mini-flow .flow-row{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) 44px;font-size:12.5px;gap:10px}
-.mini-flow .flow-row>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media (max-width:480px){.mini-flow .flow-row{grid-template-columns:minmax(0,1fr) 44px}}
+/* the Resilience Fund: balance and live split, under the three steps */
+.fund-card{margin-top:16px;display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);gap:40px;align-items:center;padding:28px;border:1px solid var(--line);border-radius:22px;background:var(--paper)}
+.fund-card h3{font:400 30px/1.05 var(--f-display);margin-top:12px}
+.fund-card .bal{display:flex;align-items:baseline;gap:10px;margin-top:14px}
+.fund-card .bal b{font:400 46px/1 var(--f-display);color:var(--leaf);font-variant-numeric:tabular-nums}
+.fund-card .bal span{font:500 12px var(--f-mono);color:var(--stalk)}
+.fund-card p{color:var(--stalk);font-size:14px;margin-top:12px;max-width:40ch}
+.fund-card .flow{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;background:var(--mist)}
+.fund-card .flow-row{grid-template-columns:minmax(0,1fr) minmax(0,.7fr) 44px;font-size:13px;gap:10px}
+.fund-card .flow-row>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:860px){.fund-card{grid-template-columns:1fr;gap:22px}.fund-card .flow{grid-template-columns:1fr}}
+@media (max-width:480px){.fund-card{padding:22px}.fund-card .flow-row{grid-template-columns:minmax(0,1fr) 44px}}
+.step code a{color:inherit;text-decoration:none}.step code a:hover{text-decoration:underline}
 
 </style>
 </head>
@@ -396,7 +436,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <div class="stats four" aria-label="Live market numbers">
         <div class="stat lead"><b data-k="per_min">…</b><span>Bets per minute</span></div>
         <div class="stat"><b data-k="since">0</b><span>Bets since you arrived</span></div>
-        <div class="stat"><b data-k="bets">…</b><span>Bets on the ledger</span></div>
+        <div class="stat"><b data-k="bets">…</b><span>Bets placed</span></div>
         <div class="stat"><b data-k="markets">…</b><span>Open markets</span></div>
       </div>
       <div class="ctas-row">
@@ -412,10 +452,37 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       </div>
       <div class="feed card" aria-label="Latest bets">
         <div class="feed-head"><span class="eyebrow">Latest bets</span><span class="feed-seq mono" id="feed-seq"></span></div>
+        <div class="watch" id="watch" hidden></div>
         <ol class="feed-list" id="feed"><li class="feed-empty">Connecting to the order book…</li></ol>
       </div>
     </div>
+  </div>
+  <div class="wrap">
+    <div class="stats strip rise" aria-label="Market totals">
+      <div class="stat"><b data-k="volume">…</b><span>Open volume · credits traded on open markets</span></div>
+      <div class="stat lead"><b data-k="treasury">…</b><span>Resilience Fund · credits, <span data-k="fee2">a share</span> of every trade</span></div>
+      <div class="stat"><b id="anchor-n">…</b><span>Last Solana devnet anchor · ledger entries sealed</span><small id="anchor-tx"></small></div>
+    </div>
   </div></section>
+
+  <section class="s wrap" id="orbit" data-view="home">
+    <span class="kj" aria-hidden="true">軌道</span>
+    <div class="orbit">
+      <div class="rise">
+        <span class="eyebrow">Orbit · the busiest live bets</span>
+        <h2 id="orbit-h"><span data-k="tour_n">Six</span> live bets, from <em data-k="tour_w">…</em> to <span data-k="tour_e">…</span>.</h2>
+        <p class="sub">The most traded open market in each of <span data-k="tour_n2">six</span> regions, west to east. The globe flies to each in turn and lights up as new bets land there. Pick one to go straight to it.</p>
+        <ol class="tour" id="tour"></ol>
+      </div>
+      <div class="globe-col rise">
+        <div class="globe-box">
+          <canvas id="g-orbit" aria-label="Globe touring the busiest live markets, west to east."></canvas>
+          <span class="globe-tag mono"><i class="dot"></i><span id="orbit-n">01 / 06</span></span>
+          <div class="orbit-hud" id="orbit-hud" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section class="s wrap" id="backtest">
     <span class="kj" aria-hidden="true">予言</span>
@@ -424,7 +491,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <span class="eyebrow">Sealed backtest · <span data-k="n_holdout">…</span> holdout questions</span>
         <h2 style="margin-top:14px">Which world model <em>reads the harvest best?</em></h2>
       </div>
-      <p>Lower Brier is better. World models to the left of the market line beat the crowd price on questions they never saw. <span id="insight"></span></p>
+      <p>Lower Brier is better. World models to the left of the market line beat the crowd price on questions they never saw. <span id="insight"></span> Click one to watch how it bets live.</p>
     </div>
     <div class="board rise">
       <div class="board-chart card" id="board" aria-label="Brier score on the sealed holdout, lower is better"></div>
@@ -470,6 +537,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <h3>Hashed the moment it trades</h3>
         <p>Each agent's probability goes onto the ledger the moment it bets, and the ledger's head is committed to Solana devnet.</p>
         <code id="head">ledger head loading…</code>
+        <code id="head-anchor" hidden></code>
       </article>
       <article class="step">
         <span class="n"><b>二</b>Score</span>
@@ -480,8 +548,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <span class="n"><b>三</b>Fund</span>
         <h3>Money where the heat hits</h3>
         <p><span data-k="fee">…</span> of every trade flows to the Resilience Fund, split towards the regions the market prices as most at risk.</p>
-        <div class="flow mini-flow" id="flow"></div>
       </article>
+    </div>
+    <div class="fund-card rise">
+      <div>
+        <span class="eyebrow">Resilience Fund · live</span>
+        <div class="bal"><b data-k="treasury2">…</b><span>credits in the fund</span></div>
+        <p>Split now by how much risk the market prices for each region and crop. The top six shares are shown.</p>
+      </div>
+      <div class="flow" id="flow"></div>
     </div>
   </section>
 
@@ -629,14 +704,18 @@ class Globe{
     if(hq[3]>0){g.globalAlpha=1;g.fillStyle=T.hub;g.fillRect(hq[0]-4,hq[1]-4,8,8);g.strokeStyle='#fff';g.lineWidth=1.5;g.strokeRect(hq[0]-4,hq[1]-4,8,8)}
     // region markers
     g.font='500 11px Geist, system-ui, sans-serif';
+    const tags=[];
     for(let k=0;k<REGIONS.length;k++){
       const rg=REGIONS[k],q=this.proj[k]=this.pr(Math.sin(rg.lat*D2R),Math.cos(rg.lat*D2R),Math.sin(rg.lon*D2R),Math.cos(rg.lon*D2R),1);
       if(q[3]<=0)continue;const act=k===this.active,hov=k===this.hover,sz=2.6+Math.sqrt(rg.vol/MAXV)*3.4,pl=(this.t*.001+k*.29)%1;
       g.globalAlpha=(1-pl)*(act?.8:.35);g.strokeStyle=act?T.hot:T.mark;g.lineWidth=1.3;g.beginPath();g.arc(q[0],q[1],sz+pl*(act?24:10),0,6.2832);g.stroke();
       g.globalAlpha=1;g.fillStyle=act||hov?T.hot:(this.o.risk?riskColor(rg.risk):T.mark);g.beginPath();g.arc(q[0],q[1],act||hov?sz+1.6:sz,0,6.2832);g.fill();g.strokeStyle=T.ring;g.lineWidth=2;g.stroke();
-      if(this.o.labels&&(this.cam.zoom>2.4||act||hov)){const t=rg.n.split(',')[0];g.globalAlpha=act||hov?1:.75;g.fillStyle=act||hov?'#0b0a10':T.label;
-        const tw=g.measureText(t).width;g.fillStyle='rgba(255,255,255,.82)';g.fillRect(q[0]+sz+5,q[1]-8,tw+8,16);g.fillStyle=act||hov?'#0b0a10':T.label;g.fillText(t,q[0]+sz+9,q[1]+4)}
+      if(this.o.labels&&((this.cam.zoom>2.4&&this.o.allLabels!==false)||act||hov))tags.push([k,q,sz,act||hov]);
     }
+    // labels after every marker, so no dot sits on top of a label; the active one last, on top
+    tags.sort((a,b)=>a[3]-b[3]);
+    for(const [k,q,sz,on] of tags){const t=REGIONS[k].n.split(',')[0],tw=g.measureText(t).width;
+      g.globalAlpha=on?1:.8;g.fillStyle='rgba(255,255,255,.88)';g.fillRect(q[0]+sz+5,q[1]-8,tw+8,16);g.fillStyle=on?'#0b0a10':T.label;g.fillText(t,q[0]+sz+9,q[1]+4)}
     g.globalAlpha=1;
   }
 }
@@ -910,7 +989,11 @@ requestAnimationFrame(loop);
   const FEED = '/harvest/api/landing', POLL_MS = 2500, FEED_ROWS = 6;
   const C = {yes: '#2e6b3c', no: '#b4372a'};
   const ZOOM = 1.12;
-  let G = null, seq = 0, since = 0, M = {}, names = {}, colors = {}, queue = [], lastFocus = 0;
+  let G = null, G2 = null, seq = 0, since = 0, M = {}, names = {}, colors = {}, queue = [], lastFocus = 0;
+  // the world model a trader runs: agent:climate-pessimist--phi-4 and ext:climate-pessimist-phi-4-bcc126 share one key
+  const wmKey = tid => String(tid || '').replace(/^(ext|agent):/, '').replace(/-[0-9a-f]{6}$/, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const SEEN = [], LAST = {};
+  let WATCH = null, TOUR = [], TI = 0, held = 0;
 
   const short = (s, n) => (s = String(s || '')).length > n ? s.slice(0, n - 1) + '…' : s;
   function who(tid) {
@@ -964,18 +1047,28 @@ requestAnimationFrame(loop);
     li.title = t.why || '';
     return li;
   }
+  const watched = t => !WATCH || wmKey(t.trader) === WATCH.key;
   function play(t, counted = true) {
+    SEEN.push(t); if (SEEN.length > 400) SEEN.shift();
+    LAST[t.qid] = t;
     const list = $('#feed');
-    list.querySelector('.feed-empty')?.remove();
-    list.prepend(feedRow(t));
-    while (list.children.length > FEED_ROWS) list.lastChild.remove();
+    if (watched(t)) {
+      list.querySelector('.feed-empty')?.remove();
+      list.prepend(feedRow(t));
+      while (list.children.length > FEED_ROWS) list.lastChild.remove();
+    }
     const m = M[t.qid];
     if (m) {
       m.p_yes = t.price_after;
+      m.volume = (m.volume || 0) + (+t.spend || 0);
+      if (G2 && m.ri != null) G2.comet(m.ri, t.side === 'YES' ? C.yes : C.no, -1);
+      if (TOUR[TI] && TOUR[TI].qid === t.qid) hud(TOUR[TI], false);
+      const tp = document.querySelector(`[data-tp="${CSS.escape(t.qid)}"]`);
+      if (tp) tp.textContent = Math.round(m.p_yes * 100) + '%';
       if (G && m.ri != null) {
         G.comet(m.ri, t.side === 'YES' ? C.yes : C.no, -1);
         const now = performance.now();
-        if (now - lastFocus > 4200) {
+        if (watched(t) && (now - lastFocus > 4200 || WATCH)) {
           lastFocus = now;
           const r = REGIONS[m.ri];
           G.set({lon: 12 + (r.lon - 12) * .6, lat: 40 + (r.lat - 45) * .6, zoom: ZOOM + Math.random() * .3}, m.ri);
@@ -989,6 +1082,65 @@ requestAnimationFrame(loop);
     if (counted) set('since', fmt(++arrived));
   }
   let arrived = 0;
+
+  /* ---------- watch one world model: from a backtest row to its live bets ---------- */
+  function watch(pid, name) {
+    const key = pid ? wmKey('agent:' + pid) : null;
+    WATCH = key && (!WATCH || WATCH.key !== key) ? {key, name} : null;
+    document.querySelectorAll('.bk-row').forEach(r => r.classList.toggle('on', !!WATCH && r.dataset.pid === pid));
+    const bar = $('#watch'), list = $('#feed');
+    if (WATCH) {
+      bar.innerHTML = `<span>Watching <b>${esc(short(name, 48))}</b>: the house agent and every outside agent running it</span><button type="button">Show all</button>`;
+      bar.hidden = false;
+    } else bar.hidden = true;
+    const rows = SEEN.filter(watched).slice(-FEED_ROWS).reverse();
+    list.innerHTML = '';
+    rows.forEach(t => list.append(feedRow(t)));
+    if (!rows.length) list.innerHTML = '<li class="feed-empty">Waiting for its next bet…</li>';
+    $('#focus').classList.remove('on'); lastFocus = 0;
+  }
+
+  /* ---------- orbit: tour the busiest open market in six regions, west to east ---------- */
+  const place = ri => REGIONS[ri].n.split(',')[0];
+  const pad = n => String(n).padStart(2, '0');
+  function hud(m, flash = true) {
+    const el = $('#orbit-hud'), t = LAST[m.qid];
+    const last = t ? `last bet: <b>${esc(short(who(t.trader), 30))}</b> <span class="${t.side === 'YES' ? 'yes' : 'no'}">${t.side}</span>` : 'waiting for the next bet';
+    const paint = () => {
+      el.innerHTML = `<span class="top">${esc(m.region)} · ${esc(m.crop)} · ${esc(m.kind || 'market')}</span><h3>${esc(m.title)}</h3>`
+        + `<div class="ln"><span><b>${Math.round(m.p_yes * 100)}%</b> chance of YES</span><span><b>${fmt(m.volume || 0)}</b> cr traded</span><span>${last}</span></div>`;
+      el.classList.remove('chg');
+    };
+    if (!flash) return paint();
+    el.classList.add('chg'); setTimeout(paint, 250);
+  }
+  function go(i) {
+    TI = i;
+    const m = TOUR[i], r = REGIONS[m.ri];
+    G2.set({lon: r.lon, lat: r.lat - 1.2, zoom: 3.4}, m.ri);
+    document.querySelectorAll('#tour button').forEach((b, j) => b.classList.toggle('on', j === i));
+    $('#orbit-n').textContent = `${pad(i + 1)} / ${pad(TOUR.length)}`;
+    hud(m);
+  }
+  function tour(markets) {
+    // places on the map: EU-wide markets sit on a nominal pin, so the tour leaves them to the live globe
+    const live = markets.filter(m => m.status !== 'resolved' && m.ri != null).sort((a, b) => b.volume - a.volume), used = new Set();
+    const local = live.filter(m => !/^EU\b/.test(m.region || '')), open = new Set(local.map(m => m.ri)).size >= 2 ? local : live;
+    for (const m of open) { if (used.has(m.ri)) continue; used.add(m.ri); TOUR.push(m); if (TOUR.length === 6) break; }
+    if (TOUR.length < 2) { $('#orbit').hidden = true; return; }
+    TOUR.sort((a, b) => REGIONS[a.ri].lon - REGIONS[b.ri].lon);
+    const word = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six'][TOUR.length];
+    set('tour_n', word); set('tour_n2', word.toLowerCase());
+    const w = TOUR[0], e = TOUR[TOUR.length - 1], same = w.region === e.region;
+    set('tour_w', same ? place(w.ri) : w.region); set('tour_e', same ? place(e.ri) : e.region);
+    $('#tour').innerHTML = TOUR.map((m, i) => `<li><button type="button" data-i="${i}"><span class="i">${pad(i + 1)}</span>`
+      + `<span class="r">${esc(place(m.ri))} <small>· ${esc(m.title)}</small></span><span class="px" data-tp="${esc(m.qid)}">${Math.round(m.p_yes * 100)}%</span></button></li>`).join('');
+    const r0 = REGIONS[TOUR[0].ri];
+    G2 = new Globe($('#g-orbit'), {rf: .42, labels: true, allLabels: false, risk: true, spinRate: 0, keepDrag: true, start: {lon: r0.lon, lat: 30, zoom: 1}});
+    $('#tour').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { held = performance.now(); go(+b.dataset.i); } });
+    go(0);
+    setInterval(() => { if (!document.hidden && performance.now() - held > 15000) go((TI + 1) % TOUR.length); }, 5200);
+  }
 
   function paintCard(m, side) {
     const el = document.querySelector(`[data-q="${CSS.escape(m.qid)}"]`);
@@ -1006,10 +1158,10 @@ requestAnimationFrame(loop);
     const vals = rows.flatMap(r => [r.brier_holdout_lo ?? r.brier_holdout, r.brier_holdout_hi ?? r.brier_holdout]).concat([base.market || .25, base.coin || .25]);
     const lo = Math.floor(Math.min(...vals) * 50) / 50, hi = Math.ceil(Math.max(...vals) * 50) / 50, x = v => ((v - lo) / (hi - lo) * 100).toFixed(2) + '%';
     const line = (v, cls) => v == null ? '' : `<i class="bk-line ${cls}" style="left:${x(v)}"></i>`;
-    $('#board').innerHTML = rows.map(r => `<div class="bk-row"><span class="bk-name" title="${esc(r.name)}">${esc(r.persona_name || r.name)}<small>${esc(r.model_label || '')}</small></span>`
+    $('#board').innerHTML = rows.map(r => `<div class="bk-row" role="button" tabindex="0" data-pid="${esc(r.persona_id)}" data-name="${esc(r.name)}" title="Watch ${esc(r.name)} bet live"><span class="bk-name">${esc(r.persona_name || r.name)}<small>${esc(r.model_label || '')}</small></span>`
       + `<span class="bk-track">${line(base.market, 'mkt')}${line(base.coin, 'coin')}<i class="bk-ci" style="left:${x(r.brier_holdout_lo ?? r.brier_holdout)};width:calc(${x(r.brier_holdout_hi ?? r.brier_holdout)} - ${x(r.brier_holdout_lo ?? r.brier_holdout)})"></i>`
       + `<i class="bk-dot" style="left:${x(r.brier_holdout)};background:${esc(r.color || '#55604c')}"></i></span><span class="bk-val">${r.brier_holdout.toFixed(3)}</span></div>`).join('')
-      + `<div class="bk-axis"><span>Brier, ${lo.toFixed(2)} to ${hi.toFixed(2)}</span><span class="ticks"><span style="left:0">${lo.toFixed(2)}</span><span style="left:100%">${hi.toFixed(2)}</span>`
+      + `<div class="bk-axis"><span>Brier score</span><span class="ticks"><span style="left:0">${lo.toFixed(2)}</span><span style="left:100%">${hi.toFixed(2)}</span>`
       + (base.market != null ? `<span class="tk-m" style="left:${x(base.market)}">market ${base.market.toFixed(3)}</span>` : '')
       + `</span><span></span></div>`;
     set('b_market', base.market != null ? base.market.toFixed(3) : '–');
@@ -1036,19 +1188,35 @@ requestAnimationFrame(loop);
 
   function fund(f) {
     set('fee', f.fee_rate != null ? `${+(f.fee_rate * 100).toFixed(2)}%` : 'A share');
-    const al = (f.allocations || []).slice(0, 4), max = Math.max(1e-9, ...al.map(a => a.share));
+    if (f.fee_rate != null) set('fee2', `${+(f.fee_rate * 100).toFixed(2)}%`);
+    const al = (f.allocations || []).slice(0, 6), max = Math.max(1e-9, ...al.map(a => a.share));
     $('#flow').innerHTML = al.map(a => `<div class="flow-row"><span>${esc(a.region)} · ${esc(a.crop)}</span><span class="track"><i style="--w:${(a.share / max * 100).toFixed(1)}%"></i></span><span class="mono">${(a.share * 100).toFixed(1)}%</span></div>`).join('')
       || '<small>The fund splits once markets have prices.</small>';
   }
 
-  function head(h) { if (h && h.hash) $('#head').textContent = `ledger #${fmt(h.seq)} · ${h.hash.slice(0, 10)}…${h.hash.slice(-8)}`; }
+  function head(h) { if (h && h.hash) $('#head').textContent = `ledger entry #${fmt(h.seq)} · ${h.hash.slice(0, 10)}…${h.hash.slice(-8)}`; }
+  let anchored = -1;
+  function anchor(a) {
+    if (a === undefined) return;
+    if (!a) { $('#anchor-n').textContent = '–'; $('#anchor-tx').textContent = 'No anchor confirmed yet'; return; }
+    if (a.count === anchored) return;
+    anchored = a.count;
+    const tx = `<a href="${esc(a.explorer_url)}" target="_blank" rel="noopener">${esc(a.signature.slice(0, 6))}…${esc(a.signature.slice(-6))} ↗</a>`;
+    $('#anchor-n').textContent = '#' + fmt(a.count);
+    $('#anchor-tx').innerHTML = `tx ${tx}`;
+    const ha = $('#head-anchor');
+    ha.innerHTML = `anchored on Solana devnet at entry #${fmt(a.count)} · tx ${tx}`; ha.hidden = false;
+  }
   function counts(d) {
     if (d.per_min != null) set('per_min', d.per_min >= 10 ? fmt(d.per_min) : d.per_min.toFixed(1));
     if (d.bets != null) set('bets', fmt(d.bets));
     if (d.agents != null) set('agents', fmt(d.agents));
     if (d.agents != null && personas) set('traders', fmt(d.agents + personas));
-    $('#feed-seq').textContent = seq ? `#${fmt(seq)}` : '';
-    head(d.ledger_head);
+    if (d.volume != null) set('volume', fmt(d.volume));
+    const tr = d.treasury ?? d.fund?.treasury;
+    if (tr != null) { set('treasury', fmt(tr)); set('treasury2', fmt(tr)); }
+    $('#feed-seq').textContent = seq ? `bet #${fmt(seq)}` : '';
+    head(d.ledger_head); anchor(d.anchor);
   }
   let personas = 0;
 
@@ -1062,8 +1230,16 @@ requestAnimationFrame(loop);
     personas = (d.personas || []).length;
     set('personas', fmt(personas)); set('personas2', personas ? fmt(personas) : 'Many');
     buildGlobe(d.geo || [], d.markets);
-    cards(d.markets); board(d.leaderboard || {}); fund(d.fund || {});
+    cards(d.markets); board(d.leaderboard || {}); fund(d.fund || {}); tour(d.markets);
     seq = since = d.seq; counts(d);
+    SEEN.push(...(d.recent || []).slice(0, -FEED_ROWS));
+    const pick = e => { const r = e.target.closest('.bk-row'); if (!r) return;
+      watch(r.dataset.pid, r.dataset.name);
+      const top = $('.globe-col').getBoundingClientRect().top + scrollY - 84;
+      scrollTo({top: Math.max($('#hero').offsetHeight, top), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); };
+    $('#board').addEventListener('click', pick);
+    $('#board').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(e); } });
+    $('#watch').addEventListener('click', e => { if (e.target.closest('button')) watch(null); });
     // replay the last few bets so the globe and feed start alive, then follow the market
     const recent = (d.recent || []).slice(-FEED_ROWS);
     if (!recent.length) $('#feed').innerHTML = '<li class="feed-empty">Waiting for the next bet…</li>';
