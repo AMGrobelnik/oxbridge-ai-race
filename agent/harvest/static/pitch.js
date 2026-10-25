@@ -63,7 +63,7 @@
       const isNew = prev && !prev.has(b.seq);
       const human = b.who === "human";
       return `<li class="${human ? "human" : "bot"}${isNew ? " new" : ""}"><span class="ic">${human ? "👤" : "🤖"}</span>` +
-        `<span class="nm">${esc(human ? "@" + b.username : b.name)}<small>${human ? "human" : "AI agent"} · ${Math.round(b.spend)} cr · now ${pct(b.price_after)}</small></span>` +
+        `<span class="nm">${esc(human ? "@" + b.username : b.name)}<small>${human ? "human" : "AI agent"} · ${Math.round(b.spend)} cr · now ${Math.round(b.price_after * 100)}%</small></span>` +
         `<span class="pill ${b.side}">${b.side}</span></li>`;
     }).join("");
   }
