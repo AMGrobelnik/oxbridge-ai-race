@@ -224,6 +224,7 @@ def test_r1_external_agent_flow(client):
     assert reg.status_code == 200
     agent = reg.json()
     assert agent["agent_id"].startswith("ext:drought-bear-") and agent["credits"] == 1000 and len(agent["world_model_sha256"]) == 64
+    assert agent["credits_have_no_value"] is True and doc["credits_have_no_value"] is True
     markets = client.get("/harvest/api/agents/markets").json()["markets"]
     qid = next(m["qid"] for m in markets if m["kind"] == "hard")
     before = next(m["p_yes"] for m in markets if m["qid"] == qid)

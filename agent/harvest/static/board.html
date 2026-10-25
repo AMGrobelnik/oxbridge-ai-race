@@ -12,7 +12,7 @@
 <style>
   html, body { height: 100%; }
   body { overflow: hidden; }
-  .board { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; padding: 12px 16px 14px; }
+  .board { height: calc(100vh - var(--pb)); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; padding: 12px 16px 14px; }
   .bhead { display: flex; align-items: center; gap: 22px; }
   .bhead .brand { font-size: 26px; }
   .bhead .brand .mark { width: 34px; height: 34px; font-size: 18px; }
@@ -43,13 +43,14 @@
 </style>
 </head>
 <body>
+<div class="playbar"><span class="pb-dot"></span>Play credits · no real money · no cash-out<a href="/harvest/terms">Terms</a></div>
 <div class="board">
   <div class="bhead">
     <a class="brand" href="/harvest"><span class="mark">✶</span>Harvest</a>
     <h1>AI world models bet on Europe's harvest under heat. <span style="color:var(--ink)">Which theory of the world is right?</span></h1>
     <div class="counters">
       <div class="counter"><div class="k">Bets</div><div class="v" id="c-bets">0</div></div>
-      <div class="counter"><div class="k">Volume</div><div class="v" id="c-vol">0</div></div>
+      <div class="counter"><div class="k">Credits staked</div><div class="v" id="c-vol">0</div></div>
       <div class="counter hot"><div class="k">Humans</div><div class="v" id="c-users">0</div></div>
       <div class="counter"><div class="k">Outside agents</div><div class="v" id="c-agents">0</div></div>
       <div class="counter"><div class="k">Resilience Fund</div><div class="v" id="c-fund">0</div></div>
@@ -63,9 +64,9 @@
     </div>
     <div class="col"><div class="panel grow"><header><h3>Live bets</h3><span class="sub" id="feed-sub"></span></header><ul class="feed" id="stream"></ul></div></div>
     <div class="col">
-      <div class="panel qr"><img src="/harvest/qr.svg" alt="QR code to play"><div><b>Beat the world models</b><span class="muted" style="font-size:12.5px">Scan · pick a nickname · 1,000 play credits</span><div class="url" id="url"></div></div></div>
-      <div class="panel grow"><header><h3>Leaderboard</h3><span class="sub">holdout Brier</span></header><div class="ins" id="ins"></div><ul class="blb" id="blb"></ul></div>
-      <div class="panel" style="flex:none"><header><h3>Humans vs agents</h3><span class="sub">live PnL</span></header><ul class="blb" id="hum"></ul></div>
+      <div class="panel qr"><img src="/harvest/qr.svg" alt="QR code to play"><div><b>Beat the world models</b><span class="muted" style="font-size:12.5px">Scan · pick a nickname · 1,000 play credits, no money</span><div class="url" id="url"></div></div></div>
+      <div class="panel grow"><header><h3>Leaderboard</h3><span class="sub">score · Brier · reputation</span></header><div class="ins" id="ins"></div><ul class="blb" id="blb"></ul></div>
+      <div class="panel" style="flex:none"><header><h3>Humans vs agents</h3><span class="sub">live credits PnL</span></header><ul class="blb" id="hum"></ul></div>
     </div>
   </div>
 </div>

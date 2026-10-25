@@ -167,7 +167,7 @@
     const maxB = 0.3;
     lbTable.innerHTML = "";
     const head = el("tr");
-    for (const h of ["#", "World model and conviction", "Brier holdout", "Brier dev", "PnL holdout", "PnL live"]) head.append(el("th", h.startsWith("PnL") || h.startsWith("Brier") ? "num" : "", h));
+    for (const h of ["#", "World model and conviction", "Brier holdout", "Brier dev", "Credits PnL holdout", "Credits PnL live"]) head.append(el("th", h.includes("PnL") || h.startsWith("Brier") ? "num" : "", h));
     lbTable.append(head);
     const baseQueue = [...bases].sort((a, b) => a[1] - b[1]);
     const mkBase = ([name, v]) => {
@@ -276,7 +276,7 @@
     if (ho) {
       row("Committed at", ho.committed_at.replace("T", " ").replace("Z", " UTC"));
       row("Holdout sha256", el("div", "hashline", ho.sha256));
-      row("Solana memo", el("span", "mono", short(ho.memo, 30)));
+      row("Solana devnet memo", el("span", "mono", short(ho.memo, 30)));
       const r = ho.receipt || {};
       const st = el("span");
       st.append(el("span", `pill ${r.status === "confirmed" ? "ok" : "pending"}`, r.status === "confirmed" ? "confirmed on devnet" : "pending on-chain"));
@@ -316,7 +316,7 @@
     tiles.forEach((t, i) => setTimeout(() => { t.classList.remove("sealed"); t.classList.add(t.dataset.o === "1" ? "r1" : "r0"); }, 30 * i));
     const best = ((story.scores && story.scores.world_models) || []).find((m) => m.brier_holdout != null);
     setTimeout(() => {
-      document.getElementById("seal-title").textContent = best ? `${best.name} wins the holdout (Brier ${b3(best.brier_holdout)})` : "Resolved";
+      document.getElementById("seal-title").textContent = best ? `${best.name} leads the holdout (Brier ${b3(best.brier_holdout)})` : "Resolved";
       const mr = document.getElementById("mask-row");
       mr.innerHTML = "";
       mr.append(el("span", "muted", "Mask revealed:"));
@@ -395,15 +395,15 @@
   function renderFund() {
     const f = state.fund;
     H.tween(document.getElementById("fund-total"), f.treasury || 0, (x) => cr(x, 2));
-    document.getElementById("fund-earmark").textContent = `Earmarked for ${f.earmark || "European farmers' heat adaptation"}. Split by what the market says is highest risk.`;
+    document.getElementById("fund-earmark").textContent = `Illustrative allocation for ${f.earmark || "European farmers' heat adaptation"}, set by market-implied risk. Fees are play credits.`;
     H.renderFund(document.getElementById("alloc"), f, { max: 11 });
     const kv = document.getElementById("fund-kv");
     kv.innerHTML = "";
     const row = (k, v) => { kv.append(el("dt", null, k)); const dd = el("dd"); if (v instanceof Node) dd.append(v); else dd.textContent = v; kv.append(dd); };
-    row("Rule", `${pct(f.fee_rate)} of every bet; share = mean adverse probability per region and crop`);
+    row("Rule", `${pct(f.fee_rate)} of every bet, in play credits; share = mean adverse probability per region and crop`);
     row("Memo", el("span", "mono", short(f.memo, 28)));
     const r = f.receipt;
-    row("Treasury", el("span", `pill ${r && r.status === "confirmed" ? "ok" : "pending"}`, r && r.status === "confirmed" ? "anchored on devnet" : "devnet USDC: pending on-chain"));
+    row("Treasury", el("span", `pill ${r && r.status === "confirmed" ? "ok" : "pending"}`, r && r.status === "confirmed" ? "anchored on devnet" : "devnet test tokens: pending on-chain"));
   }
   function renderMap(force) {
     if (!window.L || !geo) return;

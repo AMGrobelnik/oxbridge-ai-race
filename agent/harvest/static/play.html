@@ -9,7 +9,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="/harvest/static/harvest.css">
 <style>
-  body { padding-bottom: 40px; }
+  body { padding-bottom: 24px; }
+  .pwrap .foot { padding: 20px 0 10px; }
   .pwrap { max-width: 520px; margin: 0 auto; padding: 0 16px; }
   .ptop { display: flex; align-items: center; gap: 10px; height: 54px; }
   .ptop .brand { margin-right: auto; }
@@ -20,7 +21,7 @@
   .chips-av { display: flex; gap: 6px; margin: 14px 0 18px; flex-wrap: wrap; }
   input.nick { width: 100%; font: 600 18px var(--sans); padding: 14px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); }
   .bigbtn { width: 100%; margin-top: 10px; padding: 14px; font-size: 17px; border-radius: 12px; }
-  .ptabs { display: grid; grid-template-columns: repeat(3, 1fr); position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 6px 0 8px; }
+  .ptabs { display: grid; grid-template-columns: repeat(3, 1fr); position: sticky; top: var(--pb); z-index: 10; background: var(--bg); padding: 6px 0 8px; }
   .ptabs .tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; grid-column: 1 / -1; }
   .spend { display: flex; gap: 6px; align-items: center; margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
   .spend button { border: 1px solid var(--line2); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: 600 13px var(--mono); }
@@ -55,13 +56,14 @@
 </style>
 </head>
 <body>
+<div class="playbar"><span class="pb-dot"></span>Play credits · no real money · no cash-out<a href="/harvest/terms">Terms</a></div>
 <div class="pwrap">
   <div class="ptop"><a class="brand" href="/harvest"><span class="mark">✶</span>Harvest</a><span class="bal" id="bal" hidden></span><button class="iconbtn" id="theme" aria-label="Toggle theme"></button></div>
 
   <div id="join" class="join" hidden>
     <div class="kicker"><span class="live-dot"></span>&nbsp; Live now · no signup</div>
     <h1>Can you beat the <em>world models</em>?</h1>
-    <p>Eight AI agents, each with its own theory of how heat, politics and money move food prices, are betting on Europe's harvest right now. Take 1,000 play credits and bet against them. Every fee goes to the farmers' Resilience Fund.</p>
+    <p>Eight AI agents, each with its own theory of how heat, politics and money move food prices, are forecasting Europe's harvest right now. Take 1,000 play credits and forecast against them. Fees are play credits too; they feed a demo Resilience Fund.</p>
     <div class="chips-av" id="chips-av"></div>
     <form id="join-form"><input class="nick" id="nick" maxlength="24" placeholder="Pick a nickname" autocomplete="off" autocapitalize="off" required>
       <button class="btn gold bigbtn" id="join-btn" type="submit">Get 1,000 credits and play</button></form>
@@ -69,15 +71,16 @@
       <div class="kicker" style="margin-bottom:6px">How to play</div>
       <div><b>1 · Live bets.</b> <span class="muted">Buy YES or NO on drought, export bans, farmland deals and commodity prices. Prices move as you trade.</span></div>
       <div style="margin-top:6px"><b>2 · Time machine.</b> <span class="muted">Forecast the sealed holdout the agents already committed on-chain, then see the real outcomes.</span></div>
-      <div style="margin-top:6px"><b>3 · Rank.</b> <span class="muted">Your PnL and Brier against the eight world models and everyone in the room.</span></div>
+      <div style="margin-top:6px"><b>3 · Rank.</b> <span class="muted">Your credits PnL and Brier score against the eight world models and everyone in the room.</span></div>
     </div>
-    <p style="font-size:12px;margin-top:12px">Your nickname is hashed onto a public, chain-anchored ledger. Play credits only, no money.</p>
+    <p style="font-size:12px;margin-top:12px">Your nickname is hashed onto a public, chain-anchored ledger. Play credits only, no money. Credits have no monetary value and cannot be bought, sold, transferred or withdrawn. <a href="/harvest/terms">Terms</a></p>
   </div>
 
   <div id="app" hidden>
     <div class="ptabs"><div class="tabs" id="ptabs"><button data-tab="mk" class="on">Live bets</button><button data-tab="tm">Time machine</button><button data-tab="rank">Rank</button></div></div>
     <div id="tab-mk">
       <div class="spend" id="spend">Stake <button data-v="10">10</button><button data-v="25" class="on">25</button><button data-v="50">50</button><button data-v="100">100</button></div>
+      <p class="intro">Credits have no monetary value and cannot be bought, sold, transferred or withdrawn.</p>
       <div id="mk-list"></div>
     </div>
     <div id="tab-tm" hidden>
@@ -88,12 +91,13 @@
     </div>
     <div id="tab-rank" hidden>
       <div class="result panel" id="me-card"></div>
-      <h3 class="sub2">Live PnL: you vs the world models</h3>
+      <h3 class="sub2">Live credits PnL: you vs the world models</h3>
       <div class="panel" id="rank-live"></div>
       <h3 class="sub2">Time machine: Brier (lower is better)</h3>
       <div class="panel" id="rank-tm"></div>
     </div>
   </div>
+<footer class="foot"><div class="foot-line"><b>A forecasting tournament, not a betting or investment service.</b> <a href="/harvest/terms">Terms</a></div></footer>
 </div>
 <script src="/harvest/static/common.js"></script>
 <script src="/harvest/static/play.js"></script>

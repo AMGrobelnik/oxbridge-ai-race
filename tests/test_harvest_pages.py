@@ -23,7 +23,8 @@ def client(tmp_path, monkeypatch):
     market.reset_live_book()
 
 
-@pytest.mark.parametrize("path, marker", [("/harvest", "Bets flow"), ("/harvest/play", "Can you beat"), ("/harvest/board", "Beat the world models")])
+@pytest.mark.parametrize("path, marker", [("/harvest", "Bets flow"), ("/harvest/play", "Can you beat"), ("/harvest/board", "Beat the world models"),
+                                          ("/harvest/terms", "Terms of play")])
 def test_pages_render(client, path, marker):
     r = client.get(path)
     assert r.status_code == 200
@@ -89,7 +90,7 @@ def test_story_route_without_replay_degrades(client, monkeypatch):
     harvest_pages._story_cache.clear()
 
 
-@pytest.mark.parametrize("path", ["/harvest", "/harvest/play", "/harvest/board", "/harvest/qr.svg", "/harvest/static/common.js",
+@pytest.mark.parametrize("path", ["/harvest", "/harvest/play", "/harvest/board", "/harvest/terms", "/harvest/qr.svg", "/harvest/static/common.js",
                                   "/harvest/api/state", "/harvest/api/story", "/harvest/api/geo", "/harvest/api/holdout", "/harvest/api/playurl"])
 def test_public_mode_allows_harvest_reads(path):
     assert public_mode.is_public("GET", path)
@@ -119,3 +120,19 @@ def test_public_mode_guard_serves_play_flow(client, monkeypatch):
     bet = client.post("/harvest/api/bet", json={"token": token, "qid": qid, "side": "YES", "spend": 10})
     assert bet.status_code == 200, bet.text
     assert client.post("/harvest/api/reset", json={}).status_code == 401
+
+
+@pytest.mark.parametrize("path", ["/harvest", "/harvest/play", "/harvest/board", "/harvest/terms"])
+def test_pages_carry_play_credit_disclosure(client, path):
+    text = client.get(path).text
+    assert "Play credits · no real money · no cash-out" in text
+    assert path == "/harvest/terms" or 'href="/harvest/terms"' in text
+
+
+def test_index_and_play_pages_have_tournament_footer_and_no_cash_words(client):
+    for path in ("/harvest", "/harvest/play"):
+        text = client.get(path).text
+        assert "A forecasting tournament, not a betting or investment service." in text
+        for word in ("deposit", "withdraw ", "top-up", "buy credits", "winnings", "profit"):
+            assert word not in text.lower(), (path, word)
+    assert "Devnet test tokens with no value, used only to timestamp commitments" in client.get("/harvest").text

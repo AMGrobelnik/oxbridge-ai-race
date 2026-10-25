@@ -129,8 +129,8 @@
     const vals = (m.history || []).map((h) => h[1]);
     H.lineChart(n.chart, [{ values: vals.length > 1 ? vals : [m.p_yes, m.p_yes], color: "var(--accent)", width: 2, fill: "color-mix(in srgb, var(--accent2) 14%, transparent)" }],
       { w: 300, h: 46, ymin: 0, ymax: 1, hline: 0.5, endDot: true });
-    n.y.textContent = `YES ${Math.round(m.p_yes * 100)}¢`;
-    n.n.textContent = `NO ${Math.round((1 - m.p_yes) * 100)}¢`;
+    n.y.textContent = `YES ${Math.round(m.p_yes * 100)}%`;
+    n.n.textContent = `NO ${Math.round((1 - m.p_yes) * 100)}%`;
     const pos = positions.get(m.qid);
     n.mine.textContent = pos ? `You hold ${pos.yes > 0.01 ? `${cr(pos.yes, 1)} YES` : ""}${pos.yes > 0.01 && pos.no > 0.01 ? " · " : ""}${pos.no > 0.01 ? `${cr(pos.no, 1)} NO` : ""}` : "";
   }
@@ -224,7 +224,7 @@
     const s = await api("/harvest/api/leaderboard");
     const mc = document.getElementById("me-card");
     mc.innerHTML = "";
-    mc.append(el("div", "kicker", me.nickname), el("div", "big", `${signed(me.pnl, 1)} cr`), el("div", "muted", "live PnL (marked at market prices)"));
+    mc.append(el("div", "kicker", me.nickname), el("div", "big", `${signed(me.pnl, 1)} cr`), el("div", "muted", "live credits PnL (marked at market prices)"));
     const rows = [];
     for (const m of s.world_models) if (m.pnl_live != null || m.origin === "external") rows.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" ? "world model" : "outside agent", v: m.pnl_live || 0 });
     for (const h of s.humans) rows.push({ id: h.user_id, name: h.nickname, sub: "human", v: h.pnl || 0, me: h.user_id === me.user_id });

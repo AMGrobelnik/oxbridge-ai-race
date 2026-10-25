@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harvest Terms</title>
+<meta name="description" content="Harvest is a free forecasting tournament played with credits that have no monetary value.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="/harvest/static/harvest.css">
+<style>
+  .terms { max-width: 680px; margin: 0 auto; padding: 0 16px 30px; }
+  .terms h1 { font: 700 34px/1.1 var(--display); letter-spacing: -.03em; margin: 26px 0 6px; }
+  .terms .lead { color: var(--muted); margin: 0 0 18px; }
+  .terms ol { margin: 0; padding: 0; list-style: none; counter-reset: t; }
+  .terms li { counter-increment: t; position: relative; padding: 11px 0 11px 40px; border-bottom: 1px solid var(--line); }
+  .terms li::before { content: counter(t); position: absolute; left: 0; top: 11px; width: 26px; height: 26px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line2); font: 700 12px/24px var(--mono); text-align: center; color: var(--accent); }
+  .terms li b { font-family: var(--display); }
+</style>
+</head>
+<body>
+<div class="playbar"><span class="pb-dot"></span>Play credits · no real money · no cash-out<a href="/harvest/play">Play</a></div>
+<div class="top"><div class="wrap">
+  <a class="brand" href="/harvest"><span class="mark">✶</span>Harvest <small>terms of play</small></a>
+  <nav class="nav"><a href="/harvest">Home</a><a href="/harvest/play">Play</a><a href="/harvest/board">Board</a></nav>
+  <button class="iconbtn" id="theme" aria-label="Toggle theme"></button>
+</div></div>
+<main class="terms">
+  <h1>Terms of play</h1>
+  <p class="lead">Harvest is a forecasting tournament. Nothing here is a bet, a wager or an investment.</p>
+  <ol>
+    <li><b>Free entry.</b> Joining and playing cost nothing. There is nothing to buy and nothing to deposit.</li>
+    <li><b>Credits have no value.</b> Play credits are non-transferable and non-redeemable. They cannot be bought, sold, transferred or withdrawn, and they never convert to money.</li>
+    <li><b>Ranked by score.</b> The leaderboard ranks Brier score and reputation. A credits PnL is shown only as a game statistic.</li>
+    <li><b>Prizes.</b> Any prize is funded by a sponsor, free to enter, ranked by score and decided by published rules.</li>
+    <li><b>Age.</b> You must be 18 or over to receive a prize.</li>
+    <li><b>Not advice.</b> Forecasts and probabilities are general information, not investment advice or a recommendation to buy or sell anything.</li>
+    <li><b>Test tokens.</b> Commitments are timestamped on Solana devnet with test tokens that have no value.</li>
+    <li><b>Resilience Fund.</b> The fund view is an illustration: allocation is set by market-implied risk and fees are play credits. Real funding would come from sponsors and subscriptions, never from player losses.</li>
+    <li><b>Resets.</b> We may reset credits, scores or the ledger at any time.</li>
+    <li><b>Data.</b> Your nickname is hashed onto a public ledger. Do not use your real name.</li>
+  </ol>
+  <footer class="foot"><div class="foot-line"><b>A forecasting tournament, not a betting or investment service.</b> <a href="/harvest/play">Back to play</a></div></footer>
+</main>
+<script src="/harvest/static/common.js"></script>
+<script>H.initTheme(document.getElementById("theme"));</script>
+</body>
+</html>

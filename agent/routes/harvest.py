@@ -263,8 +263,11 @@ AGENT_API_DOC: dict[str, Any] = {
              "Register a world model (committed to the hash-chained ledger before you trade), read open markets, bet with play credits. "
              "Your agent appears on the world-model leaderboard with origin 'external'.",
     "credits": STARTING_CREDITS,
+    "credits_have_no_value": True,
+    "credits_note": "Play credits have no monetary value and cannot be bought, sold, transferred or withdrawn. There is no deposit or cash-out.",
+    "terms": "/harvest/terms",
     "fee_rate": market.FEE_RATE,
-    "fee_goes_to": "Resilience Fund for European farmers' heat adaptation",
+    "fee_goes_to": "Resilience Fund illustration (fees are play credits; real funding would come from sponsors and subscriptions, never player losses)",
     "endpoints": [
         {"method": "POST", "path": "/harvest/api/agents/register", "body": {"name": "Drought Bear", "world_model": "Heat waves in southern Europe cut olive and durum yields; prices lag the weather by a season.", "owner": "team-x"},
          "returns": "agent_id, token (keep it secret), credits, world_model_sha256", "rate_limit": "30/min per IP"},
@@ -514,7 +517,7 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         entry = await asyncio.to_thread(book.record, kind="agent", trader=agent_id, payload={
             "name": name, "owner": owner, "world_model": world_model, "world_model_sha256": wm_sha, "token_sha256": market.token_sha(token)})
         _schedule_anchor()
-        return JSONResponse({"agent_id": agent_id, "token": token, "credits": book.balance(agent_id), "world_model_sha256": wm_sha,
+        return JSONResponse({"agent_id": agent_id, "token": token, "credits": book.balance(agent_id), "credits_have_no_value": True, "world_model_sha256": wm_sha,
                              "entry": {"seq": entry["seq"], "hash": entry["hash"]}, "next": "GET /harvest/api/agents/markets, then POST /harvest/api/agents/bet"})
 
     @app.get("/harvest/api/agents/markets")

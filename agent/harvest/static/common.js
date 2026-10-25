@@ -3,7 +3,7 @@
 window.H = (() => {
   const NS = "http://www.w3.org/2000/svg";
   const MONO = { "climate-pessimist": "CP", "efficient-market-skeptic": "EM", "geopolitics-hawk": "GH", "adaptation-optimist": "AO",
-    "macro-dollar": "M$", "land-grab-realist": "LG", "agronomist": "AG", "crowd-follower": "CF" };
+    "macro-dollar": "MD", "land-grab-realist": "LG", "agronomist": "AG", "crowd-follower": "CF" };
   const personas = new Map();
   const names = new Map(); // trader id -> {name, color, kind}
 
