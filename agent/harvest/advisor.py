@@ -238,7 +238,7 @@ Rules:
 - Use ONLY the facts in CONTEXT below plus general agronomy and market know-how. Never invent prices, numbers, dates, \
 policies or amounts of money. If CONTEXT has no data for what they ask, say plainly that we don't know or have no \
 market on it, then give general practical guidance.
-- Cite our numbers when you use them: "our forecasters put 45% on wheat being below $222/mt by Dec", "headline: ...", \
+- Quote probabilities as given (whole percents). Cite our numbers when you use them: "our forecasters put 45% on wheat being below $222/mt by Dec", "headline: ...", \
 "temperatures in the last 3 months ran +2.1 C above normal". Say whether the AI agents agree or disagree.
 - Give 1-3 concrete options with their trade-offs (e.g. sell part now / store and sell in spring / hedge with a forward \
 contract). Be specific to the crop and region asked about.
@@ -248,9 +248,19 @@ contract). Be specific to the crop and region asked about.
 - End with a brief "not financial advice" note in the reply language."""
 
 
+def _readable(obj: Any) -> Any:
+    """Probabilities as whole percents ("34%") and spreads as points, so the model quotes them that way."""
+    if isinstance(obj, dict):
+        return {k: f"{round(float(v) * 100)}%" if k in ("p", "p_yes", "mean") and isinstance(v, (int, float))
+                else f"{round(float(v) * 100)} points" if k == "std" and isinstance(v, (int, float)) else _readable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_readable(v) for v in obj]
+    return obj
+
+
 def build_prompt(text: str, ctx: dict[str, Any], history: list[dict[str, Any]], *, limit: int = MAX_REPLY) -> str:
-    facts = {k: v for k, v in ctx.items() if v not in (None, [], {})}
-    parts = [SYSTEM.format(limit=limit - 120), "", "CONTEXT (from The Crophecy's live system):", json.dumps(facts, ensure_ascii=False, indent=1)]
+    facts = _readable({k: v for k, v in ctx.items() if v not in (None, [], {})})
+    parts = [SYSTEM.format(limit=limit - 400), "", "CONTEXT (from The Crophecy's live system):", json.dumps(facts, ensure_ascii=False, indent=1)]
     if history:
         parts += ["", "EARLIER IN THIS CHAT:"] + [f"Farmer: {h['q']}\nYou: {h['a'][:400]}" for h in history]
     parts += ["", f"FARMER'S MESSAGE: {text}", "", 'Answer only with JSON: {"reply": "..."}']
@@ -275,6 +285,7 @@ def parse_reply(text: str) -> str | None:
         return None
     out = str(data.get("reply") or "").strip() if isinstance(data, dict) else ""
     out = re.sub(r"\*\*(.+?)\*\*", r"\1", out)
+    out = re.sub(r"(?m)^\s*[-*•]\s+", "- ", out)
     return out if out and not world.looping(out) else None
 
 
@@ -347,9 +358,13 @@ def fit(text: str, link: str, limit: int = MAX_REPLY) -> str:
     room = limit - len(tail)
     text = text.strip()
     if len(text) > room:
+        paras = text.rsplit("\n", 1)
+        keep = paras[1].strip() if len(paras) == 2 and 0 < len(paras[1].strip()) <= 120 else ""  # the closing disclaimer
+        room -= len(keep) + 2 if keep else 0
         cut = text[:room]
         stop = max(cut.rfind("\n"), cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
         text = (cut[: stop + 1] if stop > room // 2 else cut[: room - 1].rsplit(" ", 1)[0] + "…").strip()
+        text += f"\n\n{keep}" if keep else ""
     return text + tail
 
 

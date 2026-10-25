@@ -133,7 +133,7 @@ def test_gather_by_topic_without_crop():
 def test_prompt_carries_numbers_rules_and_question():
     ctx = advisor.gather("olive oil price Spain")
     prompt = advisor.build_prompt("olive oil price Spain", ctx, [])
-    assert "olive-up15-6m@2026-09" in prompt and f'"p": {ctx["markets"][0]["p"]}' in prompt
+    assert "olive-up15-6m@2026-09" in prompt and f'"p": "{round(ctx["markets"][0]["p"] * 100)}%"' in prompt
     assert "Never invent prices" in prompt and "SAME LANGUAGE" in prompt and "not financial advice" in prompt
     assert prompt.rstrip().endswith('{"reply": "..."}') and "FARMER'S MESSAGE: olive oil price Spain" in prompt
 
@@ -177,6 +177,10 @@ def test_length_limit_and_markdown_stripped(llm):
     assert out["reply"].endswith("More: https://crophecy.bid/app/farmer?crop=wheat")
     for text in ("x" * 5000, "a. " * 900):
         assert len(advisor.fit(text, "https://crophecy.bid/app/map")) <= advisor.MAX_REPLY
+    long = "Option one is good. " * 100 + "\nNot financial advice."
+    cut = advisor.fit(long, "https://crophecy.bid/app/map")
+    assert len(cut) <= advisor.MAX_REPLY and cut.endswith("Not financial advice.\n\nMore: https://crophecy.bid/app/map")
+    assert advisor.parse_reply(json.dumps({"reply": "-   one\n*  two"})) == "- one\n- two"
 
 
 def test_memory_keeps_three_turns_and_inherits_crop(llm, monkeypatch):
