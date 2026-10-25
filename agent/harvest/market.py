@@ -10,6 +10,7 @@ import logging
 import math
 import os
 import random
+import sqlite3
 import threading
 from datetime import UTC, datetime
 from typing import Any
@@ -17,7 +18,7 @@ from typing import Any
 from agent.sealed.hashing import sha256_json
 
 from . import accounts as acct
-from . import ledger, lmsr
+from . import follow, ledger, lmsr
 from .types import BetIntent, LedgerEntry, MarketState, Payout, Persona, QuestionInstance, Side, Trade
 
 DEFAULT_B = 100.0
@@ -279,6 +280,8 @@ class LiveBook(Book):
         self.version = 0
         self.replay_errors: list[str] = []
         self.live_reforecast_at: dict[str, str] = {}
+        self.follows: dict[str, dict[str, dict[str, Any]]] = {}
+        """follower -> followed trader -> {copy, fraction, cap, since} (follow.py), replayed from `follow` entries."""
 
     def open(self, qid: str, prior: float = 0.5, b: float | None = None) -> MarketState:
         """Live markets open with the deeper live liquidity; the seeded price is the prior either way."""
@@ -360,10 +363,18 @@ class LiveBook(Book):
             self.balance(trader)
         elif e["kind"] == "forecast":
             self.forecasts[trader] = {**p, "at": e["at"]}
+        elif e["kind"] == "follow":
+            if p.get("follow"):
+                old = self.follows.get(trader, {}).get(p["agent"]) or {}
+                self.follows.setdefault(trader, {})[p["agent"]] = {
+                    "copy": bool(p.get("copy")), "fraction": p["fraction"], "cap": p["cap"], "since": old.get("since", e["at"])}
+            else:
+                self.follows.get(trader, {}).pop(p["agent"], None)
         elif e["kind"] == "bet" and replaying:
             trade = self.buy(trader, p["qid"], p["side"], p["spend"], cutoff=p.get("cutoff"), at=e["at"])
-            if p.get("rationale"):
-                trade["rationale"] = p["rationale"]  # type: ignore[typeddict-unknown-key]
+            for k in ("rationale", "copied_from"):
+                if p.get(k):
+                    trade[k] = p[k]  # type: ignore[literal-required]
             return trade
         return None
 
@@ -376,10 +387,39 @@ class LiveBook(Book):
 
     def place_bet(self, trader: str, qid: str, side: Side, spend: float, *, p_yes: float | None = None, rationale: str | None = None) -> tuple[Trade, LedgerEntry]:
         """Buys in memory first (validates), then appends the bet to the chain, under one lock so
-        the chain order is the book order and a restart replays to the same state."""
+        the chain order is the book order and a restart replays to the same state. Followers with
+        copy on then copy the bet (follow.py), each copy its own chain entry right after it."""
+        with self.lock:
+            trade, entry = self._place(trader, qid, side, spend, p_yes=p_yes, rationale=rationale)
+            self.copy_bet(trade, entry["seq"])
+            return trade, entry
+
+    def copy_bet(self, trade: Trade, seq: int) -> list[Trade]:
+        """Places every copy-on follower's copy of `trade`; a follower who cannot afford it or hits a closed market is skipped."""
+        copies: list[Trade] = []
+        with self.lock:
+            leader = trade["trader"]
+            for follower, leaders in list(self.follows.items()):
+                s = leaders.get(leader)
+                if not s or not s["copy"] or follower == leader:
+                    continue
+                spend = follow.copy_spend(trade["spend"], s["fraction"], s["cap"], self.balance(follower))
+                if spend is None:
+                    continue
+                try:
+                    copy, _ = self._place(follower, trade["qid"], trade["side"], spend, rationale=f"copied from {self.display_name(leader)}",
+                                          extra={"copied_from": leader, "copy_of": seq})
+                except (MarketError, OSError, sqlite3.Error) as err:
+                    logger.warning("harvest copy of bet %s for %s skipped: %s", seq, follower, err)
+                    continue
+                copies.append(copy)
+        return copies
+
+    def _place(self, trader: str, qid: str, side: Side, spend: float, *, p_yes: float | None = None, rationale: str | None = None,
+               extra: dict[str, Any] | None = None) -> tuple[Trade, LedgerEntry]:
         with self.lock:
             trade = self.buy(trader, qid, side, spend)
-            payload: dict[str, Any] = {"qid": qid, "side": side, "spend": trade["spend"], "shares": trade["shares"], "price_after": trade["price_after"]}
+            payload: dict[str, Any] = {"qid": qid, "side": side, "spend": trade["spend"], "shares": trade["shares"], "price_after": trade["price_after"], **(extra or {})}
             if p_yes is not None:
                 payload["p_yes"] = p_yes
             if rationale:
@@ -392,6 +432,8 @@ class LiveBook(Book):
             trade["at"] = entry["at"]
             if rationale:
                 trade["rationale"] = rationale  # type: ignore[typeddict-unknown-key]
+            if extra and extra.get("copied_from"):
+                trade["copied_from"] = extra["copied_from"]  # type: ignore[typeddict-unknown-key]
             self.ledger_head = (entry["seq"], entry["hash"])
             self.version += 1
             return trade, entry
@@ -446,6 +488,34 @@ class LiveBook(Book):
 
     def username_taken(self, name: str) -> bool:
         return name in self.usernames or self.username_reserved(name)
+    # ---- follow and copy
+    def followable(self, trader: str) -> bool:
+        """A house agent (agent:<persona>) or any registered account."""
+        if trader.startswith("agent:"):
+            return any(p["id"] == trader[6:] for p in self.personas)
+        return trader in self.traders
+
+    def display_name(self, trader: str) -> str:
+        if trader.startswith("agent:"):
+            return next((p["name"] for p in self.personas if p["id"] == trader[6:]), trader[6:])
+        info = self.traders.get(trader) or {}
+        return str(info.get("name") or info.get("nickname") or trader)
+
+    def username_of(self, trader: str) -> str:
+        return str((self.traders.get(trader) or {}).get("username") or acct.system_username(trader))
+
+    def set_follow(self, follower: str, leader: str, *, on: bool, copy: bool = False, fraction: Any = None, cap: Any = None) -> LedgerEntry:
+        """Records a follow (copy implies follow) or an unfollow. Raises MarketError for an unknown or own account."""
+        if leader == follower:
+            raise MarketError("you cannot follow yourself")
+        if not self.followable(leader):
+            raise MarketError(f"unknown agent {leader!r}")
+        payload: dict[str, Any] = {"agent": leader, "follow": bool(on or copy)}
+        if payload["follow"]:
+            old = self.follows.get(follower, {}).get(leader) or {}
+            f, c = follow.settings(old.get("fraction") if fraction is None else fraction, old.get("cap") if cap is None else cap)
+            payload.update(copy=bool(copy), fraction=f, cap=c)
+        return self.record(kind="follow", trader=follower, payload=payload)
 
     # ---- views
     def trader_for(self, token: str | None) -> str | None:

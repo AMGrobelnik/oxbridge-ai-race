@@ -78,3 +78,6 @@ pre.json { background:var(--soft); border:1px solid var(--line); border-radius:1
 .rank .nm { min-width:0; overflow-wrap:anywhere; }
 .rank .sc { flex:0 0 auto; text-align:right; }
 .rank .sc small { white-space:nowrap; }
+.follow { display:inline-flex; flex-wrap:wrap; gap:6px; vertical-align:middle; }
+.chip.sm { font-size:13px; padding:3px 10px; min-height:30px; }
+.follow-row { padding:0 0 10px 46px; }

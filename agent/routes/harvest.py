@@ -15,6 +15,8 @@ POST /harvest/api/byo {name, world_model, token?, nickname?}   GET /harvest/api/
 GET  /harvest/api/news?since=<id>&commodity=&qid=&limit=   live agri news, tagged with commodities, regions and market qids
 GET  /harvest/api/markets/{qid}/agent   how an agent sees a market: masked window, news lines, latest forecasts, agents/markets entry
 POST /harvest/api/waitlist {contact, note?}   GET /harvest/api/waitlist/count   early-access waitlist (count only is public)
+GET  /harvest/api/follow?token=       POST /harvest/api/follow {token, agent, follow?, copy?, fraction?, cap?}
+GET  /harvest/api/follow/feed?token=&limit=   followed agents' latest bets and your copies of them
 """
 
 import asyncio
@@ -31,7 +33,7 @@ from fastapi.responses import JSONResponse
 
 from agent.challenge import game
 from agent.challenge.ratelimit import RateLimiter, client_ip
-from agent.harvest import accounts, baseline_models, byo, forecaster, ledger, market, news, scoring, waitlist
+from agent.harvest import accounts, baseline_models, byo, follow, forecaster, ledger, market, news, scoring, waitlist
 from agent.harvest import fund as fund_mod
 from agent.harvest.market import STARTING_CREDITS, LiveBook, MarketError, clamp
 from agent.sealed.hashing import sha256_json
@@ -51,7 +53,8 @@ forecast_limiter = RateLimiter(20)
 verify_limiter = RateLimiter(10)
 byo_limiter = RateLimiter(int(os.environ.get("HARVEST_BYO_PER_MIN") or 6))
 waitlist_limiter = RateLimiter(int(os.environ.get("HARVEST_WAITLIST_PER_MIN") or 5))
-LIMITERS = (join_limiter, bet_limiter, register_limiter, agent_bet_limiter, forecast_limiter, verify_limiter, byo_limiter, waitlist_limiter)
+follow_limiter = RateLimiter(60)
+LIMITERS = (join_limiter, bet_limiter, register_limiter, agent_bet_limiter, forecast_limiter, verify_limiter, byo_limiter, waitlist_limiter, follow_limiter)
 _background: set[asyncio.Task[Any]] = set()
 _house_task: dict[str, asyncio.Task[None]] = {}
 _replay_cache: dict[str, Any] = {}
@@ -406,6 +409,41 @@ def _byo_view(book: LiveBook, model_id: str, *, cached: bool) -> dict[str, Any] 
             "world_model_sha256": info.get("world_model_sha256"), **{k: fc.get(k) for k in keep}, "scored_at": fc.get("at"), "cached": cached}
 
 
+def leader_id(book: LiveBook, raw: Any) -> str:
+    """The trader id behind what the UI sends: a trader id, an @username, or a house persona id (agent:<id> trades for it)."""
+    target = str(raw or "").strip()
+    if target.startswith("@") or (target and ":" not in target and target in book.usernames):
+        return book.usernames.get(target.lstrip("@").lower(), target)
+    if target and target not in book.traders and not target.startswith("agent:") and any(p["id"] == target for p in book.personas):
+        return f"agent:{target}"
+    return target
+
+
+def follows_view(book: LiveBook, follower: str) -> list[dict[str, Any]]:
+    rows = []
+    for leader, s in book.follows.get(follower, {}).items():
+        theirs = [t for t in book.trades if t["trader"] == leader]
+        mine = [t for t in book.trades if t["trader"] == follower and t.get("copied_from") == leader]
+        rows.append({"agent": leader, "name": book.display_name(leader), "username": book.username_of(leader), **s, "bets": len(theirs), "last_bet_at": theirs[-1]["at"] if theirs else None,
+                     "copied": len(mine), "copied_spend": round(sum(t["spend"] for t in mine), 2)})
+    return rows
+
+
+def follow_feed(book: LiveBook, follower: str, limit: int) -> list[dict[str, Any]]:
+    """Newest first: bets by the agents `follower` follows, and `follower`'s copies of them."""
+    leaders = set(book.follows.get(follower, {}))
+    out: list[dict[str, Any]] = []
+    for t in reversed(book.trades):
+        copied_from = t.get("copied_from")
+        if t["trader"] in leaders or (t["trader"] == follower and copied_from):
+            out.append({**t, "name": "You" if t["trader"] == follower else book.display_name(t["trader"]), "username": book.username_of(t["trader"]),
+                        "title": (book.meta.get(t["qid"]) or {}).get("title", t["qid"]),
+                        "copied_from_name": book.display_name(str(copied_from)) if copied_from else None})
+            if len(out) >= limit:
+                break
+    return out
+
+
 # ---------------------------------------------------------------- routes
 
 def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
@@ -660,6 +698,51 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         items = [{k: r[k] for k in ("id", "title", "source", "url", "published_at", "commodities", "regions", "summary", "direction")}
                  | {"qids": [q for s in r["specs"] for q in by_spec.get(s, [])]} for r in rows]
         return JSONResponse({"items": items, "latest_id": latest, "poller": news.status()}, headers=NO_STORE)
+
+    # ---- follow and copy (follow.py): play credits only
+    @app.get("/harvest/api/follow")
+    async def follow_list(token: str = "") -> JSONResponse:
+        book = await asyncio.to_thread(_book)
+        trader = book.trader_for(token)
+        if trader is None:
+            return _error("unknown token; join first", 401)
+        with book.lock:
+            return JSONResponse({"following": follows_view(book, trader), "defaults": {"fraction": follow.DEFAULT_FRACTION, "cap": follow.DEFAULT_CAP},
+                                 "credits_have_no_value": True}, headers=NO_STORE)
+
+    @app.post("/harvest/api/follow")
+    async def follow_toggle(request: Request) -> JSONResponse:
+        if (limited := _limited(follow_limiter, request, "follow changes")) is not None:
+            return limited
+        data, bad = await _body(request)
+        if bad is not None or data is None:
+            return bad or _error("Bad request.", 400)
+        book = await asyncio.to_thread(_book)
+        trader = book.trader_for(str(data.get("token") or ""))
+        if trader is None:
+            return _error("unknown token; join first", 401)
+        with book.lock:
+            leader = leader_id(book, data.get("agent"))
+            old = book.follows.get(trader, {}).get(leader) or {}
+            copy = bool(data["copy"]) if "copy" in data else bool(old.get("copy"))
+            on = bool(data.get("follow", True))
+            try:
+                entry = book.set_follow(trader, leader, on=on, copy=copy and on, fraction=data.get("fraction"), cap=data.get("cap"))
+            except MarketError as err:
+                return _error(str(err), 404 if "unknown agent" in str(err) else 422)
+            row = next((r for r in follows_view(book, trader) if r["agent"] == leader), None)
+        _schedule_anchor()
+        return JSONResponse({"agent": leader, "following": row, "entry": {"seq": entry["seq"], "hash": entry["hash"]}}, headers=NO_STORE)
+
+    @app.get("/harvest/api/follow/feed")
+    async def follow_feed_route(token: str = "", limit: int = 30) -> JSONResponse:
+        _ensure_house_agents()
+        book = await asyncio.to_thread(_book)
+        trader = book.trader_for(token)
+        if trader is None:
+            return _error("unknown token; join first", 401)
+        with book.lock:
+            return JSONResponse({"items": follow_feed(book, trader, max(1, min(limit, 200)))}, headers=NO_STORE)
 
     @app.get("/harvest/api/agents/markets")
     async def agents_markets() -> JSONResponse:

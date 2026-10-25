@@ -182,7 +182,8 @@
     } catch (_) { node.textContent = ""; }
   }
   function home() {
-    const stats = h("p", { class: "stats" });
+    const stats = h("p", { class: "stats" }), following = h("div");
+    followingBox().then((box) => following.replaceChildren(box));
     drawStats(stats);
     show(h("h1", {}, "Every harvest has its prophets. We score them."),
       h("p", { class: "lead" }, "The Crophecy is a prediction game about food prices and farming under heat and drought: AI agents with rival theories bet against you, and we keep score in the open."),
@@ -191,6 +192,7 @@
         h("a", { class: "btn primary", href: "/app/live" }, "Live"),
         h("a", { class: "btn primary", href: "/app/theory" }, "Write your theory"),
         h("a", { class: "btn primary", href: "/app/leaderboard" }, "Leaderboard")),
+      h("h2", {}, "Following"), following,
       stats,
       waitlistBox(stats),
       h("p", { class: "muted small", style: "margin-top:24px" }, "Play credits only: no deposits, no cash-out, no real money."));
@@ -289,7 +291,7 @@
       result, position,
       h("h2", {}, "What the agents think"),
       views.length ? views.map((v) => h("div", { class: "agent" }, h("b", {}, names.get(v.persona_id) || v.name || v.persona_id), h("span", { class: "p" }, `${pct(v.p_yes)} YES`),
-        h("span", { class: "why" }, v.rationale || ""))) : h("p", { class: "muted" }, "No agent has weighed in yet.")].flat().filter(Boolean));
+        " ", followControls(`agent:${v.persona_id}`), h("span", { class: "why" }, v.rationale || ""))) : h("p", { class: "muted" }, "No agent has weighed in yet.")].flat().filter(Boolean));
     show(h("a", { href: "/app/markets", class: "muted small" }, "← All markets"),
       h("h1", {}, m.title), h("p", { class: "muted" }, `${m.region} · ${m.crop} · closes ${m.resolve_month}`),
       toggle, humanBox, agentBox);
@@ -361,6 +363,66 @@
     });
   }
 
+  // ------------------------------------------------------------ follow and copy (play credits only)
+  // id is a trader id: agent:<persona> for house agents, ext:/byo:/user: ids for accounts.
+  let follows = null; // Map trader id -> {copy, fraction, cap, ...}, loaded once per page
+  async function loadFollows() {
+    const me = load();
+    if (!me || !me.token) return new Map();
+    if (follows) return follows;
+    try { follows = new Map((await api(`/follow?token=${encodeURIComponent(me.token)}`)).following.map((f) => [f.agent, f])); } catch (_) { follows = new Map(); }
+    return follows;
+  }
+  function followControls(id) {
+    const me = load();
+    if (!id || (me && me.user_id === id)) return null;
+    const box = h("span", { class: "follow" });
+    async function set(change) {
+      let player;
+      try { player = await ensurePlayer(); } catch (_) { return; }
+      await loadFollows();
+      const body = { token: player.token, agent: id, ...change };
+      box.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+      try {
+        const r = await api("/follow", body);
+        if (r.following) follows.set(id, r.following); else follows.delete(id);
+      } catch (e) { box.title = e.message; }
+      draw();
+    }
+    function draw() {
+      const f = follows && follows.get(id);
+      box.replaceChildren(
+        h("button", { class: "chip sm" + (f ? " on" : ""), onclick: () => set({ follow: !f, copy: false }) }, f ? "Following" : "Follow"),
+        h("button", { class: "chip sm" + (f && f.copy ? " on" : ""), title: "Copy this agent's bets automatically with your play credits",
+          onclick: () => set({ follow: true, copy: !(f && f.copy) }) }, f && f.copy ? `Copying ${Math.round(f.fraction * 100)}%, max ${Math.round(f.cap)}` : "Copy"));
+    }
+    loadFollows().then(draw);
+    return box;
+  }
+  async function followingBox() {
+    const me = load(), box = h("div");
+    if (!me || !me.token) return h("p", { class: "muted" }, "Follow agents from the ", h("a", { href: "/app/leaderboard" }, "Leaderboard"), " to see their bets here.");
+    async function tick() {
+      try {
+        const [list, feed] = await Promise.all([api(`/follow?token=${encodeURIComponent(me.token)}`), api(`/follow/feed?token=${encodeURIComponent(me.token)}&limit=15`)]);
+        follows = new Map(list.following.map((f) => [f.agent, f]));
+        box.replaceChildren(...[
+          list.following.length ? list.following.map((f) => h("div", { class: "agent" }, h("b", {}, f.name),
+            h("span", { class: "muted small" }, ` · ${f.bets} bets` + (f.copy ? ` · you copied ${f.copied} for ${Math.round(f.copied_spend)} credits` : "")), " ", followControls(f.agent)))
+            : h("p", { class: "muted" }, "You follow nobody yet. Follow agents from the ", h("a", { href: "/app/leaderboard" }, "Leaderboard"), "."),
+          feed.items.length ? h("h2", {}, "Their latest bets") : null,
+          feed.items.map((t) => h("div", { class: "feed-item" }, h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, t.name),
+            ` bet ${Math.round(t.spend)} credits `, h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, t.title),
+            t.copied_from ? h("span", { class: "tag", style: "margin-left:6px" }, `copied from ${t.copied_from_name}`) : null,
+            h("span", { class: "muted small" }, ` · ${ago(t.at)}`)))].flat().filter(Boolean));
+      } catch (e) { box.replaceChildren(failure(e)); }
+    }
+    await tick();
+    const timer = setInterval(() => { if (!document.hidden) tick(); }, 10000);
+    window.addEventListener("pagehide", () => clearInterval(timer));
+    return box;
+  }
+
   function theory() {
     const text = h("textarea", { maxlength: "1200", placeholder: "In a few sentences: how do climate, politics and money move food prices?", "aria-label": "Your theory" });
     const count = h("span", { class: "muted small" }, "0 / 1200");
@@ -407,7 +469,8 @@
       h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", `@${a.username}`, badge,
         h("span", { class: "sub" }, sub)),
       h("span", { class: "sc" }, a.brier_holdout == null ? h("small", {}, "not scored yet") : [b3(a.brier_holdout),
-        a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])), srcBox);
+        a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])),
+      a.category === "baseline" ? null : h("div", { class: "follow-row" }, followControls(a.category === "users" ? a.id : `agent:${a.id}`)), srcBox);
   }
 
   async function leaderboard() {

@@ -29,7 +29,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GENESIS = sha256_json({"v": 1, "harvest": "ledger"})
 MEMO_PREFIX = "harvest:v1:ledger"
 USERS_MEMO_PREFIX = "harvest:v1:users"
-KINDS = ("join", "agent", "bet", "resolve", "fund", "forecast")
+KINDS = ("join", "agent", "bet", "resolve", "fund", "forecast", "follow")
 
 logger = logging.getLogger("agent")
 _write_lock = threading.Lock()
