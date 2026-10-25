@@ -200,5 +200,12 @@ def parse(text: str) -> str | None:
         data = json.loads(match.group(0) if match else text)
     except (json.JSONDecodeError, TypeError):
         return None
-    out = data.get("reason") if isinstance(data, dict) else None
-    return str(out).strip()[:700] if out and str(out).strip() else None
+    out = str(data.get("reason") or "").strip() if isinstance(data, dict) else ""
+    return out[:700] if out and not looping(out) else None
+
+
+def looping(text: str) -> bool:
+    """True when the model got stuck repeating itself (any three-word run three or more times)."""
+    words = text.lower().split()
+    runs = [" ".join(words[i:i + 3]) for i in range(len(words) - 2)]
+    return any(runs.count(r) >= 3 for r in set(runs))
