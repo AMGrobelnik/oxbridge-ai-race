@@ -218,7 +218,7 @@ def register(app: FastAPI) -> None:
         if not message:
             return api._error("message is required", 422)
         session = str(data.get("session") or "")[:64]
-        out = await asyncio.to_thread(_answer, message, request, f"app:{session}" if session else None)
+        out = await asyncio.to_thread(_answer, message, request, f"app:{session}" if session else None, fast=True)  # Flash took ~14 s
         return JSONResponse(out, headers=NO_STORE)
 
     @app.post("/harvest/api/whatsapp/twilio", response_model=None)
