@@ -1,4 +1,38 @@
-# Sealed Backtest: AI quant-research agents whose success criteria are sealed on Solana before they start, so they can't fool themselves
+# Harvest: an agentic prediction market for European agriculture under climate stress
+
+Oxford and Cambridge AI Race, Build track, 25 Oct 2026. Team: Adrian Mladenic Grobelnik, Antonio Aciob and Eashan Rautaray (Cambridge). Python, FastAPI and Solana devnet on the Superteam Agent Studio starter. Pages: `/harvest` (map, charts, world-model leaderboard, Resilience Fund), `/harvest/play` (phone, reached by QR code) and `/harvest/board` (projector). Sealed Backtest (below, `/sealed`) stays underneath as the integrity layer.
+
+## Why
+
+Heat and drought are cutting European yields: the JRC MARS bulletin of Aug 2026 reports moderate to severe losses across France, southern Germany, northern and central Italy and Hungary, and Coldiretti says about 60% of Italian farmland is hit. Olive oil rose 149% between Dec 2021 and Jan 2024 (IMF series POLVOILUSDM, 4,125 to 10,281 USD/t) and then fell back. Gulf-controlled firms collect EU farm payments: DeSmog counts over EUR 71 million for Al Nahyan-controlled farms in Romania, Spain and Italy ([DeSmog, 6 May 2026](https://www.desmog.com/2026/05/06/gulf-royal-family-banks-over-e70-million-in-eu-farming-funds/)). Kalshi and Polymarket run US weather markets, but we found none on European agriculture or policy.
+
+## What it is
+
+- **Agents are world models.** Eight agents each carry an explicit conviction about how society and markets work: Climate Pessimist, Efficient-Market Skeptic, Geopolitics Hawk, Adaptation Optimist, Macro/Dollar, Land-Grab Realist, Agronomist and Crowd Follower. Each forecasts (Gemini, with a deterministic fallback) and bets in an LMSR market. The best performers show which world model is right, which matters to traders and to governments, policymakers and lawyers.
+- **Hard questions** (16 specs) are grounded in IMF commodity prices from FRED (wheat, maize, olive oil, coffee, cocoa, sugar, sunflower oil, rice) and resolve automatically. **Soft questions** (8 specs) are policy and geopolitics ("Will Italy declare a national drought emergency in 2027?"); they stay open with live odds.
+- **Time machine.** 19 quarterly cutoffs (2022Q1 to 2026Q3): agents see a masked window of data up to the cutoff only, then questions resolve against the real later prices. Prompts hide commodity names and calendar dates to stop hindsight leakage from the LLM's memory.
+- **Proof of conviction.** World models, and the forecasts of the sealed holdout (2025Q3 to 2026Q1), are hashed and posted as Solana devnet memos (`harvest:v1:models:<sha>`, `harvest:v1:holdout:<sha>`) before resolution. Per-window data hashes prove agents saw nothing later. Verify and tamper work on `/harvest`.
+- **Humans and outside agents.** Anyone joins via QR with no signup and play credits, bets next to the agents and gets a leaderboard; the user count is chained (`harvest:v1:users:<n>:<head>`). Outside agents register a world model and trade through `/harvest/api/agents/*`. Bets form a hash-chained ledger anchored by memo.
+- **Resilience Fund.** Every fee (2% of each bet) goes into a devnet treasury earmarked for farmers' heat adaptation. Its split across regions and crops follows market-implied risk (futarchy-lite), shown on the page and anchored (`harvest:v1:fund:...`).
+
+## Result on the frozen replay
+
+Brier score on the sealed holdout, lower is better (coin flip 0.25, climatology 0.216, final market price 0.161): Crowd Follower 0.153, Adaptation Optimist 0.158, Macro/Dollar 0.161, Efficient-Market Skeptic 0.168, Geopolitics Hawk 0.176, Land-Grab Realist 0.184, Agronomist 0.201, Climate Pessimist 0.218. Each agent made 272 resolved forecasts. The honest reading: "heat means price spikes" did not beat the market, and the differences are small with few quarters.
+
+## Run
+
+```bash
+python -m agent serve                          # open http://localhost:3000/harvest
+python -m agent.harvest replay --offline       # deterministic replay without Gemini
+python -m agent.harvest replay --anchor        # commit memos (pending until the wallet is funded)
+PYTHONPATH=. .venv/bin/python -m pytest -q tests   # 433 tests, offline, no keys
+```
+
+Code lives in `agent/harvest/` (spec in `SPEC.md`), `agent/routes/harvest.py` and `agent/routes/harvest_pages.py`. Limits: the devnet wallet is unfunded, so memos show "pending on-chain"; few quarters give wide error bars; LLMs may remember post-cutoff prices, which masking and the live soft questions reduce; play credits only, not financial or policy advice. Sources: [JRC MARS coverage](https://www.brusselstimes.com/2287095/drought-extreme-heat-cut-summer-crop-yields-across-western-and-central-europe), [IMF olive oil series on FRED](https://fred.stlouisfed.org/series/POLVOILUSDM), [Kalshi weather volume](https://www.claimsjournal.com/news/national/2026/08/31/339851.htm).
+
+---
+
+# Sealed Backtest (the integrity layer): AI quant-research agents whose success criteria are sealed on Solana before they start, so they can't fool themselves
 
 Oxford and Cambridge AI Race, Build track, 25 Oct 2026. Team: Adrian Mladenic Grobelnik, Antonio Aciob and Eashan Rautaray (Cambridge). A Python agent built on the Superteam Agent Studio starter (FastAPI and Solana devnet). Sealed Backtest lives at `/sealed`. The starter's AI Race adapter and its six task handlers (`/agent-studio/v1/*`, `/race`) run unchanged in the same service.
 
