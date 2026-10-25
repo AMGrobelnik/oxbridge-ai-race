@@ -102,3 +102,8 @@ def test_farmer_uses_croppy_when_available(client, monkeypatch):
 def test_pages_serve(client, path):
     r = client.get(path)
     assert r.status_code == 200 and "world.js" in r.text
+
+
+def test_parse_rejects_looping_reasons():
+    assert world.parse('{"reason": "Prices may rise."}') == "Prices may rise."
+    assert world.parse('{"reason": "Heat could impact future impact future impact future impact future prices."}') is None
