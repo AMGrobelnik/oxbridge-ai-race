@@ -376,3 +376,28 @@ The bank has 12–20 hard specs and 8 soft specs, of type `QuestionSpec`.
   - live market bets with credits.
 - **`/harvest/board`** is the projector page: map, bets flow, leaderboard, user count and QR.
 - **`/harvest/qr.svg`** is the QR code of `PUBLIC_BASE_URL/harvest/play`.
+
+## 13. Proof the scoring is real (`proof.py`, `agent/routes/harvest_proof.py`)
+
+All three read the current frozen backtest through `harvest.replay_result()` (so a re-frozen
+`data/demo_replay.json` shows up without a code change). Only dev and holdout quarters count.
+Intervals are the seeded 90% percentile bootstrap of `scoring`.
+
+| Method and path | Result |
+| --- | --- |
+| GET `/harvest/api/replay/timeline` | `{"has_replay", "agents": [{id, name, color}], "steps": [{cutoff, split, n_questions, yes_rate, market_brier_cum, "agents": {id: {bankroll, pnl, brier, brier_cum}}}], "final": [{id, name, bankroll, brier_cum, rank_bankroll, rank_brier}], "note"}` |
+| GET `/harvest/api/calibration?split=all\|dev\|holdout&bins=10` | `{"agents": [{id, name, color, n, ece, ece_lo, ece_hi, brier}]}` sorted by ECE |
+| GET `/harvest/api/calibration?agent=<id>&split=&bins=` | `{"agent", "n", "bins": [{lo, hi, n, mean_p, freq, freq_lo, freq_hi}], "ece", "ece_lo", "ece_hi", "brier", "note"}`; 404 for an unknown agent |
+| GET `/harvest/api/impact` | `{"summary", "forecasters", "holdout"/"all_scored": {n, market, consensus, base_rate: {brier, lo, hi, diff_vs_base, diff_lo, diff_hi, beats_base_ci}, coin}, "by_commodity": [...], "early_warning": {holdout, all_scored: {market, consensus, base_rate: {events, flagged, hit_rate, false_alarms, false_alarm_rate, lead_months_avg}}}, "payers": [{who, why}], "caveats"}` |
+
+- **Bankroll** is 1,000 plus the agent's profit carried across quarters (each quarter is a fresh
+  LMSR book), so it can go below zero.
+- **Calibration agents** are the world models plus `market` (final LMSR price) and `consensus`
+  (mean of the world models). ECE is the count-weighted |mean forecast - observed frequency|.
+- **Impact baseline** is the historical base rate: the share of earlier questions of the same spec
+  that resolved YES by the cutoff (0.5 with no history), so it uses only what was known then.
+  An adverse move is the outcome named by `adverse_if`; flagged means adverse odds >= 50% when the
+  question opened, so the lead is the question's horizon.
+- Pages: `/app/replay` (about 30 s animation, play/pause/speed, `?at=<step>` jumps,
+  `?autoplay=0` waits), `/app/impact`, and a calibration section under `/app/leaderboard`
+  (`#calibration`), all in `static/app/proof.js`.

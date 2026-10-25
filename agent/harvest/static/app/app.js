@@ -94,7 +94,8 @@
 
   // ------------------------------------------------------------ chrome: nav, credits badge, Croppy
   const NAV = [["/app", "Home", "home"], ["/app/markets", "Markets", "markets"], ["/app/live", "Live", "live"],
-    ["/app/theory", "Theory", "theory"], ["/app/leaderboard", "Leaderboard", "board"]];
+    ["/app/theory", "Theory", "theory"], ["/app/leaderboard", "Leaderboard", "board"],
+    ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"]];
   function badgeText() {
     const me = load();
     return me && me.token ? `${me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";
@@ -352,7 +353,7 @@
   // ------------------------------------------------------------ boot
   const PAGES = { home, markets, market: marketPage, live, theory, board: leaderboard };
   renderChrome();
-  (PAGES[document.body.dataset.page] || home)();
+  (PAGES[document.body.dataset.page] || (() => {}))(); // other pages (replay, impact) bring their own script
   refreshBalance();
   loadCroppy();
 })();
