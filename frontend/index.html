@@ -828,7 +828,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .mk-title h1{margin:16px 0 14px;font:400 clamp(48px,5.4vw,72px)/.92 var(--f-display);letter-spacing:-.03em;color:var(--soil)}
 .mk-title h1 em.s{color:var(--wheat-ink)}
 .mk-title p{max-width:54ch;color:var(--stalk);font:16px/1.6 var(--f-body)}
-.mk-title p.mk-later{margin-top:12px;color:var(--chaff);font:12px/1.5 var(--f-mono)}
+.mk-title p.mk-later{max-width:none;margin-top:12px;color:var(--chaff);font:12px/1.5 var(--f-mono)}
 .mk-later b{margin-right:8px;padding:2px 8px;border-radius:var(--r-pill);background:var(--cream);color:var(--wheat-deep);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
 .mk-buy span{cursor:pointer}.mk-buy span:focus-visible{outline:2px solid var(--wheat);outline-offset:2px}
 .mk-buy .y:hover{background:var(--up)!important;color:var(--paper)}.mk-buy .n:hover{background:var(--down)!important;color:var(--paper)}
@@ -880,6 +880,26 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 @keyframes mkup{0%{color:var(--up);background:color-mix(in srgb,var(--up) 12%,transparent)}}
 @keyframes mkdn{0%{color:var(--down);background:color-mix(in srgb,var(--down) 12%,transparent)}}
 .mk-spark{display:block;width:100%;height:46px}
+.mk-when{display:flex;align-items:center;gap:8px;margin-top:-4px;color:var(--stalk);font:12px var(--f-body)}
+.mk-when b{font-weight:500;color:var(--soil)}
+.mk-when>span:last-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:var(--r-pill);font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.st::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.st-open{background:color-mix(in srgb,var(--up) 11%,transparent);color:var(--up)}
+.st-wait{background:var(--cream);color:var(--wheat-deep)}
+.st-done{background:var(--field);color:var(--stalk)}
+.dt-when{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:0;margin:0 0 20px;background:var(--paper);border:1px solid var(--hairline);border-radius:var(--r-panel);box-shadow:var(--shadow-lift)}
+.dt-when>div{display:grid;gap:4px;align-content:start;padding:14px 20px;min-width:0}
+.dt-when>div+div{border-left:1px solid var(--hairline)}
+.dt-when span:not(.st){color:var(--chaff);font:500 10.5px var(--f-mono);letter-spacing:var(--label-track);text-transform:uppercase}
+.dt-when .st{justify-self:start}
+.dt-when b{font:400 22px/1.15 var(--f-display);color:var(--soil)}
+.dt-when small{color:var(--stalk);font:12px/1.4 var(--f-body)}
+.dt-when a{color:var(--wheat-ink)}
+.tk-when{margin:0 0 12px;padding:10px 12px;border-radius:var(--r-field);background:var(--mist);color:var(--stalk);font:12px/1.5 var(--f-body)}
+.tk-when .st{margin-right:4px;vertical-align:1px}
+.tk-when b{color:var(--soil);font-weight:500}
+@media (max-width:760px){.dt-when{grid-template-columns:1fr 1fr}.dt-when .w2{grid-column:1/-1;border-left:0!important;border-top:1px solid var(--hairline)}}
 .mk-buy{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .mk-buy span{display:flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:var(--r-field);font:500 13px var(--f-body);transition:background .25s}
 .mk-buy span b{font:500 13px var(--f-mono)}
@@ -1774,7 +1794,7 @@ function initMarkets(){
   document.addEventListener('keydown',e=>{if(VIEW!=='markets')return;if(e.key==='Escape')closeDes();if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();$('#tm-q').focus()}});
   const news=['EU Commission weighs drought reserve for southern member states','Jaén cooperatives report 41% soil moisture into flowering','Rhine at Kaub forecast 92 cm by mid-November','Euronext wheat open interest at a 3-month high'];
   const nh=news.map(n=>`<span>■ ${esc(n.toUpperCase())}</span>`).join('');$('[data-news]').innerHTML=nh+nh;
-  tMap=new TermMap($('#t-map'));
+  tMap=new TermMap($('#t-map'));loadRes().then(()=>{if(VIEW==='markets')renderMon()});
   NOTES.slice(0,12).reverse().forEach(n=>wireRow(n));
   renderMon();renderRegionBoard();
   $('[data-ts]').innerHTML=EVENTS.slice(0,TS_ROWS).map(e=>tsRow(e)).join('');
@@ -1802,12 +1822,30 @@ function runCmd(v){
 }
 function monList(){const w=TS.q.split(/\s+/).filter(Boolean);return MARKETS.filter(m=>(TS.cat==='ALL'||m.cat===TS.cat)&&w.every(x=>(m.q+' '+m.reg+' '+m.cat+' '+m.tags+' '+m.code+' '+m.tk).toLowerCase().includes(x))).sort((a,b)=>(b.vol||0)-(a.vol||0))}
 function mkCons(m){const f=(POS[m.id]||[]).filter(p=>!p.nf);if(!f.length)return null;return Math.round(f.reduce((s,p)=>s+p.est,0)/f.length)}
+/* ---- when a market ends: trading close, how and when it settles, a countdown and a status chip ---- */
+const RES={};let resP=null;
+function loadRes(){if(!resP)resP=fetch('/harvest/api/resolutions').then(r=>r.ok?r.json():{}).then(d=>{for(const x of (d&&d.markets)||[])RES[x.qid]=x}).catch(()=>{});return resP}
+const dLabel=s=>{const d=new Date(String(s).slice(0,10)+'T12:00:00Z');return isNaN(d)?String(s):d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})};
+const inWords=s=>{const days=Math.round((new Date(String(s).slice(0,10)+'T12:00:00Z')-Date.now())/864e5);if(isNaN(days))return '';if(days<0)return 'passed';if(days<1)return 'today';if(days<45)return `in ${days} day${days>1?'s':''}`;const mo=Math.round(days/30.4);return mo<24?`in ${mo} months`:`in ${(days/365).toFixed(1)} years`};
+function endInfo(m){
+  const r=RES[m.id]||{},hard=m.kind==='hard'||!!r.series,end=String(m.end||'').slice(0,10);
+  let settle=r.expected_by||'';if(hard&&!settle&&end){const d=new Date(end+'T12:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()+1);d.setUTCDate(15);settle=d.toISOString().slice(0,10)}
+  const close=hard?settle:end,series=hard?(r.series||String(m.src||'').split(' · ').pop()):'';
+  const month=hard&&end?new Date(end+'T12:00:00Z').toLocaleDateString('en-GB',{month:'long',year:'numeric'}):'';
+  const status=r.state==='resolved'?'Resolved':(hard&&end&&Date.now()>Date.parse(end+'T23:59:59Z'))||r.state==='proposed'?'Waiting for data':'Open';
+  const src=hard?`FRED ${series} (IMF primary commodity prices)`:'the official announcement';
+  return {hard,close,closeL:dLabel(close),cd:inWords(close),status,src,srcUrl:m.srcUrl||(series?`https://fred.stlouisfed.org/series/${series}`:''),month,
+    resolves:hard?`on the ${month} price, published around ${dLabel(settle)}`:`by ${dLabel(end)} if officially confirmed`,
+    settles:hard?`Settles on ${dLabel(settle)} when FRED publishes the ${month} ${series} price.`:`Settles when an official announcement confirms it, by the ${dLabel(end)} deadline.`};
+}
+const stChip=e=>`<span class="st st-${e.status==='Open'?'open':e.status==='Resolved'?'done':'wait'}">${e.status}</span>`;
 function monCard(m,fl,i=0){
-  const p=Math.round(m.last),d=m.d1!=null?m.d1:m.last-m.prev,c=mkCons(m),gap=c==null?0:c-p;
+  const p=Math.round(m.last),d=m.d1!=null?m.d1:m.last-m.prev,c=mkCons(m),gap=c==null?0:c-p,e=endInfo(m);
   const cons=c==null?`<span>No AI forecasts yet</span>`:`<span class="mk-cons-bar" aria-hidden="true"><i style="left:${p}%"></i><u style="left:${c}%"></u></span><span>AI consensus <b>${c}%</b> · ${gap===0?'level with the market':`${Math.abs(gap)} pts ${gap>0?'above':'below'} market`}</span>`;
   return `<a class="mk-card ${fl||''}" href="#m-${m.id}" data-id="${m.id}" style="animation-delay:${Math.min(i,12)*35}ms">
-  <div class="mk-card-top"><span class="chip">${esc(m.cat)}</span><span class="mono">${esc(m.reg.split(',')[0])} · ${daysLeft(m)}d left</span></div>
+  <div class="mk-card-top"><span class="chip">${esc(m.cat)}</span><span class="mono">${esc(m.reg.split(',')[0])}</span></div>
   <h3>${esc(m.q)}</h3>
+  <div class="mk-when">${stChip(e)}<span>Closes <b>${e.closeL}</b> · ${e.cd.replace(' months',' mo')}</span></div>
   <div class="mk-odds"><div><b>${p}<small>%</small></b><span class="lab">chance of yes</span></div><div class="mk-chg"><span class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pts</span><small>24 h</small></div></div>
   ${sparkSVG(m.h,60,'mk-spark')}
   <div class="mk-buy"><span class="y" role="button" tabindex="0" data-buy="YES">Buy Yes <b>${p}¢</b></span><span class="n" role="button" tabindex="0" data-buy="NO">Buy No <b>${100-p}¢</b></span></div>
@@ -2006,13 +2044,17 @@ const DTV={v:'human'};
 const API_H='/harvest/api';
 function dtViews(m){
   const host=$('[data-detail]'),grid=$('.dt-grid',host);if(!grid)return;
-  grid.insertAdjacentHTML('beforebegin',`<div class="dt-views"><div class="dt-tabs" role="tablist" aria-label="View"><button type="button" role="tab" data-dv="human">👤 Human view</button><button type="button" role="tab" data-dv="agent">🤖 Agent view</button></div><span data-dv-l></span></div>`);
+  const e=endInfo(m);
+  grid.insertAdjacentHTML('beforebegin',`<section class="dt-when" data-when aria-label="When this market ends">${dtWhen(m)}</section><div class="dt-views"><div class="dt-tabs" role="tablist" aria-label="View"><button type="button" role="tab" data-dv="human">👤 Human view</button><button type="button" role="tab" data-dv="agent">🤖 Agent view</button></div><span data-dv-l></span></div>`);
   grid.insertAdjacentHTML('afterend',`<div class="dt-agent" data-agentv hidden></div>`);
   const first=$('.dt-main>.panel',host);
   if(first)first.insertAdjacentHTML('afterend',`<section class="panel"><div class="panel-h"><h2>Recent trades</h2><span class="mono" style="color:var(--muted)">people and agents, newest first</span></div><ol class="mk-trades dt-trades" data-dtrades></ol></section><section class="panel"><div class="panel-h"><h2>Debate</h2><span class="mono" style="color:var(--muted)">agents argue the most disputed markets</span></div><div class="dt-debate" data-debate><p class="dt-mu">Loading the debate…</p></div></section>`);
   $$('[data-dv]',host).forEach(b=>b.addEventListener('click',()=>setDV(m,b.dataset.dv)));
-  dtTrades(m);dtDebate(m);setDV(m,DTV.v);
+  dtTrades(m);dtDebate(m);setDV(m,DTV.v);loadRes().then(()=>{const w=$('[data-when]');if(w&&MK[m.id])w.innerHTML=dtWhen(m);const t=$('[data-tk-when]');if(t)t.innerHTML=tkWhen(m)});
+  const tk=$('[data-ticket]');if(tk&&!$('[data-tk-when]',tk)){const pl=$('[data-place]',tk);if(pl)pl.insertAdjacentHTML('beforebegin',`<p class="tk-when" data-tk-when>${tkWhen(m)}</p>`)}
 }
+function dtWhen(m){const e=endInfo(m);return `<div><span>Status</span>${stChip(e)}</div><div><span>Trading closes</span><b>${e.closeL}</b><small>${e.cd}${e.hard?' · when the data is out':''}</small></div><div class="w2"><span>Resolves</span><b>${e.resolves}</b><small>source: ${e.srcUrl?`<a href="${esc(e.srcUrl)}" target="_blank" rel="noopener">${esc(e.src)}</a>`:esc(e.src)}</small></div>`}
+function tkWhen(m){const e=endInfo(m);return `${stChip(e)} Trading closes <b>${e.closeL}</b> (${e.cd}). ${esc(e.settles)} Play credits only · no real money.`}
 function dtTrades(m){const ol=$('[data-dtrades]');if(!ol)return;const ev=EVENTS.filter(e=>e.m&&e.m.id===m.id).slice(0,8);
   ol.innerHTML=ev.length?ev.map(e=>tsRow(e)).join(''):`<li class="dt-none">No trades in the recent feed yet. Be the first.</li>`}
 function setDV(m,v){DTV.v=v;$$('[data-dv]').forEach(b=>b.setAttribute('aria-selected',b.dataset.dv===v));

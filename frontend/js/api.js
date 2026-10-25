@@ -556,8 +556,9 @@
       btn.disabled = true;
       try {
         const r = await call("/bet", { token: me.token, qid: m.id, side: side(), spend: a });
-        say(`<b>${r.trade.side} ${money(r.trade.spend)} placed · ledger #${num(r.entry.seq)}</b><span class="mono">price now ${Math.round(r.market.p_yes * 100)}% YES · balance ${money(r.balance)}</span>`);
-        balanceLine(tk, r.balance); paintMe();
+        const e = typeof endInfo === "function" ? endInfo(m) : null;
+        say(`<b>${r.trade.side} ${money(r.trade.spend)} placed · ledger #${num(r.entry.seq)}</b><span class="mono">price now ${Math.round(r.market.p_yes * 100)}% YES · balance ${money(r.balance)}</span>${e ? `<span class="cr-settle">${escH(e.settles)}</span>` : ""}`);
+        balanceLine(tk, r.balance); paintPos();
       } catch (e) {
         if (e.status === 401) { localStorage.removeItem(KEY); say("<b>Your session expired. Press the button again to rejoin.</b>", true); } else say(`<b>${escH(e.message)}</b>`, true);
       } finally { btn.disabled = false; }
@@ -568,15 +569,16 @@
       if (b) b.click();
       requestAnimationFrame(() => { tk.scrollIntoView({ block: "center", behavior: "smooth" }); inp.focus({ preventScroll: true }); });
     }
-    paintMe();
+    paintPos();
   }
   // the signed-in player: a balance chip in the top bar and "Your position" on the market page, refreshed after every bet and on load
+  const paintPos = () => paintMe();
   async function paintMe() {
     const me = player();
     let chip = q1("[data-cr-me]");
     if (!me || !me.token) { if (chip) chip.remove(); return; }
     const bar = q1(".topbar .bar-cta");
-    if (!chip && bar) { chip = document.createElement("span"); chip.dataset.crMe = ""; chip.className = "cr-me"; chip.innerHTML = `<i></i>@${escH(me.username || me.nickname || "")}<b>…</b>`; bar.prepend(chip); } // made before the await, so overlapping calls share one chip
+    if (!chip && bar) { chip = document.createElement("a"); chip.dataset.crMe = ""; chip.className = "cr-me"; chip.href = "/app"; chip.innerHTML = `<i></i>@${escH(me.username || me.nickname || "")}<b>…</b>`; bar.append(chip); } // made before the await, so overlapping calls share one chip
     let r;
     try { r = await call(`/me?token=${encodeURIComponent(me.token)}`); } catch (e) {
       if (e.status === 401) { localStorage.removeItem(KEY); if (chip) chip.remove(); }
@@ -624,7 +626,7 @@
           const u = inp.value.trim().replace(/^@/, "").toLowerCase();
           const r = await call("/join", { nickname: u, username: u });
           const v = { token: r.token, user_id: r.user_id, username: r.username, nickname: r.nickname, type: r.type || "human", credits: r.credits }; // the shape /app saves, so one login works on both
-          savePlayer(v); w.remove(); resolve(v); paintMe();
+          savePlayer(v); w.remove(); resolve(v); paintMe(true);
         } catch (err) { q1(".cr-err", w).textContent = err.message; }
       });
     });
@@ -774,9 +776,10 @@
 .cr-croppy{position:fixed;right:16px;bottom:72px;z-index:71;width:min(380px,calc(100vw - 32px));background:#fbfcf9;border:1px solid var(--line);border-radius:18px;box-shadow:0 24px 60px -24px rgba(30,40,20,.45)}
 .cr-croppy .cr-page{padding:16px;max-width:none}.cr-croppy .sec-head{margin-bottom:10px;position:relative}.cr-croppy h2{font-size:18px}.cr-croppy .sec-head p{font-size:13px;margin-top:4px}.cr-croppy .cr-log{max-height:40vh;min-height:140px}
 .cr-x-close{position:absolute;right:-4px;top:-6px;border:0;background:none;font-size:22px;cursor:pointer;color:var(--muted)}
-.cr-me{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 6px 0 14px;margin-right:8px;border:1px solid var(--line);border-radius:999px;background:var(--paper,#fbfcf9);color:var(--ink);font:500 13px var(--f-body);white-space:nowrap}.cr-me i{width:7px;height:7px;border-radius:50%;background:var(--yes)}.cr-me b{padding:5px 10px;border-radius:999px;background:var(--cream,#efe7d3);color:var(--wheat-deep,#6b4d10);font:500 12px var(--f-mono)}
 .cr-pos{display:grid;gap:2px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--cream-soft,#f3ead4);font:13px var(--f-body)}.cr-pos span{color:var(--wheat-deep,#6b4d10);font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase}.cr-pos b{font:500 15px var(--f-body);color:var(--ink)}.cr-pos small{color:var(--muted);font:12px var(--f-mono)}.cr-pos em{font-style:normal}.cr-hint{font-size:12px;margin:10px 0 0!important}
-@media (max-width:560px){.cr-me{height:34px;padding-left:10px;margin-right:0;font-size:12px}.bar-cta:has(.cr-me) .btn.mag{display:none}}
+.cr-me{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 6px 0 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper,#fbfcf9);color:var(--ink);font:500 13px var(--f-body);white-space:nowrap;text-decoration:none}.cr-me i{width:7px;height:7px;border-radius:50%;background:var(--yes)}.cr-me b{padding:5px 10px;border-radius:999px;background:var(--cream,#efe7d3);color:var(--wheat-deep,#6b4d10);font:500 12px var(--f-mono)}
+@media (max-width:560px){.cr-me{height:34px;padding-left:10px;font-size:12px}}
+.cr-settle{display:block;margin-top:6px;color:var(--ink);font:13px/1.45 var(--f-body)}
 .cr-modal{position:fixed;inset:0;z-index:90;background:rgba(20,25,15,.45);display:grid;place-items:center;padding:16px}.cr-card{background:#fbfcf9;border-radius:16px;padding:22px;width:min(400px,100%)}.cr-card p{color:var(--muted);margin:6px 0 14px}.cr-card form{display:flex;gap:8px}
 @media (max-width:760px){.cr-croppy-btn{bottom:84px;padding:9px 14px;font-size:13px}.cr-croppy{bottom:130px}}
 .cr-lvhead{padding-top:36px}.cr-lvhead h2,.cr-agents .sec-head h2{font-family:var(--f-serif);font-weight:400;letter-spacing:-.02em;line-height:.98;font-size:clamp(36px,4.6vw,60px)}
