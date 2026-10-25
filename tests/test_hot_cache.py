@@ -67,3 +67,24 @@ def test_ttl_zero_turns_it_off(monkeypatch):
     asyncio.run(run())
     assert calls.count("state:None") == 3
 
+
+
+def test_farmer_burst_calls_the_llm_once_per_crop(monkeypatch):
+    """/harvest/api/farmer asks the LLM on a cache miss; a burst of map tabs must share one call per query."""
+    monkeypatch.setenv("HARVEST_HOT_CACHE_TTL", "2")
+    calls: list[str] = []
+    app = FastAPI()
+    hot_cache.register(app)
+
+    @app.get("/harvest/api/farmer")
+    async def farmer(crop: str = "wheat") -> JSONResponse:
+        calls.append(crop)
+        await asyncio.sleep(0.05)
+        return JSONResponse({"crop": crop})
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            await asyncio.gather(*[c.get("/harvest/api/farmer?crop=wheat") for _ in range(15)], c.get("/harvest/api/farmer?crop=maize"))
+
+    asyncio.run(run())
+    assert calls.count("wheat") == 1 and calls.count("maize") == 1

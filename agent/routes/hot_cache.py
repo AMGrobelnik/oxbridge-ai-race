@@ -20,6 +20,7 @@ HOT_PATHS = frozenset({
     "/harvest/api/state", "/harvest/api/leaderboard", "/harvest/api/swarm", "/harvest/api/landing",
     "/harvest/api/news", "/harvest/api/markets", "/harvest/api/fund", "/harvest/api/season", "/pitch/api/state",
     "/harvest/api/site",
+    "/harvest/api/farmer",  # the map page: a price move makes it call the LLM, so a burst would call it once per tab
 })
 MAX_ENTRIES = 512
 GZIP_MIN_BYTES = 1024
