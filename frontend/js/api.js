@@ -595,7 +595,6 @@
       : `<span>Your position</span><small>None yet on this market.</small>`;
   }
   function balanceLine(tk, bal) {
-    meBal = bal; meAt = Date.now(); paintMe(false);
     let line = q1("[data-cr-bal]", tk);
     if (!line) { line = document.createElement("p"); line.dataset.crBal = ""; line.className = "mono cr-bal"; q1("h2", tk).after(line); }
     const me = player();
@@ -749,23 +748,11 @@
       <div class="tt-wrap"><table class="tt"><thead><tr><th>TKR</th><th>MARKET</th><th>SIDE</th><th class="r">EST</th><th class="r">MKT</th><th class="r">STAKE</th></tr></thead><tbody>${ps.slice(0, 8).map((x) => `<tr data-act="mkt:${escH(x.m.id)}"><td class="tk">${x.m.tk}</td><td class="q" style="max-width:260px">${escH(x.m.q)}</td><td class="${x.p.side === "YES" ? "t-up" : "t-dn"}">${x.p.side}</td><td class="r">${x.p.est}</td><td class="r">${x.m.last.toFixed(1)}</td><td class="r">${money(x.p.stake)}</td></tr>`).join("")}</tbody></table></div>
       <div class="des-act"><button type="button" class="p" data-act="live:${ai}">WATCH ON LIVE GLOBE &lt;GO&gt;</button><button type="button" data-cr-desf="${ai}:0">FOLLOW</button><button type="button" data-cr-desf="${ai}:1">COPY BETS</button></div><p data-cr-fmsg style="color:var(--t-mu)"></p>`);
   }
-  let meBal = null, meAt = 0;
-  async function paintMe(force) { // "@nick · N credits" in the nav on every view once signed in (same localStorage key as /app)
-    const cta = q1(".topbar .bar-cta"); if (!cta) return;
-    const me = player(), start = q1("[data-start]", cta);
-    let chip = q1("[data-me]", cta);
-    if (!me || !me.token) { if (chip) chip.remove(); if (start) start.hidden = false; return; }
-    if (force || Date.now() - meAt > 30000) { meAt = Date.now(); try { meBal = (await call(`/me?token=${encodeURIComponent(me.token)}`)).balance; } catch (_) { /* keep the last balance */ } }
-    if (!chip) { chip = document.createElement("a"); chip.className = "me-chip"; chip.dataset.me = ""; chip.href = "/app"; cta.append(chip); }
-    chip.innerHTML = `<b>@${escH(me.nickname || "player")}</b>${meBal != null ? `<span>· ${num(Math.round(meBal))} credits</span>` : ""}`;
-    if (start) start.hidden = true;
-  }
-  addEventListener("storage", () => paintMe(true));
+  addEventListener("storage", (e) => { if (e.key === KEY) paintMe(); }); // signed in or out on /app or another tab
   function wireGlobalClicks() {
-    paintMe(true); setInterval(() => paintMe(false), 5000);
     document.addEventListener("click", (e) => {
       const st = e.target.closest("[data-start]");
-      if (st) { e.preventDefault(); e.stopPropagation(); ensurePlayer().then(() => { paintMe(true); go("markets"); }); return; }
+      if (st) { e.preventDefault(); e.stopPropagation(); ensurePlayer().then(() => go("markets")); return; }
       const f = e.target.closest("[data-cr-f]");
       if (f) { const box = f.closest("[data-cr-follow]"); follow(+box.dataset.crFollow, f.dataset.crF === "copy", box.parentElement.querySelector("[data-cr-fmsg]")); return; }
       const d = e.target.closest("[data-cr-desf]");

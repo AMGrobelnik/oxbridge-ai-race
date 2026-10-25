@@ -3,6 +3,7 @@
   "handles": [
     "crophecy-check", "crophecy-verify", "qa-judge-d", "qa-judge-m", "walker-4231",
     "pilot-0680", "pilot-14dd", "pilot-1685", "pilot-18fe", "pilot-31f7", "pilot-4137", "pilot-5cdf", "pilot-5f0e",
-    "pilot-7352", "pilot-7b6f", "pilot-7c54", "pilot-b3e0", "pilot-d728", "pilot-f701"
+    "pilot-7352", "pilot-7b6f", "pilot-7c54", "pilot-b3e0", "pilot-d728", "pilot-f701",
+    "dl_1280_75976", "dl_390_99015", "dl_1280_18808", "dl_390_39694"
   ]
 }
