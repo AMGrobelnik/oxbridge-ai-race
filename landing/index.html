@@ -311,7 +311,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .bk-axis{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 52px;gap:14px;margin-top:8px;font:400 11px var(--f-mono);color:var(--stalk)}
 .bk-axis .ticks{position:relative;height:30px}
 .bk-axis .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.bk-axis .ticks span.mk{color:var(--wheat-ink);top:14px}
+.bk-axis .ticks span.tk-m{color:var(--wheat-ink);top:14px}
 .bk-axis .ticks span.cf{top:14px}
 .bk-plot{position:relative;display:grid;gap:4px}
 @media (max-width:980px){.board{grid-template-columns:1fr;gap:28px}}
@@ -1010,7 +1010,7 @@ requestAnimationFrame(loop);
       + `<span class="bk-track">${line(base.market, 'mkt')}${line(base.coin, 'coin')}<i class="bk-ci" style="left:${x(r.brier_holdout_lo ?? r.brier_holdout)};width:calc(${x(r.brier_holdout_hi ?? r.brier_holdout)} - ${x(r.brier_holdout_lo ?? r.brier_holdout)})"></i>`
       + `<i class="bk-dot" style="left:${x(r.brier_holdout)};background:${esc(r.color || '#55604c')}"></i></span><span class="bk-val">${r.brier_holdout.toFixed(3)}</span></div>`).join('')
       + `<div class="bk-axis"><span>Brier, ${lo.toFixed(2)} to ${hi.toFixed(2)}</span><span class="ticks"><span style="left:0">${lo.toFixed(2)}</span><span style="left:100%">${hi.toFixed(2)}</span>`
-      + (base.market != null ? `<span class="mk" style="left:${x(base.market)}">market ${base.market.toFixed(3)}</span>` : '')
+      + (base.market != null ? `<span class="tk-m" style="left:${x(base.market)}">market ${base.market.toFixed(3)}</span>` : '')
       + `</span><span></span></div>`;
     set('b_market', base.market != null ? base.market.toFixed(3) : '–');
     set('b_coin', (base.coin ?? .25).toFixed(3));
