@@ -8,6 +8,7 @@ Without an admin token a request may only reach:
   - the Sealed Verify map: POST /map/api/onboard|reverify (rate-limited per IP there);
   - POST /sealed/api/verify (read-only bundle check; capped here at PUBLIC_VERIFY_PER_MIN, default 12);
   - the AI Race verifier routes /agent-studio/v1/* (they check their own bearer token).
+  - The Crophecy site (agent/routes/site_pages.py): GET /home, /live, /markets, /market/<qid>, /leaderboard, /theory, /farmer, /frontend/*.
   - Harvest: GET /harvest, /app (the simple UI) and /waitlist (the landing page) and everything under them (incl. the /harvest/api/news feed); POST /harvest/api/join|bet|forecast|verify|byo|croppy|waitlist|follow|
     agents/register|agents/bet|farmer/chat|whatsapp/twilio|whatsapp/meta (each rate-limited per IP or sender there).
     Also public: GET /harvest/api/debate, resolutions and markets/drafts. The admin POSTs /harvest/api/resolve/{qid}
@@ -30,7 +31,7 @@ from starlette.responses import Response
 from agent.challenge.ratelimit import RateLimiter, client_ip
 
 ADMIN_HEADER = "x-admin-token"
-PUBLIC_GET = re.compile(r"^/(?:|race|favicon\.ico|challenge(?:/.*)?|sealed(?:/.*)?|harvest(?:/.*)?|app(?:/.*)?|waitlist(?:/.*)?|map(?:/static/[\w.-]+|/api/(?:state|ledger)|/verify)?)$")
+PUBLIC_GET = re.compile(r"^/(?:|home|live|markets|market/.+|leaderboard|theory|farmer|frontend/.+|race|favicon\.ico|challenge(?:/.*)?|sealed(?:/.*)?|harvest(?:/.*)?|app(?:/.*)?|waitlist(?:/.*)?|map(?:/static/[\w.-]+|/api/(?:state|ledger)|/verify)?)$")
 PUBLIC_POST = re.compile(r"^/(?:challenge/api/(?:score|parse|submit)|map/api/(?:onboard|reverify)|sealed/api/verify|harvest/api/(?:join|bet|forecast|verify|byo|croppy|scenario|waitlist|agents/register|agents/bet|follow|farmer/chat|whatsapp/(?:twilio|meta)))$")
 SEALED_VERIFY = "/sealed/api/verify"
 VERIFIER = re.compile(r"^/agent-studio/v1/[A-Za-z0-9_/-]*$")

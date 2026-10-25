@@ -30,8 +30,8 @@ def test_root_serves_the_landing_page_to_browsers(client):
     assert 'id="glyphs"' in page and "/waitlist/hero-loop.mp4" in page  # the waitlist hero
     assert 'id="g-live"' in page and "/harvest/api/landing" in page  # the live globe on real bets
     assert "data-fallback" not in page  # every site link resolved to a route that exists
-    for href in ("/waitlist", "/app"):
-        assert f'href="{href}"' in page
+    assert 'href="/waitlist"' in page
+    assert 'href="/live"' in page or 'href="/app"' in page  # /live once agent/routes/site_pages.py serves it, else the /app fallback
 
 
 def test_root_still_answers_code_with_json(client):
