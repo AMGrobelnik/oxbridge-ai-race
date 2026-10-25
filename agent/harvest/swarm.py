@@ -156,7 +156,7 @@ def load_all_personas() -> list[dict[str, Any]]:
         out += [dict(p) for p in json.loads(NARRATIVE.read_text())]
     except (OSError, ValueError) as err:
         logger.warning("narrative personas unavailable: %s", type(err).__name__)
-    return out
+    return list({str(p["id"]): p for p in reversed(out)}.values())[::-1]  # first wins (personas.json may already hold them)
 
 
 SHORT_NAMES = {
@@ -345,7 +345,12 @@ async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_
     key = os.environ.get(prov.key_env)
     if not key:
         raise RuntimeError(f"{prov.key_env} not set")
-    body: dict[str, Any] = {"model": model.id, "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 4000}
+    body: dict[str, Any] = {"model": model.id, "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 8000}
+    # Keep thinking short so it cannot eat the answer (2.5 Flash and the OpenRouter reasoning models truncated at 4000 tokens).
+    if model.provider == "gemini" and "lite" not in model.id:
+        body["reasoning_effort"] = "low"
+    elif model.provider == "openrouter":
+        body["reasoning"] = {"effort": "low"}
     if model.json_mode and prov.json_mode:
         body["response_format"] = {"type": "json_object"}
     r = await client.post(f"{prov.base_url}/chat/completions", json=body, timeout=timeout_s,
