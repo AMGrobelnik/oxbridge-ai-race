@@ -95,7 +95,8 @@
   // ------------------------------------------------------------ chrome: nav, credits badge, Croppy
   const NAV = [["/app", "Home", "home"], ["/app/markets", "Markets", "markets"], ["/app/live", "Live", "live"],
     ["/app/theory", "Theory", "theory"], ["/app/scenario", "Scenarios", "scenario"], ["/app/leaderboard", "Leaderboard", "board"],
-    ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"]];
+    ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"], ["/app/map", "Map", "map"],
+    ["/app/disagreement", "Disagreement", "disagreement"], ["/app/farmer", "Farmer", "farmer"]];
   function badgeText() {
     const me = load();
     return me && me.token ? `${me.username ? "@" + me.username : me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";

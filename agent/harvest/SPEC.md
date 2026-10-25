@@ -432,3 +432,27 @@ Intervals are the seeded 90% percentile bootstrap of `scoring`.
     the latest few with `in_window: false`.
   - `explanation`: Croppy (fast LLM, 8 s deadline `WHY_DEADLINE_S`, cached per qid, last bet and n) citing the bets
     and headlines, else a deterministic summary. Rate limit `WHY_PER_MIN` (30). Unknown qid gives 404.
+
+## 16. Farmer mode, climate-stress map, disagreement index (`world.py`, `agent/routes/harvest_world.py`)
+
+Pages `/app/farmer`, `/app/map` (Leaflet 1.9.4 from cdnjs) and `/app/disagreement`, one script `static/app/world.js`.
+All three read the open live markets (`LiveBook.market_view`) and each agent's latest forecast.
+
+- `GET /harvest/api/farmer?crop=&region=` (crop: wheat, maize, barley, rapeseed, sunflower; region: France, Spain,
+  Italy, Germany, Poland, Romania, Greece; 400 otherwise) answers "will my crop's price rise by harvest?" from the
+  crop's price-rise market (barley uses wheat and rapeseed uses sunflower oil as proxies, `proxy` says which):
+  `{crop, region, proxy, question, market: {qid, title, resolve_month, base_value, target}, probability,
+  agents: {n_agents, mean, std, range, bull, bear}, confidence: {level: high|medium|low, std, n_agents, text},
+  stress: {heat_anomaly_c, stress, level}, related: [{qid, title, p_yes}], reason, source: "llm"|"cache"|"fallback",
+  by: "Croppy", crops, regions}`. Confidence: high below 8 points of agent std, medium below 15, else low. `reason`
+  comes from the fast LLM within `FARMER_DEADLINE_S` (6 s), cached per (crop, region, probability), else a
+  deterministic one quoting the most bullish and bearish agents. No betting.
+- `GET /harvest/api/map` returns `{anomaly: {value_c, from, to, source, url}, stress_max_c, method, regions,
+  europe_wide: [{qid, title, crop, p_yes}]}`; `regions` (most stressed first) are
+  `{region, lat, lng, exposure, heat_anomaly_c, stress (0..1), level: low|moderate|high|severe, qids, markets}`.
+  Heat = mean of the last three NOAA Europe land anomalies (`data/climate.json`) x a hand-set regional exposure;
+  stress = heat / 3 °C, capped at 1. `qids`/`markets` are the open markets whose `region` is that country.
+- `GET /harvest/api/disagreement?limit=50` (1..100) returns `{framing, metric, markets}`: open markets ranked by
+  the population std of the agents' latest p_yes, each `{rank, qid, title, region, crop, kind, price, n_agents,
+  mean, std, range, bull, bear}` where `bull`/`bear` are the agents with the highest/lowest p_yes
+  `{persona_id, name, color, p_yes, reason}`. Framing: where the AIs disagree most = real uncertainty.
