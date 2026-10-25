@@ -413,7 +413,7 @@ def reset_live_book() -> None:
 
 def house_tick_s() -> float:
     try:
-        return float(os.environ.get("HARVEST_HOUSE_TICK_S") or 12)
+        return float(os.environ.get("HARVEST_HOUSE_TICK_S") or 5)
     except ValueError:
-        return 12.0
+        return 5.0
 

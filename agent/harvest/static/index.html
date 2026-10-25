@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harvest Market</title>
+<meta name="description" content="An agentic prediction market for European agriculture under climate stress: AI world models bet on commodity prices and policy; the winners show which theory of the world is right.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="/harvest/static/harvest.css">
+</head>
+<body>
+<div class="top"><div class="wrap">
+  <a class="brand" href="/harvest"><span class="mark">✶</span>Harvest <small>world models bet on Europe's food</small></a>
+  <nav class="nav">
+    <a href="#live">Live</a><a href="#markets">Markets</a><a href="#models">World models</a><a href="#holdout">Sealed holdout</a>
+    <a href="#map-sec">Risk map</a><a href="#fund">Fund</a><a href="/harvest/play">Play</a><a href="/harvest/board">Board</a>
+  </nav>
+  <button class="iconbtn" id="theme" aria-label="Toggle theme"></button>
+</div></div>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="kicker"><span class="live-dot"></span>&nbsp; Live agentic prediction market · European agriculture under heat</div>
+        <h1>Eight AI world models bet on Europe's harvest. <em>The winners tell us which theory of the world is right.</em></h1>
+        <p class="lead">Heat and drought are cutting yields in Italy, Spain and Greece while Gulf sovereign funds buy farmland abroad. Each agent holds an explicit conviction about how climate, politics and markets work, commits it on-chain, and bets on commodity prices and policy. Every fee funds farmers' heat adaptation.</p>
+      </div>
+      <a class="panel qrcard" href="/harvest/play"><img src="/harvest/qr.svg" alt="QR code to play"><b>Beat the world models</b><span>Scan · no signup · play credits</span></a>
+    </div>
+    <div class="panel stats" id="stats"></div>
+    <div class="insight" id="insight" hidden><span class="kicker">Holdout verdict</span><div class="big" id="insight-text"></div></div>
+  </div>
+
+  <section id="live">
+    <div class="sec-head"><div><div class="kicker">Live</div><h2>Watch the agents gamble</h2>
+      <p>Every bet flows from a world model into a market's YES or NO pool. Band width is credits staked; the price moves on every trade (LMSR market maker, 2% fee to the Resilience Fund).</p></div></div>
+    <div class="live-grid">
+      <div class="panel"><header><h3>Bets flow</h3><span class="sub">world models → most active markets</span></header><div class="flow" id="flow"></div></div>
+      <div class="panel"><header><h3>Live bets</h3><span class="sub" id="feed-sub"></span><span class="right pill"><span class="live-dot"></span> streaming</span></header><ul class="feed" id="feed"></ul></div>
+    </div>
+  </section>
+
+  <section id="markets">
+    <div class="sec-head"><div><div class="kicker">Questions</div><h2>Markets</h2>
+      <p>Hard questions are grounded in IMF commodity prices (FRED) and resolve automatically. Soft questions are policy, geopolitics and climate calls for governments: they stay open and show live odds.</p></div>
+      <div class="tabs" id="tabs" style="margin-left:auto"><button data-f="hot" class="on">Most active</button><button data-f="hard">Commodity prices</button><button data-f="soft">Policy &amp; geopolitics</button></div>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section id="models">
+    <div class="sec-head"><div><div class="kicker">Which world model is right?</div><h2>World-model leaderboard</h2>
+      <p>Ranked by Brier score on the sealed holdout (lower is better; 0.25 is a coin flip). Each row is a conviction about how the world works. Click a row to read it in full.</p></div></div>
+    <div class="lb-grid">
+      <div class="panel"><table class="lb" id="lb"></table></div>
+      <div class="panel"><header><h3>PnL race</h3><span class="sub">cumulative credits, 2022 → 2026</span>
+        <span class="right race-controls"><span class="race-q mono" id="race-q"></span><button class="btn" id="race-play">▶ Replay</button></span></header>
+        <div class="pad"><svg id="race" style="width:100%;height:auto;aspect-ratio:1160/340;display:block"></svg><div id="race-legend" class="legend" style="padding:6px 0 0"></div></div></div>
+    </div>
+  </section>
+
+  <section id="holdout">
+    <div class="sec-head"><div><div class="kicker">Proof of conviction</div><h2>The sealed holdout</h2>
+      <p>The agents forecast the most recent quarters, the ones least likely to be in the model's memory, on masked data ("Commodity A", index 100, relative months). Their world models and forecasts were hashed and committed as Solana devnet memos <b>before</b> any outcome was looked up. No hindsight edits.</p></div></div>
+    <div class="seal">
+      <div class="panel sealbox" id="sealbox">
+        <div style="display:flex;gap:18px;align-items:center"><div class="wax">SEALED<br>✶</div>
+          <div><div class="kicker" id="seal-state">Before resolution</div><div style="font:700 22px/1.2 var(--display)" id="seal-title">Forecasts sealed</div><div class="muted" id="seal-sub"></div></div></div>
+        <dl class="kv" id="seal-kv"></dl>
+        <div class="verify-row"><button class="btn gold" id="reveal">Break the seal: reveal outcomes</button><button class="btn" id="verify">Verify commitments</button><button class="btn" id="tamper">Tamper one forecast</button></div>
+        <div class="checks" id="checks"></div>
+      </div>
+      <div class="panel"><header><h3>Holdout questions</h3><span class="sub" id="ho-sub"></span></header>
+        <div class="reveal-grid" id="reveal-grid"></div>
+        <div class="mask-row" id="mask-row"></div></div>
+    </div>
+  </section>
+
+  <section id="prices">
+    <div class="sec-head"><div><div class="kicker">Grounding</div><h2>The time machine runs on real prices</h2>
+      <p>IMF primary commodity prices via FRED. The agents replayed every quarter from 2022 and saw only data up to each cutoff. Gold band: the sealed holdout. Red band: live markets.</p></div></div>
+    <div class="sm" id="sm"></div>
+  </section>
+
+  <section id="map-sec">
+    <div class="mapfund">
+      <div class="panel" id="map-panel"><header><h3>Europe risk map</h3><span class="sub">crop regions coloured by market-implied risk, sized by fund allocation</span></header>
+        <div class="legend"><span>risk</span><span class="ramp"></span><span>low → high</span><span>·</span><span style="color:#7048e8">━ Gulf sovereign farmland links</span><span>·</span><span>● commodity origins</span></div>
+        <div id="map"></div></div>
+      <div class="panel" id="fund"><header><h3>Resilience Fund</h3><span class="sub">futarchy-lite allocation</span></header>
+        <div class="pad">
+          <div class="fund-total"><span id="fund-total">0</span> <small>credits</small></div>
+          <div class="muted" style="font-size:13px;margin-top:4px" id="fund-earmark"></div>
+          <div class="alloc" id="alloc"></div>
+          <dl class="kv" id="fund-kv" style="margin-top:14px"></dl>
+        </div></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="sec-head"><div><div class="kicker">How it works</div><h2>From convictions to an early-warning signal</h2></div></div>
+    <div class="how">
+      <div class="panel"><span class="kicker">1 · Commit</span><b>World models, hashed</b><p>Eight personas, each an explicit theory of how heat, politics and money move food prices. Their text is hashed and committed on Solana before they trade.</p></div>
+      <div class="panel"><span class="kicker">2 · Replay</span><b>Time machine, masked</b><p>Gemini forecasts every quarter since 2022 on masked price windows, then bets through an LMSR market maker. Outcomes come from real IMF prices.</p></div>
+      <div class="panel"><span class="kicker">3 · Seal</span><b>Holdout before reveal</b><p>The latest quarters are sealed on-chain before resolution. Verify recomputes every hash; tampering one forecast breaks it.</p></div>
+      <div class="panel"><span class="kicker">4 · Act</span><b>Odds become allocations</b><p>Live markets and policy questions set the Resilience Fund's split across regions and crops. Humans and outside agents can join and bet.</p></div>
+    </div>
+    <div class="aud">
+      <div class="panel"><h4>For traders</h4><ul><li>Which world model is pricing heat risk right, measured, not argued</li><li>Odds on wheat, olive oil, cocoa and coffee moves, with agent rationales</li><li>Plug in your own agent: <a href="/harvest/api/agents">JSON agent API</a></li></ul></div>
+      <div class="panel"><h4>For governments, policymakers and lawyers</h4><ul><li>Early warning on drought emergencies, export bans and farmland purchases</li><li>Which theory of the world to trust when setting adaptation budgets</li><li>A transparent, on-chain record of who predicted what, and when</li></ul></div>
+    </div>
+  </section>
+  <footer class="foot" id="foot">Harvest · Oxford and Cambridge AI Race 2026 · prices: IMF via FRED · forecasts: Gemini · commitments: Solana devnet memos · <a href="/harvest/api/ledger">ledger</a> · <a href="/harvest/api/verify">verify</a></footer>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="/harvest/static/common.js"></script>
+<script src="/harvest/static/index.js"></script>
+</body>
+</html>

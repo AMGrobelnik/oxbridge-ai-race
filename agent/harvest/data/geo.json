@@ -1,0 +1,244 @@
+{
+ "v": 1,
+ "note": "Map points for the Harvest risk map. 'risk' regions match Resilience Fund groups by (region, crop); arcs are Gulf state-linked farmland links; origins are where the traded commodities grow.",
+ "regions": [
+  {
+   "id": "it-durum",
+   "region": "Italy",
+   "crop": "durum wheat",
+   "label": "Puglia and Sicily durum belt",
+   "lat": 41.3,
+   "lng": 15.9
+  },
+  {
+   "id": "it-olive",
+   "region": "Italy",
+   "crop": "olive oil",
+   "label": "Puglia olive groves",
+   "lat": 40.6,
+   "lng": 17.6
+  },
+  {
+   "id": "it-rice",
+   "region": "Italy",
+   "crop": "rice",
+   "label": "Po Valley rice (Vercelli, Pavia)",
+   "lat": 45.3,
+   "lng": 8.6
+  },
+  {
+   "id": "es-olive",
+   "region": "Spain",
+   "crop": "olive oil",
+   "label": "Andalusia (Jaen) olive oil",
+   "lat": 37.8,
+   "lng": -3.8
+  },
+  {
+   "id": "es-maize",
+   "region": "Spain",
+   "crop": "feed maize",
+   "label": "Aragon and Ebro feed maize",
+   "lat": 41.7,
+   "lng": -0.6
+  },
+  {
+   "id": "gr-olive",
+   "region": "Greece",
+   "crop": "olive oil",
+   "label": "Crete and Peloponnese olive oil",
+   "lat": 35.3,
+   "lng": 24.9
+  },
+  {
+   "id": "gr-water",
+   "region": "Greece",
+   "crop": "water",
+   "label": "Attica and the islands: water stress",
+   "lat": 37.98,
+   "lng": 23.7
+  },
+  {
+   "id": "fr-wheat",
+   "region": "France",
+   "crop": "wheat",
+   "label": "Beauce and Paris Basin wheat",
+   "lat": 48.3,
+   "lng": 1.6
+  },
+  {
+   "id": "fr-beet",
+   "region": "France",
+   "crop": "sugar beet",
+   "label": "Picardy sugar beet",
+   "lat": 49.8,
+   "lng": 2.9
+  },
+  {
+   "id": "ro-maize",
+   "region": "Romania",
+   "crop": "maize",
+   "label": "Wallachian plain maize",
+   "lat": 44.3,
+   "lng": 25.6
+  },
+  {
+   "id": "ro-sun",
+   "region": "Romania",
+   "crop": "sunflower",
+   "label": "Dobrogea sunflower",
+   "lat": 44.4,
+   "lng": 28.2
+  },
+  {
+   "id": "ro-land",
+   "region": "Romania",
+   "crop": "farmland",
+   "label": "Braila (Agricost, 57,000 ha)",
+   "lat": 45.1,
+   "lng": 27.9
+  },
+  {
+   "id": "eu-wheat",
+   "region": "EU",
+   "crop": "wheat",
+   "label": "EU wheat supply (Black Sea exposure)",
+   "lat": 47.2,
+   "lng": 19.5
+  },
+  {
+   "id": "eu-sunoil",
+   "region": "EU",
+   "crop": "sunflower oil",
+   "label": "EU sunflower oil (Hungary, Bulgaria)",
+   "lat": 46.3,
+   "lng": 21.0
+  },
+  {
+   "id": "eu-land",
+   "region": "EU",
+   "crop": "farmland",
+   "label": "EU farmland ownership rules (Brussels)",
+   "lat": 50.85,
+   "lng": 4.35
+  },
+  {
+   "id": "eu-all",
+   "region": "EU",
+   "crop": "all crops",
+   "label": "EU CAP heat-adaptation budget",
+   "lat": 50.1,
+   "lng": 8.7
+  },
+  {
+   "id": "eu-coffee",
+   "region": "EU importers",
+   "crop": "coffee",
+   "label": "Hamburg and Antwerp coffee imports",
+   "lat": 53.55,
+   "lng": 9.99
+  },
+  {
+   "id": "eu-cocoa",
+   "region": "EU importers",
+   "crop": "cocoa",
+   "label": "Amsterdam cocoa port",
+   "lat": 52.4,
+   "lng": 4.9
+  }
+ ],
+ "origins": [
+  {
+   "name": "Black Sea wheat (Ukraine, Russia)",
+   "crop": "wheat",
+   "lat": 47.0,
+   "lng": 35.0
+  },
+  {
+   "name": "Ivory Coast cocoa",
+   "crop": "cocoa",
+   "lat": 6.8,
+   "lng": -5.3
+  },
+  {
+   "name": "Ghana cocoa",
+   "crop": "cocoa",
+   "lat": 7.0,
+   "lng": -1.6
+  },
+  {
+   "name": "Brazil coffee (Minas Gerais)",
+   "crop": "coffee",
+   "lat": -19.9,
+   "lng": -44.0
+  },
+  {
+   "name": "Vietnam coffee (Central Highlands)",
+   "crop": "coffee",
+   "lat": 12.7,
+   "lng": 108.0
+  },
+  {
+   "name": "Ukraine sunflower",
+   "crop": "sunflower oil",
+   "lat": 48.5,
+   "lng": 33.0
+  }
+ ],
+ "buyers": [
+  {
+   "id": "uae",
+   "name": "UAE (Abu Dhabi)",
+   "lat": 24.45,
+   "lng": 54.38
+  },
+  {
+   "id": "ksa",
+   "name": "Saudi Arabia (Riyadh)",
+   "lat": 24.71,
+   "lng": 46.68
+  },
+  {
+   "id": "qat",
+   "name": "Qatar (Doha)",
+   "lat": 25.29,
+   "lng": 51.53
+  }
+ ],
+ "arcs": [
+  {
+   "from": "uae",
+   "to": "ro-land",
+   "kind": "holding",
+   "label": "Al Dahra / ADQ: Agricost, Romania, the EU's largest farm (57,000 ha)"
+  },
+  {
+   "from": "uae",
+   "to": "es-maize",
+   "kind": "holding",
+   "label": "Al Dahra: forage operations in Spain"
+  },
+  {
+   "from": "uae",
+   "to_point": {
+    "name": "Vojvodina, Serbia",
+    "lat": 45.3,
+    "lng": 19.8
+   },
+   "kind": "holding",
+   "label": "Al Dahra Serbia: arable land in Vojvodina (Danube basin, EU candidate)"
+  },
+  {
+   "from": "ksa",
+   "to": "eu-wheat",
+   "kind": "question",
+   "label": "Saudi food-security buyers: open question gulf-eu-farmland-2027"
+  },
+  {
+   "from": "qat",
+   "to": "it-durum",
+   "kind": "question",
+   "label": "Qatar sovereign food-security interest: watch list"
+  }
+ ]
+}
