@@ -9,6 +9,7 @@ Pages: /app/market/{qid} and /app/agent/{id} (with Open Graph tags), /app/season
 """
 
 import asyncio
+import gzip
 import os
 import time
 from typing import Any
@@ -112,9 +113,13 @@ async def _export_rows(kind: str) -> tuple[list[dict[str, Any]], str]:
     return rows, _cache[kind][1][1]
 
 
-def _download(body: str, name: str, media: str) -> Response:
-    return Response(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{name}"', "X-License": growth.LICENSE["name"],
-                                                     "Link": f'<{growth.LICENSE["url"]}>; rel="license"', "Cache-Control": f"public, max-age={EXPORT_TTL_S}"})
+def _download(request: Request, body: str, name: str, media: str) -> Response:
+    """A file download, gzipped for clients that accept it (the forecast CSV is several MB)."""
+    headers = {"Content-Disposition": f'attachment; filename="{name}"', "X-License": growth.LICENSE["name"], "Link": f'<{growth.LICENSE["url"]}>; rel="license"',
+               "Cache-Control": f"public, max-age={EXPORT_TTL_S}", "Vary": "Accept-Encoding"}
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        return Response(gzip.compress(body.encode(), 4), media_type=media, headers={**headers, "Content-Encoding": "gzip"})
+    return Response(body, media_type=media, headers=headers)
 
 
 def reference(app: FastAPI, base: str) -> dict[str, Any]:
@@ -222,8 +227,8 @@ def register(app: FastAPI) -> None:
                              "resolution_columns": growth.RESOLUTION_COLUMNS, "excludes": "tokens, token hashes, emails and contact details are never exported"})
 
     @app.get("/harvest/api/export/forecasts.csv")
-    async def export_forecasts_csv() -> Response:
-        return _download((await _export_rows("forecasts"))[1], "crophecy-forecasts.csv", "text/csv; charset=utf-8")
+    async def export_forecasts_csv(request: Request) -> Response:
+        return _download(request, (await _export_rows("forecasts"))[1], "crophecy-forecasts.csv", "text/csv; charset=utf-8")
 
     @app.get("/harvest/api/export/forecasts.json")
     async def export_forecasts_json() -> JSONResponse:
@@ -232,5 +237,5 @@ def register(app: FastAPI) -> None:
                             headers={"X-License": growth.LICENSE["name"], "Cache-Control": f"public, max-age={EXPORT_TTL_S}"})
 
     @app.get("/harvest/api/export/resolutions.csv")
-    async def export_resolutions_csv() -> Response:
-        return _download((await _export_rows("resolutions"))[1], "crophecy-resolutions.csv", "text/csv; charset=utf-8")
+    async def export_resolutions_csv(request: Request) -> Response:
+        return _download(request, (await _export_rows("resolutions"))[1], "crophecy-resolutions.csv", "text/csv; charset=utf-8")
