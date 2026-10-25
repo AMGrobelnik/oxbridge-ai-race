@@ -291,7 +291,10 @@ table.shifts { border-collapse: collapse; width: 100%; font-size: 14px; font-var
 /* Verify */
 .verify-card { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .verify-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-@media (max-width: 520px) { .verify-actions .btn { flex: 1 1 calc(50% - 5px); justify-content: center; } }
+@media (max-width: 520px) {
+  .verify-actions .btn { flex: 1 1 calc(50% - 5px); justify-content: center; text-align: center; line-height: 1.25; padding-left: 10px; padding-right: 10px; }
+  .verify-actions .btn-primary { flex-basis: 100%; }
+}
 .result { border-radius: 12px; padding: 16px; border: 2px solid; animation: rise .35s ease both; }
 .result.ok { background: var(--green-soft); border-color: var(--green); }
 .result.pending { background: var(--amber-soft); border-color: var(--amber); }

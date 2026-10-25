@@ -24,7 +24,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "sealed" / "static"
 PROPOSERS = ("gemini", "scripted")
 MAX_ITERATIONS = 12
 DEFAULT_DEMO_ENV = "strategy"
-GUARDRAIL_DEMO_USDC = 2.5
+GUARDRAIL_DEMO_USDC = 0.75  # over the co-sign cap (0.50), inside the agent budget (AGENT_BUDGET_USD)
 _RUN_ID_RE = re.compile(RUN_ID_PATTERN)
 
 
