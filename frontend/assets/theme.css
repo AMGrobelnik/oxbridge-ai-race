@@ -61,3 +61,4 @@ em.s{color:var(--wheat-ink)}
 /* display type: serif headings as on the waitlist */
 .dt-head h1{font:400 clamp(32px,4vw,52px)/1.02 var(--f-display);letter-spacing:-.02em}
 .panel-h h2{font:400 26px/1.1 var(--f-display);letter-spacing:-.01em}
+.sec-head h2{font-family:var(--f-display);font-weight:400;letter-spacing:-.02em;line-height:.98}
