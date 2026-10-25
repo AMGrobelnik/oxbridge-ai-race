@@ -26,7 +26,7 @@ MAX_REPLY = 1200
 TURNS = 3
 MEMORY_TTL_S = 1800.0
 MEMORY_MAX_SENDERS = 2000
-MODELS = (("gemini-2.5-flash", 14.0), ("gemini-2.5-flash-lite", 7.0))  # (registry key, deadline in seconds)
+MODELS = (("gemini-2.5-flash", 8.0), ("gemini-2.5-flash-lite", 5.0))  # (registry key, deadline in seconds): < 15 s in all
 DISCLAIMER = "Not financial advice."
 
 INTENTS: list[tuple[str, re.Pattern[str]]] = [(name, re.compile(rx, re.I)) for name, rx in (
@@ -285,7 +285,7 @@ def ask_model(key: str, prompt: str, deadline_s: float) -> str:
     """One registry model's JSON text within `deadline_s`, through fast_llm's synchronous client (the shared async
     Gemini client is bound to the server's event loop). A call past the deadline is abandoned; the client's own HTTP
     timeout ends it."""
-    return _pool.submit(fast_llm.ask, prompt, model_id=models.get(key)["model_id"]).result(timeout=deadline_s)
+    return _pool.submit(fast_llm.ask, prompt, model_id=models.get(key)["model_id"], thinking_budget=0).result(timeout=deadline_s)
 
 
 def parse_reply(text: str) -> str | None:
@@ -296,7 +296,15 @@ def parse_reply(text: str) -> str | None:
     out = str(data.get("reply") or "").strip() if isinstance(data, dict) else ""
     out = re.sub(r"\*\*(.+?)\*\*", r"\1", out)
     out = re.sub(r"(?m)^\s*[-*•]\s+", "- ", out)
-    return out if out and not world.looping(out) else None
+    return out if out and not looping(out) else None
+
+
+def looping(text: str) -> bool:
+    """True when a six-word run repeats three times: a real loop. world.looping's three-word runs flag a long reply
+    that cites "our forecasters put ..." three times, as the prompt asks."""
+    words = text.lower().split()
+    runs = [" ".join(words[i:i + 6]) for i in range(len(words) - 5)]
+    return any(runs.count(r) >= 3 for r in set(runs))
 
 
 def llm_answer(prompt: str) -> tuple[str, str] | None:
