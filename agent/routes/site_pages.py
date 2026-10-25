@@ -45,6 +45,8 @@ HISTORY_POINTS = 120
 POLL_TRADES = 200
 logger = logging.getLogger("agent")
 _page_cache: dict[str, Any] = {}
+FULL_TTL_S = 4.0  # the page then polls ?since=<seq>, so a few seconds of staleness never shows
+_full: dict[str, Any] = {"body": None, "at": 0.0, "book": None}
 
 
 def wired_page(source: str, version: str) -> tuple[str, list[str]]:
@@ -225,7 +227,12 @@ def register(app: FastAPI) -> None:
                 body["geo"] = json.loads(api.GEO.read_text()) if api.GEO.exists() else {}
             return body
 
-        return JSONResponse(await asyncio.to_thread(build), headers=api.NO_STORE)
+        if since is not None:
+            return JSONResponse(await asyncio.to_thread(build), headers=api.NO_STORE)
+        # the full feed takes ~1.5 s under the book lock: page loads within FULL_TTL_S of each other share one build
+        if _full["book"] is not book or time.monotonic() - _full["at"] > FULL_TTL_S:
+            _full.update(body=await asyncio.to_thread(build), at=time.monotonic(), book=book)
+        return JSONResponse(_full["body"], headers=api.NO_STORE)
 
     @app.get("/harvest/api/site/anchors")
     async def site_anchors() -> JSONResponse:
