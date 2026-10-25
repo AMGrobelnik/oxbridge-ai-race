@@ -1,0 +1,1056 @@
+{
+  "schema": "sealed.run/v1",
+  "run_id": "20261025T131332Z-strategy-e5a1",
+  "env": "strategy",
+  "title": "SOL/USDC strategy research",
+  "goal": "Find a SOL/USDC/staking allocation rule that maximises risk-adjusted value after fees and slippage.",
+  "metric_label": "Risk-adjusted value of $100 after fees and slippage (end value minus half the max drawdown)",
+  "mode": "cached",
+  "proposer": "gemini",
+  "iterations_planned": 8,
+  "status": "done",
+  "created_at": "2026-10-25T13:13:32Z",
+  "updated_at": "2026-10-25T13:18:11Z",
+  "preregistration": {
+    "env": "strategy",
+    "run_id": "20261025T131332Z-strategy-e5a1",
+    "code_sha256": "4f790742ebfa5e561f0d1c3d0a5bc741da4cfa5286f0058543a8e99d12eb56b0",
+    "dev_seeds": [
+      60,
+      90,
+      120,
+      150,
+      180,
+      210,
+      240,
+      270,
+      300,
+      330,
+      360
+    ],
+    "holdout_commitment": "5b1cf26ef78d5e366693336b7953457538bd1af93fbd76745f6736f33e0255bd",
+    "commitment": "a17a35b9cf03c0db93cdab599af7ca1d5a81fa5b485fe330a031a62783aa4f7f",
+    "memo": "sealed:v1:commit:20261025T131332Z-strategy-e5a1:a17a35b9cf03c0db93cdab599af7ca1d5a81fa5b485fe330a031a62783aa4f7f",
+    "sealed_at": "2026-10-25T13:13:32Z",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:commit:20261025T131332Z-strategy-e5a1:a17a35b9cf03c0db93cdab599af7ca1d5a81fa5b485fe330a031a62783aa4f7f",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:13:33Z",
+      "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+    }
+  },
+  "iterations": [
+    {
+      "index": 0,
+      "proposer": "baseline",
+      "hypothesis": "Naive baseline policy",
+      "rationale": "The starting point every experiment must beat on the dev seeds.",
+      "strategy": "continue",
+      "candidate": {
+        "rule": "hold",
+        "lookback_days": 20,
+        "entry_threshold_pct": 5,
+        "risk_on_sol_weight": 0.5,
+        "risk_off_sol_weight": 0.5,
+        "staked_share": 0,
+        "rebalance_band": 0.1,
+        "stop_loss_pct": 0
+      },
+      "diff": [],
+      "dev": {
+        "score": 89.525,
+        "per_seed": [
+          69.9414,
+          65.1705,
+          93.5524,
+          114.6028,
+          93.9551,
+          95.7788,
+          109.1409,
+          110.3256,
+          88.1087,
+          69.8718,
+          74.3271
+        ],
+        "breakdown": {
+          "end_value": 97.8886,
+          "return_pct": -2.1114,
+          "max_drawdown_pct": 16.7272,
+          "sharpe": -0.1362,
+          "fees_usd": 0.1109,
+          "trades": 1.5455,
+          "avg_sol_weight": 0.5003
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "BASELINE",
+      "errors": [],
+      "champion_score": 89.525,
+      "duration_s": 0.012,
+      "at": "2026-10-25T13:13:33Z"
+    },
+    {
+      "index": 1,
+      "proposer": "gemini",
+      "hypothesis": "Setting staked_share to 1.0 will raise the score because earning 7% annualized staking yield on the SOL leg increases end value with no additional trading fees or risk.",
+      "rationale": "The current champion leaves staked_share at 0, foregoing free yield on its ~50% SOL position. With an average holding period across 60-day windows, a 7% APY on the SOL leg should generate roughly ~0.5-0.6% in risk-free carry on the total book. Because hold has minimal turnover, this yield flows straight to the bottom line without incurring extra slippage or rebalancing friction.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 5,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.5,
+        "risk_on_sol_weight": 0.5,
+        "rule": "hold",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0
+      },
+      "diff": [
+        {
+          "path": "staked_share",
+          "before": 0,
+          "after": 1.0
+        }
+      ],
+      "dev": {
+        "score": 90.2306,
+        "per_seed": [
+          70.4303,
+          66.3507,
+          94.2561,
+          115.4267,
+          94.7023,
+          96.3965,
+          109.9383,
+          110.9008,
+          88.7162,
+          70.5519,
+          74.8667
+        ],
+        "breakdown": {
+          "end_value": 98.4796,
+          "return_pct": -1.5204,
+          "max_drawdown_pct": 16.4979,
+          "sharpe": -0.0747,
+          "fees_usd": 0.111,
+          "trades": 1.5455,
+          "avg_sol_weight": 0.4994
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 90.2306,
+      "duration_s": 9.792,
+      "at": "2026-10-25T13:13:43Z"
+    },
+    {
+      "index": 2,
+      "proposer": "gemini",
+      "hypothesis": "Switching from static hold to momentum with 70% risk-on and 30% risk-off weights will reduce drawdowns during SOL downturns while capturing upside and staking carry during rallies.",
+      "rationale": "The hold champion suffers a 16.5% maximum drawdown and negative returns across the 2025 dev windows. A moderate momentum filter (20-day lookback, 5% threshold) allows the book to reduce exposure to 30% during sustained drops and expand to 70% during rallies without paying excessive whipsaw fees like an all-or-nothing switch.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 5.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.3,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0.0
+      },
+      "diff": [
+        {
+          "path": "risk_off_sol_weight",
+          "before": 0.5,
+          "after": 0.3
+        },
+        {
+          "path": "risk_on_sol_weight",
+          "before": 0.5,
+          "after": 0.7
+        },
+        {
+          "path": "rule",
+          "before": "hold",
+          "after": "momentum"
+        }
+      ],
+      "dev": {
+        "score": 90.5318,
+        "per_seed": [
+          72.1127,
+          72.8413,
+          96.571,
+          111.4894,
+          96.5305,
+          95.0595,
+          103.3777,
+          98.8763,
+          87.142,
+          81.0323,
+          80.8166
+        ],
+        "breakdown": {
+          "end_value": 98.7673,
+          "return_pct": -1.2327,
+          "max_drawdown_pct": 16.4711,
+          "sharpe": -0.4132,
+          "fees_usd": 0.2613,
+          "trades": 3.2727,
+          "avg_sol_weight": 0.4588
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 90.5318,
+      "duration_s": 24.716,
+      "at": "2026-10-25T13:14:08Z"
+    },
+    {
+      "index": 3,
+      "proposer": "gemini",
+      "hypothesis": "Lowering risk_off_sol_weight from 0.3 to 0.15 will raise the score by cutting drawdown during confirmed downtrends while sacrificing minimal staking yield.",
+      "rationale": "In the current champion, holding 30% SOL during risk-off regimes still exposes the book to substantial downside, leading to a 16.47% max drawdown. The 7% annual staking yield on a 15% SOL increment yields only ~$0.17 over a 60-day window, whereas avoiding a 20% SOL drop on that increment saves ~$3.00 in drawdown (a +$1.50 score gain). With turnover fees remaining low at 20 bps per trade, reducing risk-off exposure to 0.15 should improve the risk-adjusted value.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 5.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.15,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0.0
+      },
+      "diff": [
+        {
+          "path": "risk_off_sol_weight",
+          "before": 0.3,
+          "after": 0.15
+        }
+      ],
+      "dev": {
+        "score": 92.1978,
+        "per_seed": [
+          76.9778,
+          80.1319,
+          98.0777,
+          108.8268,
+          97.7907,
+          94.9309,
+          98.0618,
+          94.0063,
+          88.0949,
+          89.9386,
+          87.3389
+        ],
+        "breakdown": {
+          "end_value": 99.3471,
+          "return_pct": -0.6529,
+          "max_drawdown_pct": 14.2985,
+          "sharpe": -0.5467,
+          "fees_usd": 0.3075,
+          "trades": 3.2727,
+          "avg_sol_weight": 0.3742
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 92.1978,
+      "duration_s": 27.27,
+      "at": "2026-10-25T13:14:35Z"
+    },
+    {
+      "index": 4,
+      "proposer": "gemini",
+      "hypothesis": "Lowering risk_off_sol_weight from 0.15 to 0.0 will raise the score because fully exiting SOL during confirmed downtrends eliminates drawdown and price depreciation, which heavily outweighs the small staking carry earned on a declining asset.",
+      "rationale": "Iteration 3 showed a large score gain (+1.666) by halving risk_off_sol_weight from 0.30 to 0.15, as reduced drawdown and capital preservation dominated lost staking yield. Since average window return is negative (-0.65%), any long SOL exposure during risk-off regimes actively damages end value and drawdown. Testing 0.0 directly checks whether zero exposure in bear momentum regimes is optimal.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 5.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.0,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0.0
+      },
+      "diff": [
+        {
+          "path": "risk_off_sol_weight",
+          "before": 0.15,
+          "after": 0.0
+        }
+      ],
+      "dev": {
+        "score": 93.8501,
+        "per_seed": [
+          81.7516,
+          87.4182,
+          99.0726,
+          106.168,
+          99.0502,
+          94.8023,
+          92.7665,
+          89.1736,
+          89.0473,
+          99.1641,
+          93.9369
+        ],
+        "breakdown": {
+          "end_value": 99.9347,
+          "return_pct": -0.0653,
+          "max_drawdown_pct": 12.1691,
+          "sharpe": -0.4475,
+          "fees_usd": 0.3538,
+          "trades": 2.9091,
+          "avg_sol_weight": 0.2914
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 93.8501,
+      "duration_s": 33.942,
+      "at": "2026-10-25T13:15:09Z"
+    },
+    {
+      "index": 5,
+      "proposer": "gemini",
+      "hypothesis": "Lowering entry_threshold_pct from 5.0 to 3.0 will raise the score by exiting downtrends earlier to curtail drawdown and entering uptrends earlier to capture upside and staking yield.",
+      "rationale": "Currently the rule requires a 5% drop over 20 days before switching to 0% SOL, bearing unnecessary drawdown during developing downtrends. With rebalance_band at 0.1 and fee drag currently negligible at $0.35 across ~2.9 trades, a slightly more responsive 3% threshold should reduce max drawdown with minimal additional turnover.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 3.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.0,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0.0
+      },
+      "diff": [
+        {
+          "path": "entry_threshold_pct",
+          "before": 5.0,
+          "after": 3.0
+        }
+      ],
+      "dev": {
+        "score": 95.5123,
+        "per_seed": [
+          84.9979,
+          87.4125,
+          98.6968,
+          113.2343,
+          106.0013,
+          97.3226,
+          92.8572,
+          87.9643,
+          89.0473,
+          99.1641,
+          93.9369
+        ],
+        "breakdown": {
+          "end_value": 101.259,
+          "return_pct": 1.259,
+          "max_drawdown_pct": 11.4935,
+          "sharpe": -0.2315,
+          "fees_usd": 0.4188,
+          "trades": 3.3636,
+          "avg_sol_weight": 0.2889
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 95.5123,
+      "duration_s": 35.325,
+      "at": "2026-10-25T13:15:44Z"
+    },
+    {
+      "index": 6,
+      "proposer": "gemini",
+      "hypothesis": "Lowering entry_threshold_pct from 3.0 to 2.0 will raise the score by detecting trend reversals faster, reducing drawdown on trend breaks while incurring negligible extra transaction costs.",
+      "rationale": "In iteration 5, lowering entry_threshold_pct from 5.0 to 3.0 produced a large score jump (+1.662) with only 3.36 average trades and $0.42 in fees. Tightening the threshold to 2.0% allows the portfolio to de-risk even earlier when momentum falters, cutting peak drawdown further without inducing excessive turnover given the 20-day lookback.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 2.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.0,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 0.0
+      },
+      "diff": [
+        {
+          "path": "entry_threshold_pct",
+          "before": 3.0,
+          "after": 2.0
+        }
+      ],
+      "dev": {
+        "score": 95.2454,
+        "per_seed": [
+          84.9979,
+          87.4125,
+          98.6968,
+          113.2343,
+          106.0013,
+          94.7337,
+          91.5595,
+          88.7168,
+          89.6732,
+          99.1641,
+          93.5088
+        ],
+        "breakdown": {
+          "end_value": 101.0476,
+          "return_pct": 1.0476,
+          "max_drawdown_pct": 11.6046,
+          "sharpe": -0.3035,
+          "fees_usd": 0.4926,
+          "trades": 3.8182,
+          "avg_sol_weight": 0.3012
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 95.5123,
+      "duration_s": 33.206,
+      "at": "2026-10-25T13:16:18Z"
+    },
+    {
+      "index": 7,
+      "proposer": "gemini",
+      "hypothesis": "Adding a 10% stop loss will raise the score by forcing risk-off during sharp pullbacks from the lookback high, capping maximum drawdown before the momentum signal flips.",
+      "rationale": "In the current champion, max drawdown is 11.49% (implying a ~16.4% SOL decline during risk-on), which heavily penalizes the score by 5.75 points. A 20-day momentum signal responds with a lag if price was up earlier in the window, leaving the book exposed to severe corrections. A 10% stop-loss relative to the 20-day high limits this downside while avoiding churn during routine 5-8% pullbacks.",
+      "strategy": "pivot",
+      "candidate": {
+        "entry_threshold_pct": 3.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.0,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 10.0
+      },
+      "diff": [
+        {
+          "path": "stop_loss_pct",
+          "before": 0.0,
+          "after": 10.0
+        }
+      ],
+      "dev": {
+        "score": 99.8193,
+        "per_seed": [
+          102.0605,
+          100.0,
+          104.8549,
+          113.2343,
+          106.0013,
+          104.8454,
+          83.5184,
+          86.4321,
+          102.8149,
+          100.0,
+          94.2502
+        ],
+        "breakdown": {
+          "end_value": 104.0151,
+          "return_pct": 4.0151,
+          "max_drawdown_pct": 8.3916,
+          "sharpe": 0.6824,
+          "fees_usd": 0.503,
+          "trades": 3.6364,
+          "avg_sol_weight": 0.2338
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 99.8193,
+      "duration_s": 53.094,
+      "at": "2026-10-25T13:17:11Z"
+    },
+    {
+      "index": 8,
+      "proposer": "gemini",
+      "hypothesis": "Lowering stop_loss_pct from 10.0 to 8.0 will raise the score by cutting maximum drawdown on trend reversals earlier while remaining wide enough to avoid routine daily noise.",
+      "rationale": "In iteration 7, introducing a 10% stop loss produced the largest gain in the sequence (+4.307 points) by capping maximum drawdown to 8.39%. Because typical daily SOL fluctuations are 3-5%, an 8% drop from the 20-day high provides sufficient room to avoid single-day shakeouts while trimming portfolio drawdown by an additional 1.4-1.5% during verified trend breaks.",
+      "strategy": "continue",
+      "candidate": {
+        "entry_threshold_pct": 3.0,
+        "lookback_days": 20,
+        "rebalance_band": 0.1,
+        "risk_off_sol_weight": 0.0,
+        "risk_on_sol_weight": 0.7,
+        "rule": "momentum",
+        "staked_share": 1.0,
+        "stop_loss_pct": 8.0
+      },
+      "diff": [
+        {
+          "path": "stop_loss_pct",
+          "before": 10.0,
+          "after": 8.0
+        }
+      ],
+      "dev": {
+        "score": 98.4103,
+        "per_seed": [
+          105.5882,
+          100.0,
+          104.8549,
+          104.2118,
+          97.3751,
+          110.0836,
+          88.0688,
+          81.1484,
+          98.0807,
+          100.0,
+          93.1017
+        ],
+        "breakdown": {
+          "end_value": 102.6794,
+          "return_pct": 2.6794,
+          "max_drawdown_pct": 8.5382,
+          "sharpe": 0.4013,
+          "fees_usd": 0.5944,
+          "trades": 4.3636,
+          "avg_sol_weight": 0.2106
+        },
+        "seeds": [
+          60,
+          90,
+          120,
+          150,
+          180,
+          210,
+          240,
+          270,
+          300,
+          330,
+          360
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 99.8193,
+      "duration_s": 60.047,
+      "at": "2026-10-25T13:18:11Z"
+    }
+  ],
+  "reveal": {
+    "salt": "71303b03b6495b78eab3b26ac24b6379f1c3dd8796cb4b5b908eb8a7aac04aca",
+    "holdout": {
+      "seeds": [
+        450,
+        475,
+        500,
+        525,
+        550,
+        575,
+        600,
+        625,
+        650
+      ],
+      "shifts": [
+        {
+          "id": "crash",
+          "label": "35% SOL crash over 3 days",
+          "params": {
+            "crash_pct": 35,
+            "crash_day": 20
+          }
+        },
+        {
+          "id": "usdc_depeg",
+          "label": "USDC depeg to $0.88 for 4 days",
+          "params": {
+            "depeg_pct": 12,
+            "depeg_day": 25,
+            "depeg_days": 4
+          }
+        },
+        {
+          "id": "fee_spike",
+          "label": "5x swap fees and slippage",
+          "params": {
+            "fee_mult": 5
+          }
+        },
+        {
+          "id": "vol_spike",
+          "label": "1.6x SOL volatility",
+          "params": {
+            "vol_mult": 1.6
+          }
+        }
+      ]
+    },
+    "revealed_at": "2026-10-25T13:18:11Z",
+    "results": [
+      {
+        "iteration": 0,
+        "dev_score": 89.525,
+        "per_shift": {
+          "base": 97.4162,
+          "crash": 72.087,
+          "usdc_depeg": 96.2871,
+          "fee_spike": 96.9413,
+          "vol_spike": 94.5031
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 91.44694,
+        "worst_shift_id": "crash",
+        "worst_score": 72.087,
+        "relative_gap": -0.021468193242111053,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 1,
+        "dev_score": 90.2306,
+        "per_shift": {
+          "base": 98.1062,
+          "crash": 72.2271,
+          "usdc_depeg": 96.9906,
+          "fee_spike": 97.6285,
+          "vol_spike": 95.1679
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 92.02405999999999,
+        "worst_shift_id": "crash",
+        "worst_score": 72.2271,
+        "relative_gap": -0.019876405565295987,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 2,
+        "dev_score": 90.5318,
+        "per_shift": {
+          "base": 97.1665,
+          "crash": 76.5326,
+          "usdc_depeg": 96.0486,
+          "fee_spike": 95.5028,
+          "vol_spike": 97.0207
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 92.45424,
+        "worst_shift_id": "crash",
+        "worst_score": 76.5326,
+        "relative_gap": -0.02123496936987881,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "collapses under Base scenario: 97.2 vs naive baseline 97.4",
+          "collapses under USDC depeg to $0.88 for 4 days: 96.0 vs naive baseline 96.3",
+          "collapses under 5x swap fees and slippage: 95.5 vs naive baseline 96.9"
+        ]
+      },
+      {
+        "iteration": 3,
+        "dev_score": 92.1978,
+        "per_shift": {
+          "base": 96.8896,
+          "crash": 82.0065,
+          "usdc_depeg": 95.441,
+          "fee_spike": 94.7018,
+          "vol_spike": 97.105
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 93.22878,
+        "worst_shift_id": "crash",
+        "worst_score": 82.0065,
+        "relative_gap": -0.011182262483486586,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "collapses under Base scenario: 96.9 vs naive baseline 97.4",
+          "collapses under USDC depeg to $0.88 for 4 days: 95.4 vs naive baseline 96.3",
+          "collapses under 5x swap fees and slippage: 94.7 vs naive baseline 96.9"
+        ]
+      },
+      {
+        "iteration": 4,
+        "dev_score": 93.8501,
+        "per_shift": {
+          "base": 96.2836,
+          "crash": 86.4726,
+          "usdc_depeg": 94.7179,
+          "fee_spike": 93.6752,
+          "vol_spike": 97.3139
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 93.69264000000001,
+        "worst_shift_id": "crash",
+        "worst_score": 86.4726,
+        "relative_gap": 0.0016777819096621758,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "collapses under Base scenario: 96.3 vs naive baseline 97.4",
+          "collapses under USDC depeg to $0.88 for 4 days: 94.7 vs naive baseline 96.3",
+          "collapses under 5x swap fees and slippage: 93.7 vs naive baseline 96.9"
+        ]
+      },
+      {
+        "iteration": 5,
+        "dev_score": 95.5123,
+        "per_shift": {
+          "base": 99.0507,
+          "crash": 88.7066,
+          "usdc_depeg": 97.7265,
+          "fee_spike": 96.2277,
+          "vol_spike": 98.6493
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 96.07216,
+        "worst_shift_id": "crash",
+        "worst_score": 88.7066,
+        "relative_gap": -0.005861653420554216,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "collapses under 5x swap fees and slippage: 96.2 vs naive baseline 96.9"
+        ]
+      },
+      {
+        "iteration": 7,
+        "dev_score": 99.8193,
+        "per_shift": {
+          "base": 99.7649,
+          "crash": 92.0367,
+          "usdc_depeg": 98.9557,
+          "fee_spike": 96.0983,
+          "vol_spike": 99.0925
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "crash": "35% SOL crash over 3 days",
+          "usdc_depeg": "USDC depeg to $0.88 for 4 days",
+          "fee_spike": "5x swap fees and slippage",
+          "vol_spike": "1.6x SOL volatility"
+        },
+        "holdout_mean": 97.18961999999999,
+        "worst_shift_id": "crash",
+        "worst_score": 92.0367,
+        "relative_gap": 0.02634440433864,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "collapses under 5x swap fees and slippage: 96.1 vs naive baseline 96.9"
+        ]
+      }
+    ],
+    "dev_champion_iteration": 7,
+    "selected_iteration": 1,
+    "verdict": "OVERFIT",
+    "result_sha256": "6a73cb8fb886bfd24cf9789eb8bb1a07fa5322e236f06a40e4572230009cd6b2",
+    "memo": "sealed:v1:reveal:20261025T131332Z-strategy-e5a1:71303b03b6495b78eab3b26ac24b6379f1c3dd8796cb4b5b908eb8a7aac04aca:6a73cb8fb886bfd24cf9789eb8bb1a07fa5322e236f06a40e4572230009cd6b2:OVERFIT:1",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:reveal:20261025T131332Z-strategy-e5a1:71303b03b6495b78eab3b26ac24b6379f1c3dd8796cb4b5b908eb8a7aac04aca:6a73cb8fb886bfd24cf9789eb8bb1a07fa5322e236f06a40e4572230009cd6b2:OVERFIT:1",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:18:11Z",
+      "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+    }
+  },
+  "error": null,
+  "audit": {
+    "v": 1,
+    "genesis": "a17a35b9cf03c0db93cdab599af7ca1d5a81fa5b485fe330a031a62783aa4f7f",
+    "head": "0d3cecb27468c458004981e42a39762f9de5f467dd2a8ae6c109c569d8acba15",
+    "rounds": [
+      {
+        "index": 0,
+        "prev_sha256": "a17a35b9cf03c0db93cdab599af7ca1d5a81fa5b485fe330a031a62783aa4f7f",
+        "sha256": "fcbd1451a7cc52e37a164d92a607b8b538233401dcca6a8cb5b3ff66defc4a29",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:0:fcbd1451a7cc52e37a164d92a607b8b538233401dcca6a8cb5b3ff66defc4a29",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:0:fcbd1451a7cc52e37a164d92a607b8b538233401dcca6a8cb5b3ff66defc4a29",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:13:33Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 1,
+        "prev_sha256": "fcbd1451a7cc52e37a164d92a607b8b538233401dcca6a8cb5b3ff66defc4a29",
+        "sha256": "96bbbbc2bda0cde7b42371e617e577c4e951f0c50445ec89582f044cd59d14a5",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:1:96bbbbc2bda0cde7b42371e617e577c4e951f0c50445ec89582f044cd59d14a5",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:1:96bbbbc2bda0cde7b42371e617e577c4e951f0c50445ec89582f044cd59d14a5",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:13:43Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 2,
+        "prev_sha256": "96bbbbc2bda0cde7b42371e617e577c4e951f0c50445ec89582f044cd59d14a5",
+        "sha256": "f684253a14e188e0d124fdaae2f665c6aebd1338d4878836bd29f0df3e15bb34",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:2:f684253a14e188e0d124fdaae2f665c6aebd1338d4878836bd29f0df3e15bb34",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:2:f684253a14e188e0d124fdaae2f665c6aebd1338d4878836bd29f0df3e15bb34",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:14:08Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 3,
+        "prev_sha256": "f684253a14e188e0d124fdaae2f665c6aebd1338d4878836bd29f0df3e15bb34",
+        "sha256": "cc5fc3180e330fc64be72759a0e043fa7ec08b0a76c42987519311341f030eec",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:3:cc5fc3180e330fc64be72759a0e043fa7ec08b0a76c42987519311341f030eec",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:3:cc5fc3180e330fc64be72759a0e043fa7ec08b0a76c42987519311341f030eec",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:14:35Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 4,
+        "prev_sha256": "cc5fc3180e330fc64be72759a0e043fa7ec08b0a76c42987519311341f030eec",
+        "sha256": "da7ec67877d34650e767bb3ff932b3499d27977d29c85ab1341e3770aa2bda54",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:4:da7ec67877d34650e767bb3ff932b3499d27977d29c85ab1341e3770aa2bda54",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:4:da7ec67877d34650e767bb3ff932b3499d27977d29c85ab1341e3770aa2bda54",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:15:09Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 5,
+        "prev_sha256": "da7ec67877d34650e767bb3ff932b3499d27977d29c85ab1341e3770aa2bda54",
+        "sha256": "56a799be5d8c172514fde257c6feb037960a624e06e18aa72776afa1e290e358",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:5:56a799be5d8c172514fde257c6feb037960a624e06e18aa72776afa1e290e358",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:5:56a799be5d8c172514fde257c6feb037960a624e06e18aa72776afa1e290e358",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:15:44Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 6,
+        "prev_sha256": "56a799be5d8c172514fde257c6feb037960a624e06e18aa72776afa1e290e358",
+        "sha256": "1c86a4facf7010b9540489c9940ee74685ef83cdea3ddb5ecaba9ad79a34d580",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:6:1c86a4facf7010b9540489c9940ee74685ef83cdea3ddb5ecaba9ad79a34d580",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:6:1c86a4facf7010b9540489c9940ee74685ef83cdea3ddb5ecaba9ad79a34d580",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:16:18Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 7,
+        "prev_sha256": "1c86a4facf7010b9540489c9940ee74685ef83cdea3ddb5ecaba9ad79a34d580",
+        "sha256": "b7cf34c8f1ee6b6e8dba30f819535a23b945af21baacc03e0879d82a29757e16",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:7:b7cf34c8f1ee6b6e8dba30f819535a23b945af21baacc03e0879d82a29757e16",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:7:b7cf34c8f1ee6b6e8dba30f819535a23b945af21baacc03e0879d82a29757e16",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:17:11Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 8,
+        "prev_sha256": "b7cf34c8f1ee6b6e8dba30f819535a23b945af21baacc03e0879d82a29757e16",
+        "sha256": "0d3cecb27468c458004981e42a39762f9de5f467dd2a8ae6c109c569d8acba15",
+        "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:8:0d3cecb27468c458004981e42a39762f9de5f467dd2a8ae6c109c569d8acba15",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T131332Z-strategy-e5a1:8:0d3cecb27468c458004981e42a39762f9de5f467dd2a8ae6c109c569d8acba15",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:18:11Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      }
+    ]
+  }
+}

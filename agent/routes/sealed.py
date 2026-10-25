@@ -6,6 +6,7 @@ gives 501 instead of a 500, so the page and the rest of the app keep working.
 
 import asyncio
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from agent.payments import cosign
 from agent.sealed import audit, chain, harness, prereg, store
 from agent.sealed.environment import UnknownEnvironmentError, list_environments, load_environment
 from agent.sealed.records import RUN_ID_PATTERN
@@ -21,6 +23,8 @@ from agent.sealed.records import RUN_ID_PATTERN
 STATIC_DIR = Path(__file__).resolve().parent.parent / "sealed" / "static"
 PROPOSERS = ("gemini", "scripted")
 MAX_ITERATIONS = 12
+DEFAULT_DEMO_ENV = "strategy"
+GUARDRAIL_DEMO_USDC = 2.5
 _RUN_ID_RE = re.compile(RUN_ID_PATTERN)
 
 
@@ -52,9 +56,9 @@ def _load_run(run_id: str) -> tuple[dict[str, Any] | None, JSONResponse | None]:
         return None, _error(f"Run {run_id!r} could not be read: {type(err).__name__}", 500)
 
 
-def _load_demo() -> dict[str, Any]:
+def _load_demo(env: str = DEFAULT_DEMO_ENV) -> dict[str, Any]:
     try:
-        return dict(store.load_demo("epidemic"))
+        return dict(store.load_demo(env))
     except NotImplementedError:
         return json.loads(store.SAMPLE_RUN.read_text(encoding="utf-8"))
 
@@ -94,9 +98,11 @@ def register(app: FastAPI) -> None:
         return JSONResponse(views)
 
     @app.get("/sealed/api/demo")
-    async def sealed_demo() -> JSONResponse:
+    async def sealed_demo(env: str = DEFAULT_DEMO_ENV) -> JSONResponse:
+        if env not in list_environments():
+            return _error(f"Unknown env: expected one of {', '.join(list_environments()) or 'none'}", 400)
         try:
-            return JSONResponse(_load_demo())
+            return JSONResponse(_load_demo(env))
         except (OSError, ValueError) as err:
             return _error(f"The demo run could not be read: {type(err).__name__}", 500)
 
@@ -184,3 +190,35 @@ def register(app: FastAPI) -> None:
         except NotImplementedError as err:
             return _not_ready(err)
         return JSONResponse(report)
+
+    @app.post("/sealed/api/guardrail/demo")
+    async def sealed_guardrail_demo(request: Request) -> JSONResponse:
+        """Queues the demo's over-cap payment (fund the selected candidate) for human co-sign.
+
+        Idempotent: an open approval for the same run and iteration is returned instead of a new one.
+        """
+        body = await _json_body(request)
+        body = body if isinstance(body, dict) else {}
+        run_id, iteration, env = body.get("run_id"), body.get("iteration"), body.get("env")
+        if not isinstance(run_id, str) or _bad_run_id(run_id) is not None:
+            return _error(f"run_id must match {RUN_ID_PATTERN}", 400)
+        if isinstance(iteration, bool) or not isinstance(iteration, int) or not 0 <= iteration <= 99:
+            return _error("iteration must be an integer from 0 to 99", 400)
+        if not isinstance(env, str) or env not in list_environments():
+            return _error(f"Unknown env: expected one of {', '.join(list_environments()) or 'none'}", 400)
+        memo = f"sealed:v1:deploy:{run_id}:{iteration}"
+        for approval in cosign.list_approvals("open"):
+            if approval.get("memo") == memo:
+                return JSONResponse({"capUsd": cosign.cap_usd(), "approval": approval})
+        to = os.environ.get("SEALED_ANCHOR_TO", "").strip()
+        if not to:
+            from agent.payments import transfer
+            from agent.payments.config import PaymentsConfigError
+
+            try:
+                to = str(transfer.load_agent_keypair().pubkey())
+            except PaymentsConfigError:
+                return _error("The agent wallet is not configured (AGENT_PRIVATE_KEY in .env).", 503)
+        reason = f"Sealed agent asks to fund the selected {env} candidate #{iteration}"
+        approval = cosign.queue(to, GUARDRAIL_DEMO_USDC, memo, reason=reason)
+        return JSONResponse({"capUsd": cosign.cap_usd(), "approval": approval})

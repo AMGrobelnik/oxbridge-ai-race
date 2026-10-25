@@ -67,8 +67,34 @@
   }
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
+  // ---------- environments ----------
+  const ENVS = {
+    strategy: {
+      file: "strategy.py",
+      lede: "An AI agent searches for a SOL/USDC trading rule on real Kraken prices. Before it backtests a single idea, its test, including market windows and stress scenarios it never sees, is hashed and anchored on Solana. When the search ends the seal breaks, every result is re-scored on the hidden test, and the overfit champion is rejected.",
+      disclaimer: ["Backtest evidence, not financial advice.", " Scores come from historical Kraken SOL/USD prices with modelled fees and slippage, not from live trading."],
+      action: "funding the selected strategy's trading account",
+    },
+    tokenomics: {
+      file: "token_design.py",
+      lede: "An AI agent designs a token launch: vesting, emissions, float, pool depth and buybacks. Before it simulates a single design, its stress test, including crashes, whale dumps and liquidity pulls it never sees, is hashed and anchored on Solana. When the search ends the seal breaks and the design that only looked good on the visible test is rejected.",
+      disclaimer: ["Simulation evidence, not investment or token-design advice.", " Scores come from an agent-based launch simulator, not from a real market."],
+      action: "seeding the selected design's liquidity pool",
+    },
+    epidemic: {
+      file: "policy.py",
+      lede: "The same harness on a different plug-in: an AI agent searches for a winter epidemic policy. Before it runs a single experiment, its test, including scenario shifts it never sees, is hashed and anchored on Solana. When the search ends the seal breaks and every result is re-scored on the hidden test.",
+      disclaimer: ["Simulation evidence, not policy advice.", " Scores come from an age-structured SEIRV simulator, not from real-world outcomes."],
+      action: "paying for a pilot of the selected policy",
+    },
+  };
+  const envFromUrl = () => { const e = new URLSearchParams(location.search).get("env"); return ENVS[e] ? e : "strategy"; };
+  const envConf = () => ENVS[(state.record && state.record.env) || state.env] || ENVS.strategy;
+
   // ---------- state ----------
   const state = {
+    env: envFromUrl(),
+    verifyRep: null,     // the last verify report (marks the audit strip)
     record: null,        // the record being shown (original, never tampered)
     source: "demo",      // demo | run
     live: false,
@@ -108,9 +134,23 @@
     $("#goal").hidden = !rec.goal;
     $("#goal-text").textContent = rec.goal || "";
     const n = iters(rec).filter((it) => it.decision !== "BASELINE").length;
-    const bits = [rec.title, `${rec.mode === "cached" ? "Recorded" : rec.mode === "live" ? "Live" : ""} run ${rec.run_id}`.trim(), `proposer: ${rec.proposer}`, `${rec.iterations_planned || n} iterations`];
-    $("#goal-meta").textContent = bits.filter(Boolean).join(" · ");
+    const bits = [rec.title, `${rec.mode === "cached" ? "Recorded" : rec.mode === "live" ? "Live" : ""} run ${rec.run_id}`.trim(), rec.proposer === "gemini" ? "proposer: Gemini (real LLM run)" : `proposer: ${rec.proposer}`, `${rec.iterations_planned || n} iterations`];
+    const meta = $("#goal-meta");
+    meta.replaceChildren(bits.filter(Boolean).join(" · "));
+    if (rec.proposer === "scripted") meta.append(h("span", { class: "replay-note" }, h("span", { class: "badge plain replay" }, "scripted replay"), " pre-written proposals run through the real harness, seal and gate; no LLM in this run"));
     $("#chart-metric").textContent = rec.metric_label ? `${rec.metric_label} (higher is better)` : "";
+    const conf = ENVS[rec.env] || ENVS.strategy;
+    $("#lede").textContent = conf.lede;
+    $("#disclaimer").replaceChildren(h("strong", {}, conf.disclaimer[0]), conf.disclaimer[1]);
+    $("#guard-sub").textContent = `The agent pays for its own audit memos (0.01 USDC each) on its own. A bigger payment, such as ${conf.action}, is held until a person approves it, and every decision is logged.`;
+    markTabs(rec.env || state.env);
+  }
+  function markTabs(env) {
+    document.querySelectorAll(".env-tab").forEach((b) => {
+      const on = b.dataset.env === env;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
   }
 
   function setStep(active) {
@@ -165,7 +205,7 @@
 
   // ---------- iteration cards ----------
   function diffBlock(diff, opts = {}) {
-    const lines = [h("span", { class: "ln file" }, "# policy.py")];
+    const lines = [h("span", { class: "ln file" }, `# ${envConf().file}`)];
     for (const ch of diff) {
       const key = pyKey(ch.path);
       if (ch.before !== null && ch.before !== undefined) lines.push(h("span", { class: "ln del" }, `- ${key} = ${pyVal(ch.before)}`));
@@ -174,7 +214,7 @@
     return h("pre", { class: "diff" }, lines);
   }
   function policyBlock(candidate) {
-    const lines = [h("span", { class: "ln file" }, "# policy.py")];
+    const lines = [h("span", { class: "ln file" }, `# ${envConf().file}`)];
     const walk = (obj, prefix) => {
       for (const [k, v] of Object.entries(obj)) {
         const path = prefix ? `${prefix}.${k}` : k;
@@ -203,7 +243,7 @@
       h("p", { class: "hyp" }, it.hypothesis || ""),
       it.diff && it.diff.length ? diffBlock(it.diff) : null,
       it.errors && it.errors.length ? h("ul", { class: "errors" }, it.errors.map((e) => h("li", {}, e))) : null,
-      h("details", { class: "policy" }, h("summary", {}, it.decision === "BASELINE" ? "Baseline policy.py" : "Full policy.py"), policyBlock(it.candidate)));
+      h("details", { class: "policy" }, h("summary", {}, it.decision === "BASELINE" ? `Baseline ${envConf().file}` : `Full ${envConf().file}`), policyBlock(it.candidate)));
   }
   function renderStream(rec, n, scroll) {
     const stream = $("#stream");
@@ -218,7 +258,69 @@
       stream.append(last);
     }
     if (!list.length) stream.replaceChildren(h("li", { class: "placeholder" }, rec.status === "sealing" ? "Waiting for the seal…" : "Iterations appear here."));
+    renderAudit(rec, n);
     if (last && scroll && state.follow) last.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  }
+
+  // ---------- audit trail (per-round hash chain, SPEC.md section 13) ----------
+  // Marks from a verify report: index -> true (re-hashes to the recorded link) | false (broken).
+  function auditMarks(rep) {
+    const m = new Map();
+    if (rep && rep.audit && Array.isArray(rep.audit.rounds)) for (const r of rep.audit.rounds) m.set(r.index, r.match);
+    return m;
+  }
+  function auditChips(rec, n, rep, compact) {
+    const a = rec.audit;
+    const decisions = new Map(iters(rec).map((it) => [it.index, it.decision]));
+    const marks = auditMarks(rep);
+    const chips = [h("li", { class: "chip genesis", title: `Chain starts at the seal commitment ${a.genesis}` },
+      h("span", { class: "chip-idx" }, "seal"), h("span", { class: "chip-hash" }, a.genesis.slice(0, 7)))];
+    for (const r of a.rounds.filter((q) => q.index < n)) {
+      const mk = marks.get(r.index);
+      const onchain = r.chain && r.chain.status === "confirmed";
+      const cls = ["chip", decisions.get(r.index) || "", mk === true ? "verified" : mk === false ? "broken" : ""].join(" ");
+      const tip = `Round #${r.index}: ${r.sha256}\nchained from ${r.prev_sha256.slice(0, 12)}…\nmemo: ${r.memo}${mk === false ? "\nDOES NOT MATCH the recorded chain" : ""}`;
+      chips.push(h("li", { class: cls, title: tip },
+        h("span", { class: "chip-idx" }, `#${r.index}`),
+        h("span", { class: "chip-hash" }, r.sha256.slice(0, 7)),
+        mk === false ? h("span", { class: "chip-flag bad" }, "broken")
+          : compact ? null
+          : onchain && r.chain.explorer_url ? h("a", { class: "chip-flag ok", href: r.chain.explorer_url, target: "_blank", rel: "noopener" }, "on-chain")
+          : h("span", { class: `chip-flag ${onchain ? "ok" : "pending"}` }, onchain ? "on-chain" : "pending")));
+    }
+    return chips;
+  }
+  // The connector arrow is drawn on a chip's left; a chip that starts a wrapped row gets none.
+  function markRows(ol) {
+    requestAnimationFrame(() => {
+      let top = null;
+      for (const li of ol.children) {
+        li.classList.toggle("row-start", top !== null && li.offsetTop > top + 4);
+        top = li.offsetTop;
+      }
+    });
+  }
+  window.addEventListener("resize", () => document.querySelectorAll(".audit-strip").forEach(markRows));
+  function renderAudit(rec, n) {
+    const strip = $("#audit-strip"), meta = $("#audit-meta");
+    const a = rec && rec.audit;
+    if (!a || !Array.isArray(a.rounds)) {
+      strip.replaceChildren(h("li", { class: "chip-empty" }, rec && rec.preregistration ? "This run was recorded before the per-round audit log existed; its seal and reveal are still verifiable below." : "Rounds appear here, each hash-chained to the seal."));
+      meta.replaceChildren();
+      return;
+    }
+    strip.replaceChildren(...auditChips(rec, n, state.verifyRep, false));
+    markRows(strip);
+    const shown = a.rounds.filter((q) => q.index < n);
+    const confirmed = shown.filter((q) => q.chain && q.chain.status === "confirmed").length;
+    const err = (shown.find((q) => q.chain && q.chain.error) || {}).chain;
+    const brokenAt = state.verifyRep && state.verifyRep.audit ? state.verifyRep.audit.broken_at : null;
+    meta.replaceChildren(
+      h("span", {}, `${shown.length} of ${a.rounds.length} rounds · each link = sha256(previous link + the full round)`),
+      brokenAt !== null && brokenAt !== undefined ? h("span", { class: "badge bad" }, `broken at round #${brokenAt}`)
+        : !shown.length ? null
+        : confirmed === shown.length ? h("span", { class: "badge ok" }, "every round on-chain")
+        : h("span", { class: "badge pending", title: err && err.error ? err.error : "" }, confirmed ? `${shown.length - confirmed} pending on-chain` : "pending on-chain: wallet not funded yet"));
   }
 
   // ---------- chart ----------
@@ -301,7 +403,8 @@
         if (!r) return;
         const px = x(iter), py = y(r.holdout_mean);
         const anchor = px > W - 90 ? "end" : px < m.l + 50 ? "start" : "middle";
-        g.append(s("text", { class: cls, x: anchor === "end" ? px + 4 : px, y: py + 22, "text-anchor": anchor }, label));
+        const above = r.holdout_mean >= r.dev_score;  // keep the label off the visible-score line
+        g.append(s("text", { class: cls, x: anchor === "end" ? px + 4 : px, y: above ? py - 13 : py + 22, "text-anchor": anchor }, label));
       };
       if (rec.reveal.verdict === "OVERFIT") tag(champ, "tag-bad", "OVERFIT");
       if (sel !== null && sel !== undefined) tag(sel, "tag-ok", "selected");
@@ -448,11 +551,22 @@
       [rep.result_match, "Result hash over every candidate, score and verdict", rep.result_recomputed ? `recomputed ${short(rep.result_recomputed, 10, 8)}  recorded ${short(rep.result_recorded, 10, 8)}` : null],
       [onchainOk, rep.onchain_status === "confirmed" ? "Both memos read back from Solana devnet" : rep.onchain_status === "unreachable" ? "On-chain memos could not be fetched" : "On-chain memos pending (wallet not funded yet)", null],
     ];
+    const au = rep.audit;
+    if (au) {
+      const label = au.ok ? `Audit trail: all ${au.length} rounds re-hash to the recorded chain`
+        : `Audit trail breaks at round #${au.broken_at}: that round and every later link no longer match`;
+      checks.splice(3, 0, [rep.audit_match, label, `head recomputed ${short(au.head_recomputed, 10, 8)}  recorded ${short(au.head_recorded, 10, 8)}`]);
+    }
     const reasons = rep.reasons || [];
+    const rec = verifyRecord();
+    state.verifyRep = rep;
+    if (state.record) renderAudit(state.record, state.shownIters);
     $("#verify-result").replaceChildren(h("div", { class: `result ${cls}` },
       h("div", { class: "headline" }, h("span", { class: "icon", "aria-hidden": "true" }, icon), headline),
       h("ul", { class: "checks" }, checks.map(([v, label, hash]) => h("li", {}, mark(v), h("span", {}, label, hash ? h("div", { class: "h" }, hash) : null)))),
+      au && rec && rec.audit ? h("ol", { class: "audit-strip compact", "aria-label": "Audit chain as re-hashed by the verifier" }, auditChips(rec, Infinity, rep, true)) : null,
       reasons.length ? h("ul", { class: "reasons" }, reasons.map((r) => h("li", {}, r))) : null));
+    document.querySelectorAll("#verify-result .audit-strip").forEach(markRows);
   }
   function firstNumericPath(obj, prefix = "") {
     for (const [k, v] of Object.entries(obj || {})) {
@@ -477,7 +591,9 @@
     const path = numericDiff ? numericDiff.path : firstNumericPath(it.candidate);
     if (!path) return;
     const before = getPath(it.candidate, path);
-    const after = Number.isInteger(before) ? before + 1 : +(before + 0.01).toFixed(4);
+    // A plausible edit: fractions move by 0.01 (inside [0, 1]), counts by one.
+    const after = before > 0 && before <= 1 ? +(before - 0.01).toFixed(4)
+      : Number.isInteger(before) ? before + 1 : +(before + 0.01).toFixed(4);
     setPath(it.candidate, path, after);
     state.tampered = { record: copy, iteration: it.index, path, before, after };
     $("#btn-restore").hidden = false;
@@ -488,12 +604,14 @@
   }
   function restore() {
     state.tampered = null;
+    state.verifyRep = null;
     $("#btn-restore").hidden = true;
     $("#tamper-note").replaceChildren();
     runVerify();
   }
   function resetVerify() {
     state.tampered = null;
+    state.verifyRep = null;
     $("#btn-restore").hidden = true;
     $("#tamper-note").replaceChildren();
     $("#verify-result").replaceChildren(h("div", { class: "placeholder small" }, "Press ", h("strong", {}, "Verify against chain"), " to re-hash this run."));
@@ -513,6 +631,111 @@
       a.href = url;
     }
     a.setAttribute("download", `sealed-${rec.run_id}.json`);
+  }
+
+  // ---------- guardrail (human co-sign, /api/cosign) ----------
+  const guard = { key: null, approval: null, cap: 0.5, events: [], busy: false, msg: null };
+  const usdc = (x) => (typeof x === "number" ? `${x.toFixed(2)} USDC` : "–");
+  async function api(url, opts) {
+    const res = await fetch(url, Object.assign({ cache: "no-store", headers: { "Content-Type": "application/json" } }, opts || {}));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    return body;
+  }
+  async function loadGuardEvents() {
+    if (!guard.approval) return;
+    try {
+      const out = await api("/api/cosign/audit?limit=100");
+      guard.events = (out.audit || []).filter((e) => e.approval_id === guard.approval.id).reverse();
+    } catch { guard.events = []; }
+  }
+  async function ensureGuard(rec) {
+    const card = $("#guard-card");
+    if (!rec || !rec.reveal || !state.revealShown) { card.hidden = true; return; }
+    card.hidden = false;
+    const sel = rec.reveal.selected_iteration;
+    if (sel === null || sel === undefined) {
+      guard.key = null; guard.approval = null;
+      $("#guard-body").replaceChildren(h("div", { class: "placeholder small" }, "Nothing generalised, so the agent has nothing to fund and asks for no payment."));
+      return;
+    }
+    const key = `${rec.run_id}:${sel}`;
+    if (guard.key === key && guard.approval) { renderGuard(); return; }
+    guard.key = key; guard.approval = null; guard.events = []; guard.msg = null;
+    $("#guard-body").replaceChildren(h("div", { class: "placeholder small" }, h("span", { class: "spinner" }), " The agent requests a payment…"));
+    try {
+      const out = await api("/sealed/api/guardrail/demo", { method: "POST", body: JSON.stringify({ env: rec.env, run_id: rec.run_id, iteration: sel }) });
+      if (guard.key !== key) return;
+      guard.approval = out.approval; guard.cap = out.capUsd;
+      await loadGuardEvents();
+      renderGuard();
+    } catch (err) {
+      $("#guard-body").replaceChildren(h("div", { class: "result pending" }, h("div", { class: "headline" }, h("span", { class: "icon" }, "!"), "Co-sign queue unavailable"), h("p", {}, String(err.message || err))));
+    }
+  }
+  async function decide(action) {
+    const a = guard.approval;
+    if (!a || guard.busy) return;
+    guard.busy = true; guard.msg = action === "approve" ? "Signing and sending on devnet…" : "Rejecting…";
+    renderGuard();
+    try {
+      guard.approval = await api(`/api/cosign/${encodeURIComponent(a.id)}/${action}`, { method: "POST", body: JSON.stringify({ by: "judge (demo page)" }) });
+      guard.msg = null;
+    } catch (err) {
+      guard.msg = `Could not ${action}: ${err.message || err}`;
+    }
+    guard.busy = false;
+    await loadGuardEvents();
+    renderGuard();
+  }
+  async function requeue() {
+    guard.key = null;
+    await ensureGuard(state.record);
+  }
+  const GUARD_STATUS = {
+    pending: ["pending", "held for human co-sign"],
+    approved_pending_onchain: ["pending", "approved · pending on-chain"],
+    sent: ["ok", "approved · sent on-chain"],
+    rejected: ["bad", "rejected by a human"],
+  };
+  const GUARD_EVENT = { queued: "held: over the cap", approved: "approved", rejected: "rejected", sent: "sent on-chain", send_pending: "send pending" };
+  function renderGuard() {
+    const a = guard.approval;
+    if (!a) return;
+    $("#guard-cap").textContent = (guard.cap || a.cap_usd || 0.5).toFixed(2);
+    const [cls, label] = GUARD_STATUS[a.status] || ["pending", a.status];
+    const actions = [];
+    if (a.status === "pending") {
+      actions.push(h("button", { type: "button", class: "btn btn-approve", disabled: guard.busy, onclick: () => decide("approve") }, "Approve and send"));
+      actions.push(h("button", { type: "button", class: "btn btn-danger", disabled: guard.busy, onclick: () => decide("reject") }, "Reject"));
+    } else if (a.status === "approved_pending_onchain") {
+      actions.push(h("button", { type: "button", class: "btn", disabled: guard.busy, onclick: () => decide("approve") }, "Retry send"));
+    } else {
+      if (a.explorer_url) actions.push(h("a", { class: "btn btn-ghost", href: a.explorer_url, target: "_blank", rel: "noopener" }, "View on Solana Explorer ↗"));
+      actions.push(h("button", { type: "button", class: "btn btn-ghost", onclick: requeue }, "New request"));
+    }
+    const note = guard.busy ? h("p", { class: "guard-msg" }, h("span", { class: "spinner" }), " ", guard.msg)
+      : guard.msg ? h("p", { class: "guard-msg err" }, guard.msg)
+      : a.onchain_error && a.status === "approved_pending_onchain" ? h("p", { class: "guard-msg" }, `${a.onchain_error.replace(/^pending on-chain:\s*/i, "Approved by a human, not on chain yet: ")}. Approving again retries the send.`)
+      : null;
+    $("#guard-body").replaceChildren(h("div", { class: `guard-grid ${a.status}` },
+      h("div", { class: "guard-pay" },
+        h("div", { class: "guard-amt" }, h("b", {}, usdc(a.amount_usdc)), h("span", { class: "guard-vs" }, `cap ${usdc(a.cap_usd)}`)),
+        h("span", { class: `badge ${cls}` }, label),
+        h("dl", { class: "kv guard-kv" },
+          h("dt", {}, "Asked by"), h("dd", {}, "the Sealed agent, after the reveal"),
+          h("dt", {}, "Purpose"), h("dd", {}, (a.reason || "").replace(/: [\d.]+ USDC is over.*$/, "").replace(/^Sealed agent asks to f/, "F")),
+          h("dt", {}, "To"), h("dd", {}, h("span", { class: "hash", title: a.to }, short(a.to, 6, 6))),
+          h("dt", {}, "Memo"), h("dd", {}, h("code", { class: "memo" }, a.memo || "–"))),
+        h("div", { class: "guard-actions" }, actions),
+        note),
+      h("div", { class: "guard-log" },
+        h("div", { class: "guard-log-title" }, "Decision log"),
+        h("ol", {}, guard.events.length ? guard.events.map((e) => h("li", { class: `ev ${e.event}` },
+          h("time", {}, when(e.at).replace(/^.*?(\d\d:\d\d:\d\d).*$/, "$1")),
+          h("span", {}, GUARD_EVENT[e.event] || e.event, e.by ? h("span", { class: "muted" }, ` by ${e.by}`) : null)))
+          : h("li", { class: "muted" }, "No decisions yet.")),
+        h("p", { class: "muted small" }, "Append-only, kept with every approval: limited autonomy, human sign-off, an audit trail."))));
   }
 
   // ---------- replay ----------
@@ -541,6 +764,7 @@
     renderChart(rec, state.shownIters, true);
     renderSeal(rec);
     renderReveal(rec);
+    ensureGuard(rec);
     setVerifyEnabled(true);
     if (state.follow) $("#reveal").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   }
@@ -564,6 +788,7 @@
     renderStream(rec, 0, false);
     renderChart(rec, 0, false);
     renderReveal(rec);
+    ensureGuard(rec);
     setDownload(rec);
     state.steps = buildSteps(rec);
     state.stepIdx = 0;
@@ -596,6 +821,7 @@
     renderStream(rec, n, grew);
     renderChart(rec, n, state.revealShown);
     renderReveal(rec);
+    ensureGuard(rec);
     setDownload(rec);
     const stepFor = { sealing: "seal", running: "search", revealing: "reveal", done: "reveal", failed: "search" };
     setStep(stepFor[rec.status] || "search");
@@ -658,8 +884,9 @@
     const params = new URLSearchParams(location.search);
     const runId = params.get("run");
     if (runId && params.get("live")) { enterLive(runId); return; }
-    const url = runId ? `/sealed/api/runs/${encodeURIComponent(runId)}` : "/sealed/api/demo";
+    const url = runId ? `/sealed/api/runs/${encodeURIComponent(runId)}` : `/sealed/api/demo?env=${encodeURIComponent(state.env)}`;
     state.source = runId ? "run" : "demo";
+    markTabs(state.env);
     try {
       const res = await fetch(url, { cache: "no-store" });
       const text = await res.text();
@@ -678,8 +905,30 @@
     }
   }
 
+  function switchEnv(env) {
+    if (!ENVS[env]) return;
+    if (state.live || new URLSearchParams(location.search).get("run")) { location.href = `/sealed?env=${env}`; return; }
+    if (env === state.env && state.record && state.record.env === env) return;
+    stopTimer();
+    state.env = env;
+    state.record = null;
+    history.replaceState(null, "", env === "strategy" ? "/sealed" : `/sealed?env=${env}`);
+    markTabs(env);
+    $("#seal-body").replaceChildren(h("div", { class: "placeholder" }, h("span", { class: "spinner" }), " Loading the run…"));
+    loadRecord();
+  }
+  document.querySelectorAll(".env-tab").forEach((b) => b.addEventListener("click", () => switchEnv(b.dataset.env)));
+  $("#env-tabs").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    const tabs = [...document.querySelectorAll(".env-tab")];
+    const i = tabs.findIndex((b) => b.getAttribute("aria-selected") === "true");
+    const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+    next.focus();
+    switchEnv(next.dataset.env);
+  });
+
   $("#btn-replay").addEventListener("click", () => {
-    if (state.live) { location.href = "/sealed"; return; }
+    if (state.live) { location.href = `/sealed?env=${(state.record && state.record.env) || state.env}`; return; }
     replay();
   });
   $("#btn-skip").addEventListener("click", skipToReveal);

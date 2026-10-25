@@ -1,19 +1,19 @@
 {
   "schema": "sealed.run/v1",
-  "run_id": "20261025T125119Z-epidemic-d428",
+  "run_id": "20261025T132621Z-epidemic-5c83",
   "env": "epidemic",
   "title": "Winter epidemic policy",
   "goal": "Minimise winter hospital-days for 10M people with GBP 40M, no school closures over 3 weeks, without widening the age gap.",
   "metric_label": "Thousand hospital-days averted per GBP 1m, net of penalties",
   "mode": "cached",
-  "proposer": "gemini",
+  "proposer": "scripted",
   "iterations_planned": 8,
   "status": "done",
-  "created_at": "2026-10-25T12:51:19Z",
-  "updated_at": "2026-10-25T12:55:18Z",
+  "created_at": "2026-10-25T13:26:21Z",
+  "updated_at": "2026-10-25T13:26:24Z",
   "preregistration": {
     "env": "epidemic",
-    "run_id": "20261025T125119Z-epidemic-d428",
+    "run_id": "20261025T132621Z-epidemic-5c83",
     "code_sha256": "4f52c749de33460ce60a3328e0ad3d86639bfe90968bab34296c649f3f75b425",
     "dev_seeds": [
       101,
@@ -23,17 +23,17 @@
       105,
       106
     ],
-    "holdout_commitment": "26d2784dd4202ede37149b4c14e476f7b554903336215acb8311f73780796f9a",
-    "commitment": "26cea50b2444f6f1b1d221c4852fed4cced4b37d2b625c6e25839f60ac7f530a",
-    "memo": "sealed:v1:commit:20261025T125119Z-epidemic-d428:26cea50b2444f6f1b1d221c4852fed4cced4b37d2b625c6e25839f60ac7f530a",
-    "sealed_at": "2026-10-25T12:51:19Z",
+    "holdout_commitment": "8e956f5c2d767efe205d90bbcd734eae883ced40527c0904149c1703ff5fc71a",
+    "commitment": "2a3625a4ed52742920676c6ef443dddc3b0c2c755eab61f678ec5fe61d97b382",
+    "memo": "sealed:v1:commit:20261025T132621Z-epidemic-5c83:2a3625a4ed52742920676c6ef443dddc3b0c2c755eab61f678ec5fe61d97b382",
+    "sealed_at": "2026-10-25T13:26:21Z",
     "chain": {
       "status": "pending",
-      "memo": "sealed:v1:commit:20261025T125119Z-epidemic-d428:26cea50b2444f6f1b1d221c4852fed4cced4b37d2b625c6e25839f60ac7f530a",
+      "memo": "sealed:v1:commit:20261025T132621Z-epidemic-5c83:2a3625a4ed52742920676c6ef443dddc3b0c2c755eab61f678ec5fe61d97b382",
       "signature": null,
       "explorer_url": null,
       "cluster": "devnet",
-      "at": "2026-10-25T12:55:18Z",
+      "at": "2026-10-25T13:26:21Z",
       "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
     }
   },
@@ -96,431 +96,29 @@
       "decision": "BASELINE",
       "errors": [],
       "champion_score": 17.591223,
-      "duration_s": 0.034,
-      "at": "2026-10-25T12:51:20Z"
+      "duration_s": 0.005,
+      "at": "2026-10-25T13:26:21Z"
     },
     {
       "index": 1,
-      "proposer": "gemini",
-      "hypothesis": "Reducing surge_icu_beds from 300 to 50 will maintain zero ICU overflow while cutting surge bed spend by GBP 6.25M, increasing averted hospital-days per GBP 1M.",
-      "rationale": "In the champion breakdown, peak ICU occupancy averaged 164.7 against 600 available beds (300 base + 300 surge), with zero overflow days. Lowering surge beds to 50 still leaves 350 total beds (more than double the mean peak load) while reducing policy spend by GBP 6.25M (from ~GBP 29.8M to ~GBP 23.6M), directly improving the cost-efficiency ratio.",
+      "proposer": "scripted",
+      "hypothesis": "Moving doses from children toward the 40-74 bands, who fill most ICU beds, cuts hospital-days per pound.",
+      "rationale": "Hospitalisation and ICU risk rise steeply with age while children mostly transmit; an even split spends a fifth of the supply on the lowest-risk band.",
       "strategy": "continue",
       "candidate": {
-        "school_close_max_days": 14,
-        "school_close_trigger_per_100k": 40,
-        "surge_icu_beds": 50,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 50,
-        "work_close_trigger_per_100k": 60
-      },
-      "diff": [
-        {
-          "path": "surge_icu_beds",
-          "before": 300,
-          "after": 50
-        }
-      ],
-      "dev": {
-        "score": 22.335266,
-        "per_seed": [
-          19.262032,
-          25.145828,
-          25.359947,
-          19.228984,
-          24.268126,
-          20.746679
-        ],
-        "breakdown": {
-          "hospital_days": 191263.6294,
-          "hospital_days_averted": 522598.3148,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 164.7038,
-          "icu_beds": 350.0,
-          "cost_gbp_m": 23.5833,
-          "closure_days": 9.0,
-          "work_closure_days": 3.3333,
-          "age_gap": -0.1501,
-          "deaths": 4423.7562,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 22.335266,
-      "duration_s": 15.482,
-      "at": "2026-10-25T12:51:35Z"
-    },
-    {
-      "index": 2,
-      "proposer": "gemini",
-      "hypothesis": "Advancing vaccine_start_day from 50 to 45 will avert more hospital-days by vaccinating earlier before the peak without incurring any acceleration cost penalty.",
-      "rationale": "Acceleration costs apply only for start days earlier than day 45 (GBP 0.2M/day). The current champion starts on day 50, so moving start day to 45 provides 5 additional days of early vaccination (300,000 doses) at zero extra cost, directly boosting net averted hospital-days per GBP 1M.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 14,
-        "school_close_trigger_per_100k": 40,
-        "surge_icu_beds": 50,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 60
-      },
-      "diff": [
-        {
-          "path": "vaccine_start_day",
-          "before": 50,
-          "after": 45
-        }
-      ],
-      "dev": {
-        "score": 22.745787,
-        "per_seed": [
-          19.474964,
-          25.649227,
-          25.885013,
-          19.667048,
-          24.792495,
-          21.005974
-        ],
-        "breakdown": {
-          "hospital_days": 182856.5946,
-          "hospital_days_averted": 531005.3496,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 160.6254,
-          "icu_beds": 350.0,
-          "cost_gbp_m": 23.5167,
-          "closure_days": 8.3333,
-          "work_closure_days": 3.1667,
-          "age_gap": -0.1527,
-          "deaths": 4261.7792,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 22.745787,
-      "duration_s": 19.256,
-      "at": "2026-10-25T12:51:54Z"
-    },
-    {
-      "index": 3,
-      "proposer": "gemini",
-      "hypothesis": "Increasing school_close_max_days from 14 to 21 will allow longer zero-cost transmission reduction during peak weeks without incurring any penalty or furlough costs.",
-      "rationale": "School closures cost GBP 0 and carry zero penalty up to 21 days, whereas work closures cost GBP 0.4M per day. Allowing schools to stay closed up to the full 21-day threshold in heavier waves will avert additional hospital-days and reduce work closure days at zero extra spend.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 40,
-        "surge_icu_beds": 50,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 60
-      },
-      "diff": [
-        {
-          "path": "school_close_max_days",
-          "before": 14,
-          "after": 21
-        }
-      ],
-      "dev": {
-        "score": 22.789901,
-        "per_seed": [
-          19.474964,
-          25.649227,
-          25.885418,
-          19.925068,
-          24.798752,
-          21.005974
-        ],
-        "breakdown": {
-          "hospital_days": 182876.5768,
-          "hospital_days_averted": 530985.3673,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 160.5968,
-          "icu_beds": 350.0,
-          "cost_gbp_m": 23.45,
-          "closure_days": 11.6667,
-          "work_closure_days": 3.0,
-          "age_gap": -0.1525,
-          "deaths": 4259.1426,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 22.789901,
-      "duration_s": 17.443,
-      "at": "2026-10-25T12:52:12Z"
-    },
-    {
-      "index": 4,
-      "proposer": "gemini",
-      "hypothesis": "Reducing surge_icu_beds from 50 to 0 will maintain zero ICU overflow given the peak ICU mean is only 160.6 against 300 free beds, saving GBP 1.25M and raising the cost-efficiency ratio.",
-      "rationale": "In the champion breakdown, mean peak ICU occupancy is 160.6 with zero overflow days, well below the 300 baseline free beds. Staffing 50 surge beds costs GBP 1.25M without being utilized. Eliminating surge beds preserves all transmission dynamics and hospital-days averted while reducing total cost from GBP 23.45M to GBP 22.20M.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 40,
-        "surge_icu_beds": 0,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 60
-      },
-      "diff": [
-        {
-          "path": "surge_icu_beds",
-          "before": 50,
-          "after": 0
-        }
-      ],
-      "dev": {
-        "score": 24.095973,
-        "per_seed": [
-          20.634188,
-          27.175966,
-          27.426217,
-          20.808271,
-          26.274869,
-          22.256329
-        ],
-        "breakdown": {
-          "hospital_days": 182876.5768,
-          "hospital_days_averted": 530985.3673,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 160.5968,
-          "icu_beds": 300.0,
-          "cost_gbp_m": 22.2,
-          "closure_days": 11.6667,
-          "work_closure_days": 3.0,
-          "age_gap": -0.1525,
-          "deaths": 4259.1426,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 24.095973,
-      "duration_s": 18.879,
-      "at": "2026-10-25T12:52:31Z"
-    },
-    {
-      "index": 5,
-      "proposer": "gemini",
-      "hypothesis": "Raising work_close_trigger_per_100k from 60 to 100 will avoid brief, expensive workplace closures, saving approximately GBP 1.2M in furlough costs with minimal impact on total averted hospital-days.",
-      "rationale": "Workplace closures currently average 3.0 days, costing GBP 1.2M in furlough top-ups without substantial epidemic suppression over a 180-day wave. With peak ICU at only 160.6 out of 300 beds, the epidemic remains safely within healthcare capacity, so shedding these 3 closure days should reduce total spend from GBP 22.2M to ~21.0M and improve the averted-days-per-pound ratio.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 40,
-        "surge_icu_beds": 0,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 100
-      },
-      "diff": [
-        {
-          "path": "work_close_trigger_per_100k",
-          "before": 60,
-          "after": 100
-        }
-      ],
-      "dev": {
-        "score": 25.135519,
-        "per_seed": [
-          20.634188,
-          27.175966,
-          27.426217,
-          27.045544,
-          26.274869,
-          22.256329
-        ],
-        "breakdown": {
-          "hospital_days": 186016.0466,
-          "hospital_days_averted": 527845.8976,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 160.5968,
-          "icu_beds": 300.0,
-          "cost_gbp_m": 21.0,
-          "closure_days": 11.6667,
-          "work_closure_days": 0.0,
-          "age_gap": -0.1523,
-          "deaths": 4405.7005,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 25.135519,
-      "duration_s": 26.655,
-      "at": "2026-10-25T12:52:58Z"
-    },
-    {
-      "index": 6,
-      "proposer": "gemini",
-      "hypothesis": "Lowering school_close_trigger_per_100k from 40 to 25 will trigger free school closures earlier in the surge, utilizing more of the 21 zero-cost closure days to delay the peak while vaccination rolls out.",
-      "rationale": "Currently school closures average only 11.67 days against the allowed 21 zero-penalty days, and school closures incur zero furlough or monetary spend. Lowering the trigger to 25 per 100k (2,500 regional hospitalisations) deploys transmission reduction during exponential growth without risking penalty, buying valuable time for the 60k/day vaccination campaign.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 25,
-        "surge_icu_beds": 0,
-        "test_isolate_level": 0.3,
-        "vaccine_share": {
-          "0-17": 0.2,
-          "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.2,
-          "75+": 0.2
-        },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 100
-      },
-      "diff": [
-        {
-          "path": "school_close_trigger_per_100k",
-          "before": 40,
-          "after": 25
-        }
-      ],
-      "dev": {
-        "score": 25.327554,
-        "per_seed": [
-          20.634188,
-          27.376991,
-          27.722049,
-          27.332873,
-          26.642895,
-          22.256329
-        ],
-        "breakdown": {
-          "hospital_days": 181983.3047,
-          "hospital_days_averted": 531878.6395,
-          "icu_overflow_days": 0.0,
-          "peak_icu": 151.4541,
-          "icu_beds": 300.0,
-          "cost_gbp_m": 21.0,
-          "closure_days": 14.0,
-          "work_closure_days": 0.0,
-          "age_gap": -0.1518,
-          "deaths": 4302.8008,
-          "penalty_hospital_days": 0.0
-        },
-        "seeds": [
-          101,
-          102,
-          103,
-          104,
-          105,
-          106
-        ],
-        "shift_id": "base"
-      },
-      "decision": "KEEP",
-      "errors": [],
-      "champion_score": 25.327554,
-      "duration_s": 27.472,
-      "at": "2026-10-25T12:53:25Z"
-    },
-    {
-      "index": 7,
-      "proposer": "gemini",
-      "hypothesis": "Reallocating 10% of vaccine doses from low-clinical-risk children (0-17) to high-risk older adults (60-74) will avert more hospital-days and reduce ICU pressure because 60-74 individuals have significantly higher hospitalization rates, while school closures already mitigate child transmission.",
-      "rationale": "Currently all age bands receive an equal 20% vaccine share. Hospitalization rates rise steeply from 0.2% in 0-17 to high single digits in 60-74, where ICU demand also peaks. In a 10M population, the 60-74 band has roughly 1.5M people with >80% willingness, so 900k doses (30% share) will be fully utilized without dose wastage, improving averted hospital-days at zero additional monetary cost.",
-      "strategy": "continue",
-      "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 25,
-        "surge_icu_beds": 0,
-        "test_isolate_level": 0.3,
         "vaccine_share": {
           "0-17": 0.1,
           "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.3,
+          "40-59": 0.25,
+          "60-74": 0.25,
           "75+": 0.2
         },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 100
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_icu_beds": 300
       },
       "diff": [
         {
@@ -529,32 +127,37 @@
           "after": 0.1
         },
         {
+          "path": "vaccine_share.40-59",
+          "before": 0.2,
+          "after": 0.25
+        },
+        {
           "path": "vaccine_share.60-74",
           "before": 0.2,
-          "after": 0.3
+          "after": 0.25
         }
       ],
       "dev": {
-        "score": 25.590174,
+        "score": 18.520639,
         "per_seed": [
-          20.635531,
-          27.541648,
-          27.984471,
-          28.10257,
-          27.005804,
-          22.271022
+          15.150281,
+          19.973181,
+          20.193467,
+          20.0947,
+          19.369132,
+          16.343075
         ],
         "breakdown": {
-          "hospital_days": 176468.2845,
-          "hospital_days_averted": 537393.6597,
+          "hospital_days": 186023.7239,
+          "hospital_days_averted": 527838.2203,
           "icu_overflow_days": 0.0,
-          "peak_icu": 143.6288,
-          "icu_beds": 300.0,
-          "cost_gbp_m": 21.0,
-          "closure_days": 14.0,
+          "peak_icu": 154.2734,
+          "icu_beds": 600.0,
+          "cost_gbp_m": 28.5,
+          "closure_days": 8.1667,
           "work_closure_days": 0.0,
-          "age_gap": -0.1959,
-          "deaths": 4058.8935,
+          "age_gap": -0.163,
+          "deaths": 4355.031,
           "penalty_hospital_days": 0.0
         },
         "seeds": [
@@ -569,59 +172,198 @@
       },
       "decision": "KEEP",
       "errors": [],
-      "champion_score": 25.590174,
-      "duration_s": 36.0,
-      "at": "2026-10-25T12:54:01Z"
+      "champion_score": 18.520639,
+      "duration_s": 0.063,
+      "at": "2026-10-25T13:26:21Z"
     },
     {
-      "index": 8,
-      "proposer": "gemini",
-      "hypothesis": "Lowering school_close_trigger_per_100k from 25 to 20 will avert more hospital-days by utilizing more of the 7 unused zero-cost school closure days during the epidemic surge.",
-      "rationale": "Currently, schools are only closed for an average of 14.0 days out of the allowed 21 zero-penalty days. Lowering the trigger to 20 activates closures slightly earlier in the wave, suppressing community transmission during the rapid growth phase without adding any monetary cost or incurring closure penalties.",
+      "index": 2,
+      "proposer": "scripted",
+      "hypothesis": "Peak ICU load sits near 155 of 600 beds, so 200 of the 300 surge beds can go without any overflow.",
+      "rationale": "The champion's breakdown shows the ICU peak well under capacity; surge beds cost GBP 25k each whether used or not, so trimming to 100 keeps a margin and lowers cost.",
       "strategy": "continue",
       "candidate": {
-        "school_close_max_days": 21,
-        "school_close_trigger_per_100k": 20,
-        "surge_icu_beds": 0,
-        "test_isolate_level": 0.3,
         "vaccine_share": {
           "0-17": 0.1,
           "18-39": 0.2,
-          "40-59": 0.2,
-          "60-74": 0.3,
+          "40-59": 0.25,
+          "60-74": 0.25,
           "75+": 0.2
         },
-        "vaccine_start_day": 45,
-        "work_close_trigger_per_100k": 100
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_icu_beds": 100
+      },
+      "diff": [
+        {
+          "path": "surge_icu_beds",
+          "before": 300,
+          "after": 100
+        }
+      ],
+      "dev": {
+        "score": 22.461201,
+        "per_seed": [
+          18.373745,
+          24.222794,
+          24.489949,
+          24.370168,
+          23.490224,
+          19.820325
+        ],
+        "breakdown": {
+          "hospital_days": 186023.7239,
+          "hospital_days_averted": 527838.2203,
+          "icu_overflow_days": 0.0,
+          "peak_icu": 154.2734,
+          "icu_beds": 400.0,
+          "cost_gbp_m": 23.5,
+          "closure_days": 8.1667,
+          "work_closure_days": 0.0,
+          "age_gap": -0.163,
+          "deaths": 4355.031,
+          "penalty_hospital_days": 0.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 22.461201,
+      "duration_s": 0.031,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 3,
+      "proposer": "scripted",
+      "hypothesis": "Closing schools earlier (25 per 100k) and for up to 35 days flattens the peak enough to pay for itself.",
+      "rationale": "Children have the most contacts, mostly at school; an earlier, longer closure should avert more admissions than the 21-day cap penalty costs.",
+      "strategy": "pivot",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 25,
+        "school_close_max_days": 35,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.3,
+        "surge_icu_beds": 100
       },
       "diff": [
         {
           "path": "school_close_trigger_per_100k",
-          "before": 25,
-          "after": 20
+          "before": 40,
+          "after": 25
+        },
+        {
+          "path": "school_close_max_days",
+          "before": 14,
+          "after": 35
         }
       ],
       "dev": {
-        "score": 25.680164,
+        "score": 20.836392,
         "per_seed": [
-          20.635531,
-          27.691645,
-          28.137957,
-          28.18364,
-          27.161186,
-          22.271022
+          18.373745,
+          21.899458,
+          21.859385,
+          22.075255,
+          20.990181,
+          19.820325
         ],
         "breakdown": {
-          "hospital_days": 174578.5095,
-          "hospital_days_averted": 539283.4346,
+          "hospital_days": 179206.7418,
+          "hospital_days_averted": 534655.2024,
           "icu_overflow_days": 0.0,
-          "peak_icu": 140.3539,
-          "icu_beds": 300.0,
-          "cost_gbp_m": 21.0,
-          "closure_days": 14.0,
+          "peak_icu": 143.7973,
+          "icu_beds": 400.0,
+          "cost_gbp_m": 23.5,
+          "closure_days": 23.0,
           "work_closure_days": 0.0,
-          "age_gap": -0.1962,
-          "deaths": 4026.4186,
+          "age_gap": -0.1617,
+          "deaths": 4155.0709,
+          "penalty_hospital_days": 45000.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 22.461201,
+      "duration_s": 0.023,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 4,
+      "proposer": "scripted",
+      "hypothesis": "Test-and-isolate at 0.3 saturates at the peak; cutting it to 0.1 saves GBP 6M for little extra transmission.",
+      "rationale": "Testing effect halves at about 150 cases per 100k a day, so most of its spend is wasted during the wave; the ratio score rewards the saving.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.1,
+        "surge_icu_beds": 100
+      },
+      "diff": [
+        {
+          "path": "test_isolate_level",
+          "before": 0.3,
+          "after": 0.1
+        }
+      ],
+      "dev": {
+        "score": 23.411788,
+        "per_seed": [
+          20.247878,
+          26.038551,
+          26.483471,
+          20.545556,
+          25.701063,
+          21.454211
+        ],
+        "breakdown": {
+          "hospital_days": 271282.7587,
+          "hospital_days_averted": 442579.1855,
+          "icu_overflow_days": 0.0,
+          "peak_icu": 204.0623,
+          "icu_beds": 400.0,
+          "cost_gbp_m": 19.1,
+          "closure_days": 9.3333,
+          "work_closure_days": 4.0,
+          "age_gap": -0.1442,
+          "deaths": 5942.9123,
           "penalty_hospital_days": 0.0
         },
         "seeds": [
@@ -636,13 +378,256 @@
       },
       "decision": "KEEP",
       "errors": [],
-      "champion_score": 25.680164,
-      "duration_s": 28.244,
-      "at": "2026-10-25T12:54:29Z"
+      "champion_score": 23.411788,
+      "duration_s": 0.017,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 5,
+      "proposer": "scripted",
+      "hypothesis": "Full test-and-isolate stops the wave early, so later levers stop mattering.",
+      "rationale": "If transmission is cut by 35% from the start, the peak never forms; widen to the maximum level.",
+      "strategy": "widen",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 1.0,
+        "surge_icu_beds": 100
+      },
+      "diff": [
+        {
+          "path": "test_isolate_level",
+          "before": 0.1,
+          "after": 1.0
+        }
+      ],
+      "dev": null,
+      "decision": "INVALID",
+      "errors": [
+        "planned spend GBP 44.5M exceeds the GBP 40M budget"
+      ],
+      "champion_score": 23.411788,
+      "duration_s": 0.001,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 6,
+      "proposer": "scripted",
+      "hypothesis": "ICU never needs the remaining 100 surge beds on any dev seed, so dropping them is pure saving.",
+      "rationale": "Peak ICU stays near 200 against 300 base beds in every dev run; the GBP 2.5M buys nothing in the scenario we can see.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 40,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 60,
+        "test_isolate_level": 0.1,
+        "surge_icu_beds": 0
+      },
+      "diff": [
+        {
+          "path": "surge_icu_beds",
+          "before": 100,
+          "after": 0
+        }
+      ],
+      "dev": {
+        "score": 27.091037,
+        "per_seed": [
+          23.622524,
+          30.378309,
+          30.897382,
+          22.633519,
+          29.984574,
+          25.029913
+        ],
+        "breakdown": {
+          "hospital_days": 271282.7587,
+          "hospital_days_averted": 442579.1855,
+          "icu_overflow_days": 0.0,
+          "peak_icu": 204.0623,
+          "icu_beds": 300.0,
+          "cost_gbp_m": 16.6,
+          "closure_days": 9.3333,
+          "work_closure_days": 4.0,
+          "age_gap": -0.1442,
+          "deaths": 5942.9123,
+          "penalty_hospital_days": 0.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 27.091037,
+      "duration_s": 0.123,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 7,
+      "proposer": "scripted",
+      "hypothesis": "Raising closure triggers (schools 80, work 150 per 100k) avoids furlough costs because the dev waves never reach them.",
+      "rationale": "Workplace closures cost GBP 0.4M a day and school closures add little once older bands are vaccinated; in the dev runs occupancy stays below the higher triggers.",
+      "strategy": "continue",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 50,
+        "school_close_trigger_per_100k": 80,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 150,
+        "test_isolate_level": 0.1,
+        "surge_icu_beds": 0
+      },
+      "diff": [
+        {
+          "path": "school_close_trigger_per_100k",
+          "before": 40,
+          "after": 80
+        },
+        {
+          "path": "work_close_trigger_per_100k",
+          "before": 60,
+          "after": 150
+        }
+      ],
+      "dev": {
+        "score": 28.034498,
+        "per_seed": [
+          23.622524,
+          29.797848,
+          30.165483,
+          30.403358,
+          29.187862,
+          25.029913
+        ],
+        "breakdown": {
+          "hospital_days": 292153.4728,
+          "hospital_days_averted": 421708.4714,
+          "icu_overflow_days": 11.91,
+          "peak_icu": 211.5391,
+          "icu_beds": 300.0,
+          "cost_gbp_m": 15.0,
+          "closure_days": 0.0,
+          "work_closure_days": 0.0,
+          "age_gap": -0.143,
+          "deaths": 6437.6063,
+          "penalty_hospital_days": 1191.0019
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 28.034498,
+      "duration_s": 0.021,
+      "at": "2026-10-25T13:26:21Z"
+    },
+    {
+      "index": 8,
+      "proposer": "scripted",
+      "hypothesis": "Starting vaccination on day 35 protects the 60+ bands before the peak and beats its GBP 2M premium.",
+      "rationale": "The wave peaks in its second month; ten more days of protection before the peak should avert more hospital-days than the acceleration premium costs.",
+      "strategy": "pivot",
+      "candidate": {
+        "vaccine_share": {
+          "0-17": 0.1,
+          "18-39": 0.2,
+          "40-59": 0.25,
+          "60-74": 0.25,
+          "75+": 0.2
+        },
+        "vaccine_start_day": 35,
+        "school_close_trigger_per_100k": 80,
+        "school_close_max_days": 14,
+        "work_close_trigger_per_100k": 150,
+        "test_isolate_level": 0.1,
+        "surge_icu_beds": 0
+      },
+      "diff": [
+        {
+          "path": "vaccine_start_day",
+          "before": 50,
+          "after": 35
+        }
+      ],
+      "dev": {
+        "score": 26.494922,
+        "per_seed": [
+          22.186436,
+          28.167443,
+          28.500612,
+          28.931997,
+          27.611155,
+          23.57189
+        ],
+        "breakdown": {
+          "hospital_days": 263448.2656,
+          "hospital_days_averted": 450413.6785,
+          "icu_overflow_days": 0.0,
+          "peak_icu": 200.5059,
+          "icu_beds": 300.0,
+          "cost_gbp_m": 17.0,
+          "closure_days": 0.0,
+          "work_closure_days": 0.0,
+          "age_gap": -0.1513,
+          "deaths": 5915.8947,
+          "penalty_hospital_days": 0.0
+        },
+        "seeds": [
+          101,
+          102,
+          103,
+          104,
+          105,
+          106
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 28.034498,
+      "duration_s": 0.017,
+      "at": "2026-10-25T13:26:21Z"
     }
   ],
   "reveal": {
-    "salt": "c725d21fb6ed467cd8b1d706f3903ff8cd06a7be3d23e342bce17100a34746b4",
+    "salt": "8ca8721b688527758433c5b5e839768d2613ffbfd63d672725bc1ed938114d16",
     "holdout": {
       "seeds": [
         2011,
@@ -697,7 +682,7 @@
         }
       ]
     },
-    "revealed_at": "2026-10-25T12:54:33Z",
+    "revealed_at": "2026-10-25T13:26:23Z",
     "results": [
       {
         "iteration": 0,
@@ -725,13 +710,13 @@
       },
       {
         "iteration": 1,
-        "dev_score": 22.335266,
+        "dev_score": 18.520639,
         "per_shift": {
-          "base": 19.726384,
-          "transmissibility_1_4x": 14.161008,
-          "uptake_minus_30": 19.660343,
-          "delayed_start": 14.137501,
-          "new_variant": 19.271875
+          "base": 15.591848,
+          "transmissibility_1_4x": 15.274483,
+          "uptake_minus_30": 15.540966,
+          "delayed_start": 11.115488,
+          "new_variant": 16.882715
         },
         "shift_labels": {
           "base": "Base scenario",
@@ -740,48 +725,22 @@
           "delayed_start": "Wave starts 3 weeks later",
           "new_variant": "New variant (immune escape)"
         },
-        "holdout_mean": 17.3914222,
+        "holdout_mean": 14.8811,
         "worst_shift_id": "delayed_start",
-        "worst_score": 14.137501,
-        "relative_gap": 0.22134698552504364,
-        "verdict": "OVERFIT",
-        "reasons": [
-          "collapses under 1.4x transmissibility: 14.2 vs naive baseline 14.7"
-        ]
-      },
-      {
-        "iteration": 2,
-        "dev_score": 22.745787,
-        "per_shift": {
-          "base": 20.019842,
-          "transmissibility_1_4x": 15.053506,
-          "uptake_minus_30": 19.955772,
-          "delayed_start": 14.281668,
-          "new_variant": 19.583049
-        },
-        "shift_labels": {
-          "base": "Base scenario",
-          "transmissibility_1_4x": "1.4x transmissibility",
-          "uptake_minus_30": "30% lower vaccine uptake",
-          "delayed_start": "Wave starts 3 weeks later",
-          "new_variant": "New variant (immune escape)"
-        },
-        "holdout_mean": 17.7787674,
-        "worst_shift_id": "delayed_start",
-        "worst_score": 14.281668,
-        "relative_gap": 0.21837097129239805,
+        "worst_score": 11.115488,
+        "relative_gap": 0.1965126041277517,
         "verdict": "GENERALISES",
         "reasons": []
       },
       {
-        "iteration": 3,
-        "dev_score": 22.789901,
+        "iteration": 2,
+        "dev_score": 22.461201,
         "per_shift": {
-          "base": 20.021414,
-          "transmissibility_1_4x": 15.488929,
-          "uptake_minus_30": 19.957375,
-          "delayed_start": 14.281668,
-          "new_variant": 19.880505
+          "base": 18.909262,
+          "transmissibility_1_4x": 16.350759,
+          "uptake_minus_30": 18.847555,
+          "delayed_start": 13.480486,
+          "new_variant": 19.463853
         },
         "shift_labels": {
           "base": "Base scenario",
@@ -790,22 +749,22 @@
           "delayed_start": "Wave starts 3 weeks later",
           "new_variant": "New variant (immune escape)"
         },
-        "holdout_mean": 17.9259782,
+        "holdout_mean": 17.410383,
         "worst_shift_id": "delayed_start",
-        "worst_score": 14.281668,
-        "relative_gap": 0.21342448130862882,
+        "worst_score": 13.480486,
+        "relative_gap": 0.22486856335064184,
         "verdict": "GENERALISES",
         "reasons": []
       },
       {
         "iteration": 4,
-        "dev_score": 24.095973,
+        "dev_score": 23.411788,
         "per_shift": {
-          "base": 21.213165,
-          "transmissibility_1_4x": 13.496702,
-          "uptake_minus_30": 21.145314,
-          "delayed_start": 15.131767,
-          "new_variant": 19.770749
+          "base": 20.38578,
+          "transmissibility_1_4x": 16.506055,
+          "uptake_minus_30": 20.235612,
+          "delayed_start": 15.396461,
+          "new_variant": 19.073042
         },
         "shift_labels": {
           "base": "Base scenario",
@@ -814,51 +773,22 @@
           "delayed_start": "Wave starts 3 weeks later",
           "new_variant": "New variant (immune escape)"
         },
-        "holdout_mean": 18.151539399999997,
-        "worst_shift_id": "transmissibility_1_4x",
-        "worst_score": 13.496702,
-        "relative_gap": 0.24669821799684136,
-        "verdict": "OVERFIT",
-        "reasons": [
-          "collapses under 1.4x transmissibility: 13.5 vs naive baseline 14.7"
-        ]
-      },
-      {
-        "iteration": 5,
-        "dev_score": 25.135519,
-        "per_shift": {
-          "base": 21.213165,
-          "transmissibility_1_4x": 5.946921,
-          "uptake_minus_30": 21.145314,
-          "delayed_start": 15.131767,
-          "new_variant": 17.051537
-        },
-        "shift_labels": {
-          "base": "Base scenario",
-          "transmissibility_1_4x": "1.4x transmissibility",
-          "uptake_minus_30": "30% lower vaccine uptake",
-          "delayed_start": "Wave starts 3 weeks later",
-          "new_variant": "New variant (immune escape)"
-        },
-        "holdout_mean": 16.0977408,
-        "worst_shift_id": "transmissibility_1_4x",
-        "worst_score": 5.946921,
-        "relative_gap": 0.3595620285381813,
-        "verdict": "OVERFIT",
-        "reasons": [
-          "holdout mean 16.1 is 36% below its dev score 25.1 (limit 30%)",
-          "collapses under 1.4x transmissibility: 5.9 vs naive baseline 14.7"
-        ]
+        "holdout_mean": 18.319390000000002,
+        "worst_shift_id": "delayed_start",
+        "worst_score": 15.396461,
+        "relative_gap": 0.21751427101595142,
+        "verdict": "GENERALISES",
+        "reasons": []
       },
       {
         "iteration": 6,
-        "dev_score": 25.327554,
+        "dev_score": 27.091037,
         "per_shift": {
-          "base": 21.285881,
-          "transmissibility_1_4x": 5.997567,
-          "uptake_minus_30": 21.221812,
-          "delayed_start": 15.132293,
-          "new_variant": 17.355053
+          "base": 23.728148,
+          "transmissibility_1_4x": 12.596703,
+          "uptake_minus_30": 23.552951,
+          "delayed_start": 17.962537,
+          "new_variant": 19.238334
         },
         "shift_labels": {
           "base": "Base scenario",
@@ -867,25 +797,24 @@
           "delayed_start": "Wave starts 3 weeks later",
           "new_variant": "New variant (immune escape)"
         },
-        "holdout_mean": 16.1985212,
+        "holdout_mean": 19.4157346,
         "worst_shift_id": "transmissibility_1_4x",
-        "worst_score": 5.997567,
-        "relative_gap": 0.36043878536395585,
+        "worst_score": 12.596703,
+        "relative_gap": 0.2833151938775913,
         "verdict": "OVERFIT",
         "reasons": [
-          "holdout mean 16.2 is 36% below its dev score 25.3 (limit 30%)",
-          "collapses under 1.4x transmissibility: 6.0 vs naive baseline 14.7"
+          "collapses under 1.4x transmissibility: 12.6 vs naive baseline 14.7"
         ]
       },
       {
         "iteration": 7,
-        "dev_score": 25.590174,
+        "dev_score": 28.034498,
         "per_shift": {
-          "base": 21.361328,
-          "transmissibility_1_4x": 10.860308,
-          "uptake_minus_30": 21.289954,
-          "delayed_start": 15.126041,
-          "new_variant": 19.830547
+          "base": 23.951105,
+          "transmissibility_1_4x": -8.754206,
+          "uptake_minus_30": 23.765556,
+          "delayed_start": 17.953617,
+          "new_variant": 4.322437
         },
         "shift_labels": {
           "base": "Base scenario",
@@ -894,58 +823,174 @@
           "delayed_start": "Wave starts 3 weeks later",
           "new_variant": "New variant (immune escape)"
         },
-        "holdout_mean": 17.6936356,
+        "holdout_mean": 12.2477018,
         "worst_shift_id": "transmissibility_1_4x",
-        "worst_score": 10.860308,
-        "relative_gap": 0.30857697177049287,
+        "worst_score": -8.754206,
+        "relative_gap": 0.5631203455114481,
         "verdict": "OVERFIT",
         "reasons": [
-          "holdout mean 17.7 is 31% below its dev score 25.6 (limit 30%)",
-          "collapses under 1.4x transmissibility: 10.9 vs naive baseline 14.7"
-        ]
-      },
-      {
-        "iteration": 8,
-        "dev_score": 25.680164,
-        "per_shift": {
-          "base": 21.413126,
-          "transmissibility_1_4x": 10.893036,
-          "uptake_minus_30": 21.343614,
-          "delayed_start": 15.12912,
-          "new_variant": 19.859308
-        },
-        "shift_labels": {
-          "base": "Base scenario",
-          "transmissibility_1_4x": "1.4x transmissibility",
-          "uptake_minus_30": "30% lower vaccine uptake",
-          "delayed_start": "Wave starts 3 weeks later",
-          "new_variant": "New variant (immune escape)"
-        },
-        "holdout_mean": 17.7276408,
-        "worst_shift_id": "transmissibility_1_4x",
-        "worst_score": 10.893036,
-        "relative_gap": 0.30967571702423713,
-        "verdict": "OVERFIT",
-        "reasons": [
-          "holdout mean 17.7 is 31% below its dev score 25.7 (limit 30%)",
-          "collapses under 1.4x transmissibility: 10.9 vs naive baseline 14.7"
+          "holdout mean 12.2 is 56% below its dev score 28.0 (limit 30%)",
+          "collapses under 1.4x transmissibility: -8.8 vs naive baseline 14.7",
+          "collapses under New variant (immune escape): 4.3 vs naive baseline 16.3"
         ]
       }
     ],
-    "dev_champion_iteration": 8,
-    "selected_iteration": 3,
+    "dev_champion_iteration": 7,
+    "selected_iteration": 4,
     "verdict": "OVERFIT",
-    "result_sha256": "67e94902044deb1b5f1380f88b916413a8b252d8cb341c92516f803db1cc438f",
-    "memo": "sealed:v1:reveal:20261025T125119Z-epidemic-d428:c725d21fb6ed467cd8b1d706f3903ff8cd06a7be3d23e342bce17100a34746b4:67e94902044deb1b5f1380f88b916413a8b252d8cb341c92516f803db1cc438f:OVERFIT:3",
+    "result_sha256": "5588e63060ab6c230cd804ec47fddba95aed82f790ad5baa11c3913773e1a904",
+    "memo": "sealed:v1:reveal:20261025T132621Z-epidemic-5c83:8ca8721b688527758433c5b5e839768d2613ffbfd63d672725bc1ed938114d16:5588e63060ab6c230cd804ec47fddba95aed82f790ad5baa11c3913773e1a904:OVERFIT:4",
     "chain": {
       "status": "pending",
-      "memo": "sealed:v1:reveal:20261025T125119Z-epidemic-d428:c725d21fb6ed467cd8b1d706f3903ff8cd06a7be3d23e342bce17100a34746b4:67e94902044deb1b5f1380f88b916413a8b252d8cb341c92516f803db1cc438f:OVERFIT:3",
+      "memo": "sealed:v1:reveal:20261025T132621Z-epidemic-5c83:8ca8721b688527758433c5b5e839768d2613ffbfd63d672725bc1ed938114d16:5588e63060ab6c230cd804ec47fddba95aed82f790ad5baa11c3913773e1a904:OVERFIT:4",
       "signature": null,
       "explorer_url": null,
       "cluster": "devnet",
-      "at": "2026-10-25T12:55:18Z",
+      "at": "2026-10-25T13:26:24Z",
       "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
     }
   },
-  "error": null
+  "error": null,
+  "audit": {
+    "v": 1,
+    "genesis": "2a3625a4ed52742920676c6ef443dddc3b0c2c755eab61f678ec5fe61d97b382",
+    "head": "82e06f0ff247424ecb1fee6055b40b25be85dcb7cde430ab8cc2d8568213ceef",
+    "rounds": [
+      {
+        "index": 0,
+        "prev_sha256": "2a3625a4ed52742920676c6ef443dddc3b0c2c755eab61f678ec5fe61d97b382",
+        "sha256": "a467659a0b115a0d50f5e59867a2c11b673436e42fec7191fc52ff14aae2097e",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:0:a467659a0b115a0d50f5e59867a2c11b673436e42fec7191fc52ff14aae2097e",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:0:a467659a0b115a0d50f5e59867a2c11b673436e42fec7191fc52ff14aae2097e",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 1,
+        "prev_sha256": "a467659a0b115a0d50f5e59867a2c11b673436e42fec7191fc52ff14aae2097e",
+        "sha256": "d234926e5ba18c6e5df27f47168b6fc0cf2e6ff7f9dcd8fd5d7f2e561523401e",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:1:d234926e5ba18c6e5df27f47168b6fc0cf2e6ff7f9dcd8fd5d7f2e561523401e",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:1:d234926e5ba18c6e5df27f47168b6fc0cf2e6ff7f9dcd8fd5d7f2e561523401e",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 2,
+        "prev_sha256": "d234926e5ba18c6e5df27f47168b6fc0cf2e6ff7f9dcd8fd5d7f2e561523401e",
+        "sha256": "5c6abbf9dc8e8cfa92cc9d79fc1d3d612889814e4539f86cb1f39d62f5fb98d5",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:2:5c6abbf9dc8e8cfa92cc9d79fc1d3d612889814e4539f86cb1f39d62f5fb98d5",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:2:5c6abbf9dc8e8cfa92cc9d79fc1d3d612889814e4539f86cb1f39d62f5fb98d5",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 3,
+        "prev_sha256": "5c6abbf9dc8e8cfa92cc9d79fc1d3d612889814e4539f86cb1f39d62f5fb98d5",
+        "sha256": "0f9756f3298ca182f5c95cd41cca161ad02b2400fd7d141bc565e02e977f5595",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:3:0f9756f3298ca182f5c95cd41cca161ad02b2400fd7d141bc565e02e977f5595",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:3:0f9756f3298ca182f5c95cd41cca161ad02b2400fd7d141bc565e02e977f5595",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 4,
+        "prev_sha256": "0f9756f3298ca182f5c95cd41cca161ad02b2400fd7d141bc565e02e977f5595",
+        "sha256": "f60655b104ed9237f5b7cf28887ea6a9825ba051c04a2ca84eba418fccf500f2",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:4:f60655b104ed9237f5b7cf28887ea6a9825ba051c04a2ca84eba418fccf500f2",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:4:f60655b104ed9237f5b7cf28887ea6a9825ba051c04a2ca84eba418fccf500f2",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 5,
+        "prev_sha256": "f60655b104ed9237f5b7cf28887ea6a9825ba051c04a2ca84eba418fccf500f2",
+        "sha256": "b8ba1c5cecf8377858c05c26255b5eb5767949cb8dcbee93df053a4070e42395",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:5:b8ba1c5cecf8377858c05c26255b5eb5767949cb8dcbee93df053a4070e42395",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:5:b8ba1c5cecf8377858c05c26255b5eb5767949cb8dcbee93df053a4070e42395",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 6,
+        "prev_sha256": "b8ba1c5cecf8377858c05c26255b5eb5767949cb8dcbee93df053a4070e42395",
+        "sha256": "4974e6cc29baa52a0b2aebfa97b513199b1d4cb0019758c84112c94cdbda88e4",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:6:4974e6cc29baa52a0b2aebfa97b513199b1d4cb0019758c84112c94cdbda88e4",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:6:4974e6cc29baa52a0b2aebfa97b513199b1d4cb0019758c84112c94cdbda88e4",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 7,
+        "prev_sha256": "4974e6cc29baa52a0b2aebfa97b513199b1d4cb0019758c84112c94cdbda88e4",
+        "sha256": "b51d12ac59746105a55b58b33691b1603ce81796fa2271c13170cd976b95ad47",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:7:b51d12ac59746105a55b58b33691b1603ce81796fa2271c13170cd976b95ad47",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:7:b51d12ac59746105a55b58b33691b1603ce81796fa2271c13170cd976b95ad47",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 8,
+        "prev_sha256": "b51d12ac59746105a55b58b33691b1603ce81796fa2271c13170cd976b95ad47",
+        "sha256": "82e06f0ff247424ecb1fee6055b40b25be85dcb7cde430ab8cc2d8568213ceef",
+        "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:8:82e06f0ff247424ecb1fee6055b40b25be85dcb7cde430ab8cc2d8568213ceef",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T132621Z-epidemic-5c83:8:82e06f0ff247424ecb1fee6055b40b25be85dcb7cde430ab8cc2d8568213ceef",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:26:21Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      }
+    ]
+  }
 }

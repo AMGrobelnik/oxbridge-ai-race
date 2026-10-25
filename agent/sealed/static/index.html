@@ -4,16 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Sealed</title>
+<title>Sealed Backtest</title>
 <link rel="stylesheet" href="/sealed/static/style.css">
 </head>
 <body>
 <a class="skip" href="#search">Skip to the search</a>
 <header class="hero">
   <div class="wrap">
-    <p class="eyebrow"><span class="lock-glyph" aria-hidden="true"></span> Sealed · pre-registered autoresearch on Solana devnet</p>
-    <h1>Sealed: autoresearch that can't cheat its own test</h1>
-    <p class="lede">Before the agent runs a single experiment, its test, including held-out scenarios it never sees, is hashed and anchored on chain. Then it searches, then the seal is broken and every result is re-scored on the hidden test.</p>
+    <p class="eyebrow"><span class="lock-glyph" aria-hidden="true"></span> Sealed · autoresearch that can't cheat its own test · anchored on Solana devnet</p>
+    <h1>Sealed Backtest: AI quant research that can't fool itself</h1>
+    <p class="lede" id="lede">An AI agent searches for a SOL/USDC trading rule on real Kraken prices. Before it backtests a single idea, its test, including market windows and stress scenarios it never sees, is hashed and anchored on Solana. When the search ends the seal breaks, every result is re-scored on the hidden test, and the overfit champion is rejected.</p>
+    <div class="envs" role="tablist" aria-label="Research environment" id="env-tabs">
+      <button type="button" role="tab" class="env-tab" data-env="strategy" aria-selected="true"><span class="env-name">SOL/USDC strategy research</span><span class="env-sub">Real Kraken data · the headline</span></button>
+      <button type="button" role="tab" class="env-tab" data-env="tokenomics" aria-selected="false"><span class="env-name">Token design stress test</span><span class="env-sub">Launch, vesting and liquidity</span></button>
+      <button type="button" role="tab" class="env-tab" data-env="epidemic" aria-selected="false"><span class="env-name">Epidemic policy</span><span class="env-sub">Same harness, a different plug-in</span></button>
+    </div>
     <div class="goal" id="goal" hidden>
       <span class="goal-label">Goal</span>
       <p id="goal-text"></p>
@@ -72,8 +77,15 @@
       <span class="step-n">2</span>
       <div>
         <h2 id="search-h">The agent searches on the visible test only</h2>
-        <p class="sub">An LLM proposes a policy each round; it is scored on the dev seeds and kept only if it beats the champion.</p>
+        <p class="sub">An LLM proposes a candidate each round; it is scored on the visible dev data only and kept only if it beats the champion. Every round is hash-chained to the seal.</p>
       </div>
+    </div>
+    <div class="card audit-card" id="audit-card">
+      <div class="audit-head">
+        <span class="audit-title">Audit trail</span>
+        <span class="audit-meta" id="audit-meta"></span>
+      </div>
+      <ol class="audit-strip" id="audit-strip" aria-label="Per-round audit chain"></ol>
     </div>
     <div class="search-grid">
       <div class="chart-col">
@@ -102,6 +114,16 @@
       </div>
     </div>
     <div id="reveal-body"><div class="placeholder"><span class="lock-glyph" aria-hidden="true"></span> The holdout stays sealed until the search ends.</div></div>
+    <div class="card guard-card" id="guard-card" hidden>
+      <div class="guard-head">
+        <span class="guard-icon" aria-hidden="true"></span>
+        <div>
+          <div class="guard-title">Guardrail: a human signs anything over <span id="guard-cap">0.50</span> USDC</div>
+          <p class="sub" id="guard-sub">The agent pays for its own memos (0.01 USDC each) on its own. A bigger payment, such as funding the selected strategy, is held until a person approves it, and every decision is logged.</p>
+        </div>
+      </div>
+      <div id="guard-body"></div>
+    </div>
   </section>
 
   <section class="section" id="verify" aria-labelledby="verify-h">
@@ -127,7 +149,7 @@
 
 <footer class="footer">
   <div class="wrap">
-    <p><strong>Simulation evidence, not policy advice.</strong> Scores come from an age-structured SEIRV simulator, not from real-world outcomes.</p>
+    <p id="disclaimer"><strong>Backtest evidence, not financial advice.</strong> Scores come from historical Kraken SOL/USD prices with modelled fees and slippage, not from live trading.</p>
     <p class="muted">API: <a href="/sealed/api/demo">/sealed/api/demo</a> · <a href="/sealed/api/runs">/sealed/api/runs</a> · <a href="/sealed/api/envs">/sealed/api/envs</a></p>
   </div>
 </footer>

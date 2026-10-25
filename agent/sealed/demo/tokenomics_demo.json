@@ -1,0 +1,1005 @@
+{
+  "schema": "sealed.run/v1",
+  "run_id": "20261025T133346Z-tokenomics-059b",
+  "env": "tokenomics",
+  "title": "Token design stress test",
+  "goal": "Design a token launch (vesting, emissions, float, pool depth, buybacks) that keeps price stable, drawdowns small and liquidity healthy for 18 months without draining the treasury.",
+  "metric_label": "Launch health score (0-100): drawdown, stability, liquidity, runway",
+  "mode": "cached",
+  "proposer": "scripted",
+  "iterations_planned": 8,
+  "status": "done",
+  "created_at": "2026-10-25T13:33:46Z",
+  "updated_at": "2026-10-25T13:33:49Z",
+  "preregistration": {
+    "env": "tokenomics",
+    "run_id": "20261025T133346Z-tokenomics-059b",
+    "code_sha256": "92c9456ee32ecbacab8e2204f67a3dd9a7cae177e5e15be4eb6ce54bb120795d",
+    "dev_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "holdout_commitment": "59234839f4348dcb9f13639780a3a7f4520b716fbdcffcdf69ecf24b51071688",
+    "commitment": "2dcb62c0fbf0ed496fea14e8a268742dcc45986f02d1af84575f2c31c1d3db1f",
+    "memo": "sealed:v1:commit:20261025T133346Z-tokenomics-059b:2dcb62c0fbf0ed496fea14e8a268742dcc45986f02d1af84575f2c31c1d3db1f",
+    "sealed_at": "2026-10-25T13:33:46Z",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:commit:20261025T133346Z-tokenomics-059b:2dcb62c0fbf0ed496fea14e8a268742dcc45986f02d1af84575f2c31c1d3db1f",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:33:47Z",
+      "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+    }
+  },
+  "iterations": [
+    {
+      "index": 0,
+      "proposer": "baseline",
+      "hypothesis": "Naive baseline policy",
+      "rationale": "The starting point every experiment must beat on the dev seeds.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 12,
+        "investor_cliff_months": 3,
+        "investor_vest_months": 9,
+        "unlock_cadence_days": 90,
+        "emission_pct_per_month": 2.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 1.0,
+        "buyback_trigger_drawdown": 0.5,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [],
+      "dev": {
+        "score": 37.599859,
+        "per_seed": [
+          36.366783,
+          38.337736,
+          39.599048,
+          35.623046,
+          39.077206,
+          36.42161,
+          36.882125,
+          38.491317
+        ],
+        "breakdown": {
+          "max_drawdown": 0.974821,
+          "volatility": 0.811493,
+          "min_pool_usd_m": 0.938428,
+          "runway_months": 57.555556,
+          "final_price": 0.003532,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 9.033505,
+          "points_drawdown": 0.881254,
+          "points_stability": 8.913803,
+          "points_liquidity": 7.820235,
+          "points_runway": 19.984568
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "BASELINE",
+      "errors": [],
+      "champion_score": 37.599859,
+      "duration_s": 0.036,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 1,
+      "proposer": "scripted",
+      "hypothesis": "Daily unlock releases and half the emissions will cut the quarterly sell waves and lift the drawdown score.",
+      "rationale": "Quarterly lumps of team and investor tokens hit the pool at once, and farmers dump 60% of 2%/month emissions.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 12,
+        "investor_cliff_months": 3,
+        "investor_vest_months": 9,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 1.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 1.0,
+        "buyback_trigger_drawdown": 0.5,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [
+        {
+          "path": "unlock_cadence_days",
+          "before": 90,
+          "after": 1
+        },
+        {
+          "path": "emission_pct_per_month",
+          "before": 2.0,
+          "after": 1.0
+        }
+      ],
+      "dev": {
+        "score": 43.677237,
+        "per_seed": [
+          38.417947,
+          40.276605,
+          76.909965,
+          37.753122,
+          38.93177,
+          38.382504,
+          38.690605,
+          40.055379
+        ],
+        "breakdown": {
+          "max_drawdown": 0.90592,
+          "volatility": 0.702331,
+          "min_pool_usd_m": 1.312595,
+          "runway_months": 57.555556,
+          "final_price": 0.010333,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 11.000345,
+          "points_drawdown": 3.292812,
+          "points_stability": 9.73252,
+          "points_liquidity": 10.667337,
+          "points_runway": 19.984568
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 43.677237,
+      "duration_s": 0.053,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 2,
+      "proposer": "scripted",
+      "hypothesis": "Stretching team vesting from 12 to 36 months will cut daily team selling enough to lift stability.",
+      "rationale": "Team tokens have a $0.005 cost basis, so the team sells about 60% of every unlock.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 3,
+        "investor_vest_months": 9,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 1.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 1.0,
+        "buyback_trigger_drawdown": 0.5,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [
+        {
+          "path": "team_vest_months",
+          "before": 12,
+          "after": 36
+        }
+      ],
+      "dev": {
+        "score": 73.03191,
+        "per_seed": [
+          77.302015,
+          78.424459,
+          79.179392,
+          77.443463,
+          76.135546,
+          77.250969,
+          77.258596,
+          41.260837
+        ],
+        "breakdown": {
+          "max_drawdown": 0.47984,
+          "volatility": 0.429741,
+          "min_pool_usd_m": 3.602641,
+          "runway_months": 57.555556,
+          "final_price": 0.108759,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 11.315472,
+          "points_drawdown": 18.205585,
+          "points_stability": 11.776942,
+          "points_liquidity": 23.064815,
+          "points_runway": 19.984568
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 73.03191,
+      "duration_s": 0.035,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 3,
+      "proposer": "scripted",
+      "hypothesis": "A $3M protocol pool, a 5%/day buyback on 30% dips with a 12-month reserve, and a 12-month investor drip with emissions off will keep depth and drawdown in range.",
+      "rationale": "The worst pool depth sits below the $3M target, the month-3 investor cliff lands as one wave, and a reserve stops buybacks eating the opex runway.",
+      "strategy": "widen",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 12,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 0.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 3.0,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.05,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [
+        {
+          "path": "investor_cliff_months",
+          "before": 3,
+          "after": 0
+        },
+        {
+          "path": "investor_vest_months",
+          "before": 9,
+          "after": 12
+        },
+        {
+          "path": "emission_pct_per_month",
+          "before": 1.0,
+          "after": 0.0
+        },
+        {
+          "path": "lp_depth_usd_m",
+          "before": 1.0,
+          "after": 3.0
+        },
+        {
+          "path": "buyback_trigger_drawdown",
+          "before": 0.5,
+          "after": 0.3
+        },
+        {
+          "path": "buyback_daily_pct",
+          "before": 0.0,
+          "after": 0.05
+        }
+      ],
+      "dev": {
+        "score": 76.188584,
+        "per_seed": [
+          75.803133,
+          76.035469,
+          78.3197,
+          76.681313,
+          76.357442,
+          74.792507,
+          75.73276,
+          75.786351
+        ],
+        "breakdown": {
+          "max_drawdown": 0.34484,
+          "volatility": 0.382475,
+          "min_pool_usd_m": 6.28463,
+          "runway_months": 46.444444,
+          "final_price": 0.137925,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 12.288934,
+          "points_drawdown": 22.9306,
+          "points_stability": 12.131441,
+          "points_liquidity": 25.0,
+          "points_runway": 16.126543
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 76.188584,
+      "duration_s": 0.033,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 4,
+      "proposer": "scripted",
+      "hypothesis": "A $13M pool would make price impact negligible.",
+      "rationale": "Depth is the strongest lever on drawdown in the dev runs.",
+      "strategy": "widen",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 12,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 0.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 13.0,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.05,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [
+        {
+          "path": "lp_depth_usd_m",
+          "before": 3.0,
+          "after": 13.0
+        }
+      ],
+      "dev": null,
+      "decision": "INVALID",
+      "errors": [
+        "lp_depth_usd_m=13.0 is outside [0.5, 12]"
+      ],
+      "champion_score": 76.188584,
+      "duration_s": 0.0,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 5,
+      "proposer": "scripted",
+      "hypothesis": "Putting $6M into the pool should buy stability at little runway cost.",
+      "rationale": "Depth helps drawdown and liquidity, and the raise can fund it.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 12,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 0.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 6.0,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.05,
+        "treasury_reserve_months": 12.0
+      },
+      "diff": [
+        {
+          "path": "lp_depth_usd_m",
+          "before": 3.0,
+          "after": 6.0
+        }
+      ],
+      "dev": {
+        "score": 69.139521,
+        "per_seed": [
+          67.600684,
+          68.636857,
+          71.342861,
+          68.994389,
+          70.351834,
+          68.166486,
+          68.787203,
+          69.235852
+        ],
+        "breakdown": {
+          "max_drawdown": 0.347883,
+          "volatility": 0.382221,
+          "min_pool_usd_m": 9.074236,
+          "runway_months": 26.444444,
+          "final_price": 0.137106,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 12.27266,
+          "points_drawdown": 22.824083,
+          "points_stability": 12.133339,
+          "points_liquidity": 25.0,
+          "points_runway": 9.182099
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 76.188584,
+      "duration_s": 0.05,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 6,
+      "proposer": "scripted",
+      "hypothesis": "Cutting the protocol pool to $0.5M, dropping the buyback and a 6-month investor drip frees about $4M of runway while mercenary LPs keep depth above target.",
+      "rationale": "In every dev run the $4M of outside liquidity alone keeps the pool above $3M, so protocol depth only costs runway; shorter locks raise more.",
+      "strategy": "pivot",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 6,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 0.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 0.5,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 0.0
+      },
+      "diff": [
+        {
+          "path": "investor_vest_months",
+          "before": 12,
+          "after": 6
+        },
+        {
+          "path": "lp_depth_usd_m",
+          "before": 3.0,
+          "after": 0.5
+        },
+        {
+          "path": "buyback_daily_pct",
+          "before": 0.05,
+          "after": 0.0
+        },
+        {
+          "path": "treasury_reserve_months",
+          "before": 12.0,
+          "after": 0.0
+        }
+      ],
+      "dev": {
+        "score": 82.781291,
+        "per_seed": [
+          82.729576,
+          84.839554,
+          87.224767,
+          81.482822,
+          81.373482,
+          81.258533,
+          82.52068,
+          80.820918
+        ],
+        "breakdown": {
+          "max_drawdown": 0.365715,
+          "volatility": 0.383397,
+          "min_pool_usd_m": 3.845636,
+          "runway_months": 67.555556,
+          "final_price": 0.139209,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 12.062611,
+          "points_drawdown": 22.199979,
+          "points_stability": 12.124523,
+          "points_liquidity": 25.0,
+          "points_runway": 23.45679
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "KEEP",
+      "errors": [],
+      "champion_score": 82.781291,
+      "duration_s": 0.028,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 7,
+      "proposer": "scripted",
+      "hypothesis": "Turning emissions back on at 1%/month should bring in enough buyers to lift the price.",
+      "rationale": "Emissions add organic demand.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 6,
+        "unlock_cadence_days": 1,
+        "emission_pct_per_month": 1.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 0.5,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 0.0
+      },
+      "diff": [
+        {
+          "path": "emission_pct_per_month",
+          "before": 0.0,
+          "after": 1.0
+        }
+      ],
+      "dev": {
+        "score": 67.253561,
+        "per_seed": [
+          81.454702,
+          84.39853,
+          86.528333,
+          40.611498,
+          80.955513,
+          41.292773,
+          81.711215,
+          41.075927
+        ],
+        "breakdown": {
+          "max_drawdown": 0.590179,
+          "volatility": 0.576685,
+          "min_pool_usd_m": 2.612096,
+          "runway_months": 67.555556,
+          "final_price": 0.067523,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 11.164314,
+          "points_drawdown": 14.343722,
+          "points_stability": 10.674861,
+          "points_liquidity": 18.778188,
+          "points_runway": 23.45679
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 82.781291,
+      "duration_s": 0.022,
+      "at": "2026-10-25T13:33:47Z"
+    },
+    {
+      "index": 8,
+      "proposer": "scripted",
+      "hypothesis": "Monthly instead of daily releases should mean fewer sell events.",
+      "rationale": "Each release day triggers a fresh sell decision by every cohort.",
+      "strategy": "continue",
+      "candidate": {
+        "team_cliff_months": 6,
+        "team_vest_months": 36,
+        "investor_cliff_months": 0,
+        "investor_vest_months": 6,
+        "unlock_cadence_days": 30,
+        "emission_pct_per_month": 0.0,
+        "initial_float_pct": 10.0,
+        "lp_depth_usd_m": 0.5,
+        "buyback_trigger_drawdown": 0.3,
+        "buyback_daily_pct": 0.0,
+        "treasury_reserve_months": 0.0
+      },
+      "diff": [
+        {
+          "path": "unlock_cadence_days",
+          "before": 1,
+          "after": 30
+        }
+      ],
+      "dev": {
+        "score": 53.476125,
+        "per_seed": [
+          44.352796,
+          79.33044,
+          82.133763,
+          43.459592,
+          45.378674,
+          44.399673,
+          44.635443,
+          44.118616
+        ],
+        "breakdown": {
+          "max_drawdown": 0.823101,
+          "volatility": 0.721297,
+          "min_pool_usd_m": 1.74169,
+          "runway_months": 67.555556,
+          "final_price": 0.024131,
+          "buyback_spent_usd_m": 0.0,
+          "unlock_sold_pct": 10.999357,
+          "points_drawdown": 6.191456,
+          "points_stability": 9.590274,
+          "points_liquidity": 14.237604,
+          "points_runway": 23.45679
+        },
+        "seeds": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "shift_id": "base"
+      },
+      "decision": "REVERT",
+      "errors": [],
+      "champion_score": 82.781291,
+      "duration_s": 0.021,
+      "at": "2026-10-25T13:33:47Z"
+    }
+  ],
+  "reveal": {
+    "salt": "d47e85c94f45240afa3d2d7451ea679ba11999746d58184bbe6eacb55a255192",
+    "holdout": {
+      "seeds": [
+        7301,
+        7302,
+        7303,
+        7304,
+        7305,
+        7306,
+        7307,
+        7308
+      ],
+      "shifts": [
+        {
+          "id": "market_crash",
+          "label": "60% market crash in month 3",
+          "params": {
+            "crash_day": 75,
+            "crash_depth": 0.6,
+            "crash_days": 10,
+            "market_sigma_mult": 1.5
+          }
+        },
+        {
+          "id": "whale_dump",
+          "label": "whale dumps 2% of supply in one day",
+          "params": {
+            "whale_day": 150,
+            "whale_pct": 2.0
+          }
+        },
+        {
+          "id": "liquidity_withdrawal",
+          "label": "mercenary LPs pull all their liquidity",
+          "params": {
+            "lp_withdraw_day": 120,
+            "lp_withdraw_share": 1.0,
+            "market_sigma_mult": 1.3
+          }
+        },
+        {
+          "id": "correlated_unlocks",
+          "label": "correlated unlock selling (2x)",
+          "params": {
+            "unlock_sell_mult": 2.0
+          }
+        }
+      ]
+    },
+    "revealed_at": "2026-10-25T13:33:48Z",
+    "results": [
+      {
+        "iteration": 0,
+        "dev_score": 37.599859,
+        "per_shift": {
+          "base": 37.616431,
+          "market_crash": 54.659111,
+          "whale_dump": 37.210582,
+          "liquidity_withdrawal": 30.108791,
+          "correlated_unlocks": 38.385175
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "market_crash": "60% market crash in month 3",
+          "whale_dump": "whale dumps 2% of supply in one day",
+          "liquidity_withdrawal": "mercenary LPs pull all their liquidity",
+          "correlated_unlocks": "correlated unlock selling (2x)"
+        },
+        "holdout_mean": 39.596018,
+        "worst_shift_id": "liquidity_withdrawal",
+        "worst_score": 30.108791,
+        "relative_gap": -0.05308953419213616,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 1,
+        "dev_score": 43.677237,
+        "per_shift": {
+          "base": 43.650857,
+          "market_crash": 63.204861,
+          "whale_dump": 38.17599,
+          "liquidity_withdrawal": 31.600832,
+          "correlated_unlocks": 39.821159
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "market_crash": "60% market crash in month 3",
+          "whale_dump": "whale dumps 2% of supply in one day",
+          "liquidity_withdrawal": "mercenary LPs pull all their liquidity",
+          "correlated_unlocks": "correlated unlock selling (2x)"
+        },
+        "holdout_mean": 43.2907398,
+        "worst_shift_id": "liquidity_withdrawal",
+        "worst_score": 31.600832,
+        "relative_gap": 0.008848938864882888,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 2,
+        "dev_score": 73.03191,
+        "per_shift": {
+          "base": 68.877122,
+          "market_crash": 68.702115,
+          "whale_dump": 39.410219,
+          "liquidity_withdrawal": 49.805162,
+          "correlated_unlocks": 41.096785
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "market_crash": "60% market crash in month 3",
+          "whale_dump": "whale dumps 2% of supply in one day",
+          "liquidity_withdrawal": "mercenary LPs pull all their liquidity",
+          "correlated_unlocks": "correlated unlock selling (2x)"
+        },
+        "holdout_mean": 53.57828060000001,
+        "worst_shift_id": "whale_dump",
+        "worst_score": 39.410219,
+        "relative_gap": 0.26637163672701414,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "holdout mean 53.6 is 27% below its dev score 73.0 (limit 20%)"
+        ]
+      },
+      {
+        "iteration": 3,
+        "dev_score": 76.188584,
+        "per_shift": {
+          "base": 76.36709,
+          "market_crash": 58.387516,
+          "whale_dump": 67.486942,
+          "liquidity_withdrawal": 68.441336,
+          "correlated_unlocks": 63.478831
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "market_crash": "60% market crash in month 3",
+          "whale_dump": "whale dumps 2% of supply in one day",
+          "liquidity_withdrawal": "mercenary LPs pull all their liquidity",
+          "correlated_unlocks": "correlated unlock selling (2x)"
+        },
+        "holdout_mean": 66.83234300000001,
+        "worst_shift_id": "market_crash",
+        "worst_score": 58.387516,
+        "relative_gap": 0.1228037129552112,
+        "verdict": "GENERALISES",
+        "reasons": []
+      },
+      {
+        "iteration": 6,
+        "dev_score": 82.781291,
+        "per_shift": {
+          "base": 73.987677,
+          "market_crash": 73.83752,
+          "whale_dump": 43.893607,
+          "liquidity_withdrawal": 63.755048,
+          "correlated_unlocks": 45.332636
+        },
+        "shift_labels": {
+          "base": "Base scenario",
+          "market_crash": "60% market crash in month 3",
+          "whale_dump": "whale dumps 2% of supply in one day",
+          "liquidity_withdrawal": "mercenary LPs pull all their liquidity",
+          "correlated_unlocks": "correlated unlock selling (2x)"
+        },
+        "holdout_mean": 60.1612976,
+        "worst_shift_id": "whale_dump",
+        "worst_score": 43.893607,
+        "relative_gap": 0.27325006806187646,
+        "verdict": "OVERFIT",
+        "reasons": [
+          "holdout mean 60.2 is 27% below its dev score 82.8 (limit 20%)"
+        ]
+      }
+    ],
+    "dev_champion_iteration": 6,
+    "selected_iteration": 3,
+    "verdict": "OVERFIT",
+    "result_sha256": "82e8fc013650a1aebb4719b37a0a3f799e16e5de0b6586664dfd8716341dc612",
+    "memo": "sealed:v1:reveal:20261025T133346Z-tokenomics-059b:d47e85c94f45240afa3d2d7451ea679ba11999746d58184bbe6eacb55a255192:82e8fc013650a1aebb4719b37a0a3f799e16e5de0b6586664dfd8716341dc612:OVERFIT:3",
+    "chain": {
+      "status": "pending",
+      "memo": "sealed:v1:reveal:20261025T133346Z-tokenomics-059b:d47e85c94f45240afa3d2d7451ea679ba11999746d58184bbe6eacb55a255192:82e8fc013650a1aebb4719b37a0a3f799e16e5de0b6586664dfd8716341dc612:OVERFIT:3",
+      "signature": null,
+      "explorer_url": null,
+      "cluster": "devnet",
+      "at": "2026-10-25T13:33:49Z",
+      "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+    }
+  },
+  "error": null,
+  "audit": {
+    "v": 1,
+    "genesis": "2dcb62c0fbf0ed496fea14e8a268742dcc45986f02d1af84575f2c31c1d3db1f",
+    "head": "a7aeaf34f68467c71420f7d1e58a22f923e1663c034c64db1a178ae7230e311c",
+    "rounds": [
+      {
+        "index": 0,
+        "prev_sha256": "2dcb62c0fbf0ed496fea14e8a268742dcc45986f02d1af84575f2c31c1d3db1f",
+        "sha256": "29c54bdec97a25b2b15221d835e7df58f3b0a760fd0b84dde908c6b96b969313",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:0:29c54bdec97a25b2b15221d835e7df58f3b0a760fd0b84dde908c6b96b969313",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:0:29c54bdec97a25b2b15221d835e7df58f3b0a760fd0b84dde908c6b96b969313",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 1,
+        "prev_sha256": "29c54bdec97a25b2b15221d835e7df58f3b0a760fd0b84dde908c6b96b969313",
+        "sha256": "d17ac8d4777aa0e4067e1267f53f6238b6ccd81bee98289a519c8713ccc3b67e",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:1:d17ac8d4777aa0e4067e1267f53f6238b6ccd81bee98289a519c8713ccc3b67e",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:1:d17ac8d4777aa0e4067e1267f53f6238b6ccd81bee98289a519c8713ccc3b67e",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 2,
+        "prev_sha256": "d17ac8d4777aa0e4067e1267f53f6238b6ccd81bee98289a519c8713ccc3b67e",
+        "sha256": "7a5ef726543ccfa36f4b433b115e98aa4be64a14b6363317fb18e97e024f9b9a",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:2:7a5ef726543ccfa36f4b433b115e98aa4be64a14b6363317fb18e97e024f9b9a",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:2:7a5ef726543ccfa36f4b433b115e98aa4be64a14b6363317fb18e97e024f9b9a",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 3,
+        "prev_sha256": "7a5ef726543ccfa36f4b433b115e98aa4be64a14b6363317fb18e97e024f9b9a",
+        "sha256": "15bee1de8428d96fb481e444fa5059683d82faff5f79ab52c92b4832f2492c3d",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:3:15bee1de8428d96fb481e444fa5059683d82faff5f79ab52c92b4832f2492c3d",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:3:15bee1de8428d96fb481e444fa5059683d82faff5f79ab52c92b4832f2492c3d",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 4,
+        "prev_sha256": "15bee1de8428d96fb481e444fa5059683d82faff5f79ab52c92b4832f2492c3d",
+        "sha256": "b9a2a13db0485e8a9361f9220f6191988707cb27dfb12c326cdaf1e9de1fd8b2",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:4:b9a2a13db0485e8a9361f9220f6191988707cb27dfb12c326cdaf1e9de1fd8b2",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:4:b9a2a13db0485e8a9361f9220f6191988707cb27dfb12c326cdaf1e9de1fd8b2",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 5,
+        "prev_sha256": "b9a2a13db0485e8a9361f9220f6191988707cb27dfb12c326cdaf1e9de1fd8b2",
+        "sha256": "cace36e6b2c8446dccb66627c1e34d1d6ec10aebefd42455d0f5a54601e5267b",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:5:cace36e6b2c8446dccb66627c1e34d1d6ec10aebefd42455d0f5a54601e5267b",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:5:cace36e6b2c8446dccb66627c1e34d1d6ec10aebefd42455d0f5a54601e5267b",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 6,
+        "prev_sha256": "cace36e6b2c8446dccb66627c1e34d1d6ec10aebefd42455d0f5a54601e5267b",
+        "sha256": "1a12f16a7e94b541184443009877031ea0442a2e639e93ee192c1c2c125aca1c",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:6:1a12f16a7e94b541184443009877031ea0442a2e639e93ee192c1c2c125aca1c",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:6:1a12f16a7e94b541184443009877031ea0442a2e639e93ee192c1c2c125aca1c",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 7,
+        "prev_sha256": "1a12f16a7e94b541184443009877031ea0442a2e639e93ee192c1c2c125aca1c",
+        "sha256": "964e7747066776aac70ac6447dff75af61b9282313c67ce51782de2f4a3c817c",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:7:964e7747066776aac70ac6447dff75af61b9282313c67ce51782de2f4a3c817c",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:7:964e7747066776aac70ac6447dff75af61b9282313c67ce51782de2f4a3c817c",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      },
+      {
+        "index": 8,
+        "prev_sha256": "964e7747066776aac70ac6447dff75af61b9282313c67ce51782de2f4a3c817c",
+        "sha256": "a7aeaf34f68467c71420f7d1e58a22f923e1663c034c64db1a178ae7230e311c",
+        "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:8:a7aeaf34f68467c71420f7d1e58a22f923e1663c034c64db1a178ae7230e311c",
+        "chain": {
+          "status": "pending",
+          "memo": "sealed:v1:round:20261025T133346Z-tokenomics-059b:8:a7aeaf34f68467c71420f7d1e58a22f923e1663c034c64db1a178ae7230e311c",
+          "signature": null,
+          "explorer_url": null,
+          "cluster": "devnet",
+          "at": "2026-10-25T13:33:47Z",
+          "error": "pending on-chain: agent wallet not funded (devnet SOL/USDC)"
+        }
+      }
+    ]
+  }
+}
