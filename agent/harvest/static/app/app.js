@@ -524,9 +524,9 @@
   }
 
   const TYPE_ICON = { human: "👤", agent: "🤖" };
-  const LB_FILTERS = [["all", "All"], ["verified", "✓ Verified"], ["house", "House"], ["baseline", "Baselines"], ["swarm", "🤖 Swarm"], ["agents", "Pilot agents"], ["users", "Pilots"]];
+  const LB_FILTERS = [["all", "All"], ["verified", "✓ Verified"], ["house", "House"], ["baseline", "Baselines"], ["swarm", "🤖 Swarm"], ["agents", "Pilot agents"], ["users", "Pilots"], ["test", "🧪 Test"]];
   const LB_PAGE = 25;
-  const OWN_ID = new Set(["users", "agents", "swarm"]); // accounts followed by their own id; house agents by agent:<id>
+  const OWN_ID = new Set(["users", "agents", "swarm", "test"]); // accounts followed by their own id; house agents by agent:<id>
   function accountRow(a, i, labels) {
     const srcBox = h("div", { class: "sources", hidden: true });
     const badge = a.verified ? h("button", { class: "vbadge", title: a.verified_label || "Verified", onclick: () => { srcBox.hidden = !srcBox.hidden; } }, "✓") : null;
@@ -539,7 +539,7 @@
     const title = swarm ? (a.name || "").replace(/^🤖\s*/, "") : `@${a.username}`;
     const sub = (swarm ? [`@${a.username}`, labels.swarm || "Swarm"] : [a.name && a.name !== a.username ? a.name : null, labels[a.category] || a.category]).filter(Boolean).join(" · ");
     return h("div", { class: "acct" }, h("div", { class: "rank" }, h("span", { class: "n" }, a.brier_holdout == null ? "–" : i + 1),
-      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", h("a", { href: `/app/agent/${encodeURIComponent(a.username)}`, style: "color:inherit" }, title), badge,
+      h("span", { class: "nm" }, h("span", { title: a.category === "test" ? "Test account" : a.type === "human" ? "Human" : "Agent" }, a.category === "test" ? "🧪" : TYPE_ICON[a.type] || "🤖"), " ", h("a", { href: `/app/agent/${encodeURIComponent(a.username)}`, style: "color:inherit" }, title), badge,
         h("span", { class: "sub" }, sub)),
       h("span", { class: "sc" }, a.brier_holdout == null ? h("small", {}, "not scored yet") : [b3(a.brier_holdout),
         a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])),
@@ -588,7 +588,7 @@
         h("p", { class: "muted small" }, "Each persona is averaged over every AI. Narrative personas follow what real organisations said in public before the sealed questions; they are based on public statements and not endorsed."),
         ...group(lb.by_persona, () => null)] : null,
       h("h2", {}, "Every account"),
-      h("p", { class: "muted small" }, "👤 human · 🤖 agent · ✓ verified: a sourced persona of a real organisation or person, ", lb.verified_label || "based on public statements; not endorsed",
+      h("p", { class: "muted small" }, "👤 human · 🤖 agent · 🧪 test account (made by our own QA agents, not counted as a pilot) · ✓ verified: a sourced persona of a real organisation or person, ", lb.verified_label || "based on public statements; not endorsed",
         ". Market-follower copies the market's closing price, so its score is the market's."),
       chips, rows,
       lb.insight ? h("p", { class: "card" }, lb.insight) : null,

@@ -134,7 +134,7 @@ def test_narrative_personas_are_verified_with_sources():
     assert fao["sources"] == [{"title": "Food Outlook", "url": "https://www.fao.org/x"}, {"title": "https://example.org/y", "url": "https://example.org/y"},
                               {"title": "Price index brief (2025-07)", "url": "https://www.fao.org/z"}]
     assert rows[0]["username"] == "climate-pessimist" and rows[0]["category"] == "house" and not rows[0]["verified"]
-    assert accounts.category_counts(rows) == {"verified": 1, "house": 1, "baseline": 0, "swarm": 0, "agents": 0, "users": 0}
+    assert accounts.category_counts(rows) == {"verified": 1, "house": 1, "baseline": 0, "swarm": 0, "agents": 0, "users": 0, "test": 0}
 
 
 def test_baselines_reuse_the_scoring_baselines(client):
@@ -253,3 +253,16 @@ def test_pages_version_their_static_assets(client):
     html = client.get("/app/leaderboard").text
     assert re.search(r'href="/harvest/static/app/app\.css\?v=[0-9a-f]{10}"', html)
     assert re.search(r'src="/harvest/static/app/app\.js\?v=[0-9a-f]{10}"', html)
+
+
+# ---------------------------------------------------------------- test accounts (data/test_accounts.json)
+def test_reviewed_test_accounts_are_never_pilots(client):
+    assert accounts.is_test("qa-judge-m") and accounts.is_test("PILOT-7C54") and not accounts.is_test("adrian")
+    client.post("/harvest/api/join", json={"username": "qa-judge-m"})
+    joined = client.post("/harvest/api/join", json={"username": "maria"}).json()
+    assert joined["users"] == 1
+    assert client.get("/harvest/api/state").json()["users"] == 1
+    traders = {"user:a": {"username": "qa-judge-m"}, "user:b": {"username": "maria"}}
+    rows = accounts.board([], personas=[], traders=traders, baselines=[], humans=[{"user_id": "user:a"}, {"user_id": "user:b"}])
+    assert {r["username"]: r["category"] for r in rows} == {"qa-judge-m": "test", "maria": "users"}
+    assert accounts.category_counts(rows)["users"] == 1 and accounts.category_counts(rows)["test"] == 1

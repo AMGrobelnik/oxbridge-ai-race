@@ -526,7 +526,8 @@ class LiveBook(Book):
         return self.tokens.get(token_sha(token)) if token else None
 
     def users(self) -> int:
-        return sum(1 for t in self.traders.values() if t["kind"] == "human")
+        """Pilots: humans who joined, minus the test accounts our own agents made."""
+        return sum(1 for tid, t in self.traders.items() if t["kind"] == "human" and not acct.is_test(self.username_of(tid)))
 
     def market_view(self, qid: str, *, full: bool = False) -> dict[str, Any]:
         m, q = self.markets[qid], self.meta.get(qid) or {}

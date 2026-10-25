@@ -14,14 +14,18 @@ The one filterable leaderboard puts every account in one category:
   swarm     the agent swarm (swarm.py): persona x model bots, owner SWARM_OWNER, shown by their persona · model name
   agents    other agents registered through the API or "write your theory"
   users     pilots: real humans who joined, and nobody else
+  test      human accounts our own QA and verify agents made (data/test_accounts.json, a reviewed list): never pilots
 
 Swarm accounts that registered before usernames existed get a deterministic bot-<name>-xxxx instead of pilot-xxxx.
 """
 
 import hashlib
+import json
 import re
 import secrets
 from collections.abc import Callable
+from functools import cache
+from pathlib import Path
 from typing import Any
 
 USERNAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{2,23}$")
@@ -29,9 +33,10 @@ USERNAME_RULE = "3-24 characters: lowercase letters, digits, - and _, starting w
 """Also no '--', which house agent ids use."""
 RESERVED = frozenset({"admin", "administrator", "root", "system", "market", "the-market", "house", "croppy", "crophecy",
                       "moderator", "mod", "support", "staff", "official", "null", "undefined", "anonymous", "you"})
-CATEGORIES = ("verified", "house", "baseline", "swarm", "agents", "users")
+CATEGORIES = ("verified", "house", "baseline", "swarm", "agents", "users", "test")
 CATEGORY_LABELS = {"verified": "Verified", "house": "House", "baseline": "Baseline models", "swarm": "Swarm", "agents": "Pilot agents",
-                   "users": "Pilots"}
+                   "users": "Pilots", "test": "Test accounts"}
+TEST_ACCOUNTS_FILE = Path(__file__).resolve().parent / "data" / "test_accounts.json"
 SWARM_OWNER = "swarm (AI agents)"
 """The owner every agent-swarm account registers with (swarm.py); it marks the account as a bot."""
 VERIFIED_LABEL = "based on public statements; not endorsed"
@@ -89,6 +94,20 @@ def swarm_username(trader_id: str, taken: Callable[[str], bool], *, name: str = 
         if not taken(cand):
             return cand
     return f"bot-{digest}"
+
+
+@cache
+def test_handles() -> frozenset[str]:
+    """Usernames of the human accounts our own QA and verify agents made (a reviewed list in data/test_accounts.json)."""
+    try:
+        return frozenset(str(h).lower() for h in json.loads(TEST_ACCOUNTS_FILE.read_text(encoding="utf-8")).get("handles") or [])
+    except (OSError, ValueError):
+        return frozenset()
+
+
+def is_test(username: str | None) -> bool:
+    """True for a human account flagged as a test account: shown with 🧪 and never counted as a pilot."""
+    return bool(username) and str(username).lower() in test_handles()
 
 
 def is_swarm(info: dict[str, Any] | None) -> bool:
@@ -183,8 +202,8 @@ def board(world_models: list[dict[str, Any]], *, personas: list[dict[str, Any]],
         info = traders.get(tid) or {}
         rows.append({"id": tid, "name": h.get("nickname") or info.get("nickname") or tid, "color": None, "origin": "human",
                      "brier_holdout": h.get("brier"), "brier_holdout_lo": None, "brier_holdout_hi": None, "n": h.get("n", 0),
-                     "beats_market_ci": False, "username": info.get("username") or system_username(tid), "type": "human",
-                     "category": "users", "verified": False})
+                     "beats_market_ci": False, "username": (username := info.get("username") or system_username(tid)), "type": "human",
+                     "category": "test" if is_test(username) else "users", "verified": False})
     rows.sort(key=lambda r: (r["brier_holdout"] is None, r["brier_holdout"] if r["brier_holdout"] is not None else 0.0, r["username"]))
     for i, r in enumerate(rows, start=1):
         r["rank"] = i

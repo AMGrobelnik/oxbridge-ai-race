@@ -1,0 +1,8 @@
+{
+  "about": "Human accounts made by our own QA and verify agents, reviewed by hand on 25 Oct 2026. They show as test accounts and are never counted as pilots. Add a handle here and redeploy to flag another.",
+  "handles": [
+    "crophecy-check", "crophecy-verify", "qa-judge-d", "qa-judge-m", "walker-4231",
+    "pilot-0680", "pilot-14dd", "pilot-1685", "pilot-18fe", "pilot-31f7", "pilot-4137", "pilot-5cdf", "pilot-5f0e",
+    "pilot-7352", "pilot-7b6f", "pilot-7c54", "pilot-b3e0", "pilot-d728", "pilot-f701"
+  ]
+}
