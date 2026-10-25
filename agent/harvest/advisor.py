@@ -258,12 +258,22 @@ def _readable(obj: Any) -> Any:
     return obj
 
 
+ENGLISH = re.compile(r"\b(the|my|is|are|what|whats|what's|should|how|any|will|do|does|i|we|it|of|for|if|now|or|price|prices|sell|store|weather|outlook|wheat|maize|corn|barley|rapeseed|sunflower|oil|sugar|coffee|cocoa|rice|fertili[sz]er|drought|money)\b", re.I)
+
+
+def english(text: str) -> bool:
+    """Plain-ASCII text with English function words: the model must not drift into the language of a region named in
+    the context (an English wheat question once came back in Italian)."""
+    return text.isascii() and bool(ENGLISH.search(text))
+
+
 def build_prompt(text: str, ctx: dict[str, Any], history: list[dict[str, Any]], *, limit: int = MAX_REPLY) -> str:
     facts = _readable({k: v for k, v in ctx.items() if v not in (None, [], {})})
     parts = [SYSTEM.format(limit=limit - 400), "", "CONTEXT (from The Crophecy's live system):", json.dumps(facts, ensure_ascii=False, indent=1)]
     if history:
         parts += ["", "EARLIER IN THIS CHAT:"] + [f"Farmer: {h['q']}\nYou: {h['a'][:400]}" for h in history]
-    parts += ["", f"FARMER'S MESSAGE: {text}", "", 'Answer only with JSON: {"reply": "..."}']
+    lang = "English" if english(text) else "the language the FARMER'S MESSAGE is written in (not the language of a country it mentions)"
+    parts += ["", f"FARMER'S MESSAGE: {text}", f"REPLY LANGUAGE: {lang}.", "", 'Answer only with JSON: {"reply": "..."}']
     return "\n".join(parts)
 
 
@@ -347,7 +357,7 @@ def link_for(ctx: dict[str, Any], base: str = DEFAULT_BASE) -> str:
     if crop in world.CROPS and ("drought" not in intents or intents[0] != "drought"):
         query = {"crop": crop} | ({"region": region} if region in world.REGIONS else {})
         return f"{base}/app/farmer?{urlencode(query)}"
-    if (markets := ctx.get("markets")) and intents[0] not in ("drought", "crowd"):
+    if (markets := ctx.get("markets")) and intents[0] not in ("drought", "crowd", "inputs", "offtopic"):
         return f"{base}/app/market/{markets[0]['qid']}"
     return base + next((LINKS[i] for i in intents if i in LINKS), "/app/farmer/chat")
 
@@ -411,6 +421,8 @@ def advise(text: str, *, sender: str | None = None, base_url: str = DEFAULT_BASE
         answer, source = HELP, "help"
     elif got := llm_answer(build_prompt(text, ctx, past, limit=limit)):
         (answer, model), source = got, "llm"
+        if english(text) and "advice" not in answer.lower():
+            answer += f"\n\n{DISCLAIMER}"
     if answer is None:
         answer = fallback(text, ctx)
     reply = fit(answer, link, limit)

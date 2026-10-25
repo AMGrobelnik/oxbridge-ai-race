@@ -136,6 +136,9 @@ def test_prompt_carries_numbers_rules_and_question():
     assert "olive-up15-6m@2026-09" in prompt and f'"p": "{round(ctx["markets"][0]["p"] * 100)}%"' in prompt
     assert "Never invent prices" in prompt and "SAME LANGUAGE" in prompt and "not financial advice" in prompt
     assert prompt.rstrip().endswith('{"reply": "..."}') and "FARMER'S MESSAGE: olive oil price Spain" in prompt
+    assert "REPLY LANGUAGE: English." in advisor.build_prompt("Should I sell my wheat in Italy?", ctx, [])
+    sl = advisor.build_prompt("Kakšno sušo pričakujemo letos v Sloveniji?", ctx, [])
+    assert "REPLY LANGUAGE: English" not in sl and "not the language of a country it mentions" in sl
 
 
 # ---------------------------------------------------------------- LLM, language, fallback
@@ -153,6 +156,7 @@ def test_falls_back_to_flash_lite_then_deterministic(llm):
     llm["answers"]["gemini-2.5-flash-lite"] = "Lite answer."
     out = advisor.advise("olive oil price Spain")
     assert out["model"] == "gemini-2.5-flash-lite" and out["reply"].startswith("Lite answer.")
+    assert out["reply"].endswith("Not financial advice.\n\nMore: https://crophecy.bid/app/market/olive-up15-6m@2026-09")  # added when missing
     llm["answers"]["gemini-2.5-flash-lite"] = RuntimeError("quota")
     out = advisor.advise("olive oil price Spain")
     assert out["source"] == "fallback" and "Our forecasters put 49% on" in out["reply"] and "Not financial advice" in out["reply"]
