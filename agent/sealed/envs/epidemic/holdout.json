@@ -1,1 +1,9 @@
-{"seeds": [], "shifts": []}
+{
+  "seeds": [2011, 2027, 2039, 2053, 2069, 2081, 2099, 2113, 2129, 2141, 2153, 2179, 2203, 2221, 2239, 2251, 2269, 2281, 2297, 2311],
+  "shifts": [
+    {"id": "transmissibility_1_4x", "label": "1.4x transmissibility", "params": {"beta_mult": 1.4}},
+    {"id": "uptake_minus_30", "label": "30% lower vaccine uptake", "params": {"uptake_mult": 0.7}},
+    {"id": "delayed_start", "label": "Wave starts 3 weeks later", "params": {"start_delay_days": 21}},
+    {"id": "new_variant", "label": "New variant (immune escape)", "params": {"escape": 0.35}}
+  ]
+}

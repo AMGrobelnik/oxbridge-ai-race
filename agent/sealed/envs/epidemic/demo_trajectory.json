@@ -1,1 +1,162 @@
-[]
+[
+  {
+    "hypothesis": "Moving doses from children toward the 40-74 bands, who fill most ICU beds, cuts hospital-days per pound.",
+    "rationale": "Hospitalisation and ICU risk rise steeply with age while children mostly transmit; an even split spends a fifth of the supply on the lowest-risk band.",
+    "strategy": "continue",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 40,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 0.3,
+      "surge_icu_beds": 300
+    }
+  },
+  {
+    "hypothesis": "Peak ICU load sits near 155 of 600 beds, so 200 of the 300 surge beds can go without any overflow.",
+    "rationale": "The champion's breakdown shows the ICU peak well under capacity; surge beds cost GBP 25k each whether used or not, so trimming to 100 keeps a margin and lowers cost.",
+    "strategy": "continue",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 40,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 0.3,
+      "surge_icu_beds": 100
+    }
+  },
+  {
+    "hypothesis": "Closing schools earlier (25 per 100k) and for up to 35 days flattens the peak enough to pay for itself.",
+    "rationale": "Children have the most contacts, mostly at school; an earlier, longer closure should avert more admissions than the 21-day cap penalty costs.",
+    "strategy": "pivot",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 25,
+      "school_close_max_days": 35,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 0.3,
+      "surge_icu_beds": 100
+    }
+  },
+  {
+    "hypothesis": "Test-and-isolate at 0.3 saturates at the peak; cutting it to 0.1 saves GBP 6M for little extra transmission.",
+    "rationale": "Testing effect halves at about 150 cases per 100k a day, so most of its spend is wasted during the wave; the ratio score rewards the saving.",
+    "strategy": "continue",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 40,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 0.1,
+      "surge_icu_beds": 100
+    }
+  },
+  {
+    "hypothesis": "Full test-and-isolate stops the wave early, so later levers stop mattering.",
+    "rationale": "If transmission is cut by 35% from the start, the peak never forms; widen to the maximum level.",
+    "strategy": "widen",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 40,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 1.0,
+      "surge_icu_beds": 100
+    }
+  },
+  {
+    "hypothesis": "ICU never needs the remaining 100 surge beds on any dev seed, so dropping them is pure saving.",
+    "rationale": "Peak ICU stays near 200 against 300 base beds in every dev run; the GBP 2.5M buys nothing in the scenario we can see.",
+    "strategy": "continue",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 40,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 60,
+      "test_isolate_level": 0.1,
+      "surge_icu_beds": 0
+    }
+  },
+  {
+    "hypothesis": "Raising closure triggers (schools 80, work 150 per 100k) avoids furlough costs because the dev waves never reach them.",
+    "rationale": "Workplace closures cost GBP 0.4M a day and school closures add little once older bands are vaccinated; in the dev runs occupancy stays below the higher triggers.",
+    "strategy": "continue",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 50,
+      "school_close_trigger_per_100k": 80,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 150,
+      "test_isolate_level": 0.1,
+      "surge_icu_beds": 0
+    }
+  },
+  {
+    "hypothesis": "Starting vaccination on day 35 protects the 60+ bands before the peak and beats its GBP 2M premium.",
+    "rationale": "The wave peaks in its second month; ten more days of protection before the peak should avert more hospital-days than the acceleration premium costs.",
+    "strategy": "pivot",
+    "candidate": {
+      "vaccine_share": {
+        "0-17": 0.1,
+        "18-39": 0.2,
+        "40-59": 0.25,
+        "60-74": 0.25,
+        "75+": 0.2
+      },
+      "vaccine_start_day": 35,
+      "school_close_trigger_per_100k": 80,
+      "school_close_max_days": 14,
+      "work_close_trigger_per_100k": 150,
+      "test_isolate_level": 0.1,
+      "surge_icu_beds": 0
+    }
+  }
+]
