@@ -10,6 +10,11 @@ POST /vote/api/guest {token?}    a guest account (no signup); with a known guest
 POST /vote/api/bet {token, side, spend, qid?}   a guest bet on the featured market or one of the events (qid), rate limited
                                  per device (guest token) and per IP; returns "vs", the guest's position next to the swarm's
 POST /pitch/api/featured {qid}   admin only (X-Admin-Token): picks the featured market
+POST /harvest/api/pitch/session {start?}   admin only: starts the pitch session now (or at `start`, ISO or epoch seconds)
+
+/pitch counts only real humans in the room: human bets placed at or after the session start (default 18:25 London time
+today), never by a handle in data/test_accounts.json or one starting "qa-" (our QA and e2e agents). An e2e tester gets a
+"qa-e2e-" guest by sending {"handle": "qa-e2e-..."} or the header X-QA-E2E: 1 to /vote/api/guest.
 
 Guests are ordinary human accounts in the hash-chained ledger (username guest-xxxx, payload via=vote). Their pitch wallet
 is PITCH_CREDITS: /vote lets a guest spend at most that much in total across all events, while the book keeps the usual account so the
@@ -24,6 +29,7 @@ import os
 import secrets
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +44,10 @@ from agent.routes.harvest_pages import STATIC_DIR, versioned
 from agent.routes.public_mode import admin_denial
 
 DEFAULT_QID = "wheat-up10-6m@2026-09"
+DEFAULT_SESSION_START = (18, 25)
+"""Hour and minute, London time today, when the pitch session starts unless the admin set one."""
+QA_PREFIX = "qa-"
+QA_HEADER = "X-QA-E2E"
 PITCH_CREDITS = 100.0
 SPEND_MIN, SPEND_MAX = 1.0, 50.0
 FEED_LEN = 40
@@ -69,6 +79,41 @@ def vote_url() -> str:
 
 def _featured_file() -> Path:
     return ledger.db_path().parent / "pitch_featured.json"
+
+
+def _session_file() -> Path:
+    return ledger.db_path().parent / "pitch_session.json"
+
+
+def session_start() -> float:
+    """Epoch seconds of the pitch session start: the admin's, else DEFAULT_SESSION_START London time today."""
+    try:
+        return float(json.loads(_session_file().read_text())["start"])
+    except (OSError, ValueError, KeyError, TypeError):
+        h, m = DEFAULT_SESSION_START
+        return datetime.now(ZoneInfo("Europe/London")).replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
+
+
+def set_session_start(start: float) -> float:
+    _session_file().write_text(json.dumps({"start": start}))
+    _state_cache.clear()
+    return start
+
+
+def _parse_start(value: Any) -> float | None:
+    if value is None or value == "":
+        return time.time()
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value)
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def is_qa(username: str | None) -> bool:
+    """Our own test agents: a reviewed test account or any handle starting "qa-" (qa-e2e- guests included)."""
+    return bool(username) and (str(username).lower().startswith(QA_PREFIX) or accounts.is_test(username))
 
 
 def featured_qid(book: LiveBook) -> str:
@@ -126,6 +171,17 @@ def _who(book: LiveBook, trader: str) -> str:
     return "human" if (book.traders.get(trader) or {}).get("kind") == "human" else "bot"
 
 
+def _counted(book: LiveBook, t: dict[str, Any], start_ms: float) -> str | None:
+    """"human" for a real audience bet (after the session start, not a QA account), "bot" for the swarm, else None."""
+    who = _who(book, t["trader"])
+    if who == "bot":
+        return who
+    ms = _epoch_ms(str(t.get("at") or ""))
+    if ms is None or ms < start_ms or is_qa(book.username_of(t["trader"])):
+        return None
+    return who
+
+
 def _epoch_ms(at: str) -> int | None:
     try:
         return int(datetime.fromisoformat(at.replace("Z", "+00:00")).timestamp() * 1000)
@@ -141,7 +197,9 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
     evs = events(book)
     tags = {e["qid"]: e for e in evs}
     with book.lock:
-        key = (qid, len(book.trades), book.version, minutes)
+        start = session_start()
+        start_ms = start * 1000
+        key = (qid, len(book.trades), book.version, minutes, start)
         if _state_cache.get("key") == key:
             return _state_cache["body"]
         horizon = time.time() * 1000 - minutes * 60_000
@@ -152,13 +210,14 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
         for t in reversed(book.trades):
             if t["qid"] not in tags:
                 continue
-            who = _who(book, t["trader"])
-            s = tallies[t["qid"]][who]
-            s["bets"] += 1
-            s["credits"] += t["spend"]
-            s["yes_credits"] += t["spend"] if t["side"] == "YES" else 0.0
-            s["traders"].add(t["trader"])
-            if len(feed) < FEED_LEN:
+            who = _counted(book, t, start_ms)
+            if who is not None:
+                s = tallies[t["qid"]][who]
+                s["bets"] += 1
+                s["credits"] += t["spend"]
+                s["yes_credits"] += t["spend"] if t["side"] == "YES" else 0.0
+                s["traders"].add(t["trader"])
+            if who is not None and len(feed) < FEED_LEN:
                 ev = tags[t["qid"]]
                 feed.append({"seq": t["seq"], "at": t.get("at"), "who": who, "name": book.display_name(t["trader"]).removeprefix("\U0001f916").strip(),
                              "username": book.username_of(t["trader"]), "side": t["side"], "spend": round(t["spend"], 2),
@@ -167,7 +226,7 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
                 continue
             ms = _epoch_ms(str(t.get("at") or ""))
             if ms is not None and ms >= horizon:
-                path.append([ms, round(t["price_after"], 4), "h" if who == "human" else "b"])
+                path.append([ms, round(t["price_after"], 4), {"human": "h", "bot": "b"}.get(who or "", "x")])
         path.reverse()
         view = book.market_view(qid)
 
@@ -178,7 +237,7 @@ def pitch_state(book: LiveBook, minutes: float = 20.0) -> dict[str, Any]:
         event_rows = [{**e, "p_yes": round(book.price(e["qid"]), 4), "ai_p": _ai_p(book, e["qid"]), "url": f"/app/market/{e['qid']}",
                        "human": summary(tallies[e["qid"]]["human"]), "bot": summary(tallies[e["qid"]]["bot"])} for e in evs]
         body = {
-            "vote_url": vote_url(), "credits": PITCH_CREDITS,
+            "vote_url": vote_url(), "credits": PITCH_CREDITS, "session_start": int(start_ms),
             "featured": {k: view.get(k) for k in ("qid", "title", "kind", "region", "crop", "p_yes", "volume", "resolve_month")},
             "path": path, "feed": feed, "now": int(time.time() * 1000),
             "tally": {w: summary(s) for w, s in tally.items()}, "events": event_rows,
@@ -234,12 +293,14 @@ def guest_view(book: LiveBook, trader: str, qid: str) -> dict[str, Any]:
             "credits": PITCH_CREDITS, "bets": mine[-10:], "n_bets": len(everything), "position": pos, "mine": per_qid}
 
 
-def _new_guest(book: LiveBook, token: str) -> tuple[str, str]:
+def _new_guest(book: LiveBook, token: str, prefix: str = "guest-") -> tuple[str, str]:
     for i in range(12):
-        name = f"guest-{secrets.token_hex(2 if i < 8 else 3)}"
+        name = f"{prefix}{secrets.token_hex(2 if i < 8 else 3)}"
+        payload = {"nickname": name, "token_sha256": market.token_sha(token), "via": "vote"}
+        if prefix != "guest-":
+            payload["qa"] = True
         try:
-            _, trader, username = api.record_account(book, kind="join", trader=None, wanted=name,
-                                                     payload={"nickname": name, "token_sha256": market.token_sha(token), "via": "vote"})
+            _, trader, username = api.record_account(book, kind="join", trader=None, wanted=name, payload=payload)
             return trader, username
         except accounts.UsernameTakenError:
             continue
@@ -302,6 +363,19 @@ def register(app: FastAPI) -> None:
         _featured_file().write_text(json.dumps({"qid": qid}))
         return JSONResponse({"qid": featured_qid(book)})
 
+    @app.post("/harvest/api/pitch/session")
+    async def start_session(request: Request) -> JSONResponse:
+        if (denied := admin_denial(request)) is not None:
+            return denied
+        data, bad = await api._body(request)
+        if bad is not None:
+            return bad
+        start = _parse_start((data or {}).get("start"))
+        if start is None:
+            return api._error("start must be ISO 8601 or epoch seconds", 422)
+        set_session_start(start)
+        return JSONResponse({"session_start": datetime.fromtimestamp(start, ZoneInfo("Europe/London")).isoformat()})
+
     @app.post("/vote/api/guest")
     async def guest(request: Request) -> JSONResponse:
         data, bad = await api._body(request)
@@ -315,8 +389,9 @@ def register(app: FastAPI) -> None:
             if (limited := _limited(guest_limiter, client_ip(request), "new guests")) is not None:
                 return limited
             token = secrets.token_urlsafe(18)
+            qa = str(data.get("handle") or "").lower().startswith(QA_PREFIX) or bool(request.headers.get(QA_HEADER))
             try:
-                trader, _ = await asyncio.to_thread(_new_guest, book, token)
+                trader, _ = await asyncio.to_thread(_new_guest, book, token, "qa-e2e-" if qa else "guest-")
             except accounts.UsernameError as err:
                 return api._error(str(err), 503)
             api._schedule_anchor()

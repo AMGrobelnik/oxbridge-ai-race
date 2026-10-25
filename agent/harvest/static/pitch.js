@@ -31,12 +31,12 @@
     const fs = Math.max(12, Math.round(h * 0.045));
     const step = hi - lo > 0.5 ? 0.2 : 0.1;
     for (let g = lo; g <= hi + 1e-9; g = Math.round((g + step) * 10) / 10) {
-      el("line", { x1: padL, x2: w - padR, y1: y(g), y2: y(g), stroke: Math.abs(g - 0.5) < 1e-9 ? "#5a5240" : "#2b271d", "stroke-dasharray": Math.abs(g - 0.5) < 1e-9 ? "6 6" : "", "stroke-width": 1 }, svg);
-      const t = el("text", { x: padL - 10, y: y(g) + fs * 0.35, "text-anchor": "end", fill: "#776f5d", "font-size": fs, "font-family": "JetBrains Mono, monospace" }, svg);
+      el("line", { x1: padL, x2: w - padR, y1: y(g), y2: y(g), stroke: Math.abs(g - 0.5) < 1e-9 ? "#8a9180" : "#dfe3d7", "stroke-dasharray": Math.abs(g - 0.5) < 1e-9 ? "6 6" : "", "stroke-width": 1 }, svg);
+      const t = el("text", { x: padL - 10, y: y(g) + fs * 0.35, "text-anchor": "end", fill: "#55604c", "font-size": fs, "font-family": "Geist Mono, monospace" }, svg);
       t.textContent = Math.round(g * 100) + "%";
     }
     for (let m = MINUTES; m >= 0; m -= 5) {
-      const t = el("text", { x: x(now - m * 60000), y: h - 6, "text-anchor": "middle", fill: "#776f5d", "font-size": fs, "font-family": "JetBrains Mono, monospace" }, svg);
+      const t = el("text", { x: x(now - m * 60000), y: h - 6, "text-anchor": "middle", fill: "#55604c", "font-size": fs, "font-family": "Geist Mono, monospace" }, svg);
       t.textContent = m === 0 ? "now" : `-${m} min`;
     }
     const pts = path.filter((r) => r[0] >= t0);
@@ -44,13 +44,13 @@
     let d = `M${x(t0).toFixed(1)},${y(start).toFixed(1)}`;
     for (const [t, p] of pts) { d += `H${x(t).toFixed(1)}V${y(p).toFixed(1)}` }
     d += `H${x(now).toFixed(1)}V${y(pNow).toFixed(1)}`;
-    el("path", { d: d + `V${y(lo)}H${x(t0)}Z`, fill: "rgba(81,207,102,.10)", stroke: "none" }, svg);
-    el("path", { d, fill: "none", stroke: "#51cf66", "stroke-width": Math.max(3, h * 0.008), "stroke-linejoin": "round" }, svg);
+    el("path", { d: d + `V${y(lo)}H${x(t0)}Z`, fill: "rgba(47,122,69,.10)", stroke: "none" }, svg);
+    el("path", { d, fill: "none", stroke: "#2f7a45", "stroke-width": Math.max(3, h * 0.008), "stroke-linejoin": "round" }, svg);
     for (const [t, p, who] of pts) {
       if (who !== "h") continue;
-      el("circle", { cx: x(t), cy: y(p), r: Math.max(7, h * 0.02), fill: "#f7d070", stroke: "#0d0c09", "stroke-width": 3 }, svg);
+      el("circle", { cx: x(t), cy: y(p), r: Math.max(7, h * 0.02), fill: "#c99a3b", stroke: "#fbfcf9", "stroke-width": 3 }, svg);
     }
-    el("circle", { cx: x(now), cy: y(pNow), r: Math.max(6, h * 0.016), fill: "#51cf66" }, svg);
+    el("circle", { cx: x(now), cy: y(pNow), r: Math.max(6, h * 0.016), fill: "#2f7a45" }, svg);
     box.replaceChildren(svg);
   }
 
@@ -71,7 +71,7 @@
   function side(prefix, s) {
     $(prefix + "n").textContent = fmt(s.bets);
     const share = s.yes_share == null ? null : s.yes_share;
-    $(prefix + "s").textContent = s.bets ? `${fmt(s.traders)} ${prefix === "h" ? "people" : "agents"} · ${share == null ? "-" : Math.round(share * 100) + "% of credits on YES"}` : (prefix === "h" ? "Be the first: scan the code" : "bets so far");
+    $(prefix + "s").textContent = s.bets ? `${fmt(s.traders)} ${prefix === "h" ? (s.traders === 1 ? "person" : "people") : "agents"} · ${share == null ? "-" : Math.round(share * 100) + "% of credits on YES"}` : (prefix === "h" ? "0 humans so far, be the first!" : "bets so far");
     $(prefix + "b").style.width = (share == null ? 50 : share * 100) + "%";
   }
 
@@ -110,7 +110,8 @@
       side("b", s.tally.bot);
       const lastMin = s.path.filter((r) => r[0] >= s.now - 60000).length;
       $("rate").textContent = `${lastMin} in the last min`;
-      $("guests").innerHTML = s.tally.human.traders ? `<b>${fmt(s.tally.human.traders)}</b> humans have bet so far.` : "";
+      const n = s.tally.human.traders;
+      $("guests").innerHTML = n ? `<b>${fmt(n)}</b> ${n === 1 ? "human has" : "humans have"} bet so far.` : "<b>0 humans so far, be the first!</b>";
       renderFeed(s.feed);
       if (s.events) renderEvents(s.events);
     } catch (e) {

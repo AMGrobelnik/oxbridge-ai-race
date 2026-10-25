@@ -27,6 +27,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(routes, "replay_result", lambda: result)
     market.reset_live_book()
     pitch._state_cache.clear()
+    pitch.set_session_start(0)
     for limiter in (*routes.LIMITERS, *pitch.LIMITERS):
         limiter.reset()
     yield
@@ -145,3 +146,36 @@ def test_guest_cannot_bet_outside_the_vote_events(client, monkeypatch):
     tok = client.post("/vote/api/guest", json={}).json()["token"]
     r = client.post("/vote/api/bet", json={"token": tok, "side": "YES", "spend": 5, "qid": "it-drought-2027"})
     assert r.status_code == 422 and "not one of the /vote events" in r.json()["error"]
+
+
+def test_pitch_counts_only_humans_after_the_session_start_and_never_qa(client, monkeypatch):
+    qid = pitch.featured_qid(market.live_book())
+    early = client.post("/vote/api/guest", json={}).json()["token"]
+    assert client.post("/vote/api/bet", json={"token": early, "side": "YES", "spend": 10}).status_code == 200
+    assert client.post("/harvest/api/pitch/session", json={}).status_code == 401
+    monkeypatch.setenv("ADMIN_TOKEN", "s3cret")
+    h = {"X-Admin-Token": "s3cret"}
+    assert client.post("/harvest/api/pitch/session", json={"start": "nope"}, headers=h).status_code == 422
+    assert client.post("/harvest/api/pitch/session", json={}, headers=h).status_code == 200
+    s = client.get("/pitch/api/state").json()
+    assert s["tally"]["human"]["bets"] == 0 and not [f for f in s["feed"] if f["who"] == "human"]
+    qa = client.post("/vote/api/guest", json={"handle": "qa-e2e-check"}).json()
+    hdr = client.post("/vote/api/guest", json={}, headers={"X-QA-E2E": "1"}).json()
+    assert qa["username"].startswith("qa-e2e-") and hdr["username"].startswith("qa-e2e-")
+    for g in (qa, hdr):
+        assert client.post("/vote/api/bet", json={"token": g["token"], "side": "NO", "spend": 5}).status_code == 200
+    real = client.post("/vote/api/guest", json={}).json()["token"]
+    assert client.post("/vote/api/bet", json={"token": real, "side": "YES", "spend": 7, "qid": qid}).status_code == 200
+    s = client.get("/pitch/api/state").json()
+    assert s["tally"]["human"] == {"bets": 1, "credits": 7.0, "traders": 1, "yes_share": 1.0}
+    assert [f["username"] for f in s["feed"] if f["who"] == "human"] == [s["feed"][0]["username"]]
+    assert s["feed"][0]["username"].startswith("guest-")
+
+
+def test_session_start_defaults_to_1825_london_and_skips_test_accounts(monkeypatch):
+    pitch._session_file().unlink()
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    start = datetime.fromtimestamp(pitch.session_start(), ZoneInfo("Europe/London"))
+    assert (start.hour, start.minute) == (18, 25) and start.date() == datetime.now(ZoneInfo("Europe/London")).date()
+    assert pitch.is_qa("crophecy-check") and pitch.is_qa("qa-e2e-1a2b") and not pitch.is_qa("guest-1a2b")
