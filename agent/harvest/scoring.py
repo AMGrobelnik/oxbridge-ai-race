@@ -111,20 +111,20 @@ def holdout_intervals(result_like: dict[str, Any]) -> dict[str, dict[str, Any]]:
     beats_market_ci is true only when the whole difference interval is below 0.
     """
     per, market = _holdout_question_briers(result_like)
-    out: dict[str, dict[str, Any]] = {}
-    for pid, byq in per.items():
-        if not byq:
-            continue
-        lo, hi = _bootstrap(tuple(byq[q] for q in sorted(byq)))
-        row: dict[str, Any] = {"brier_holdout_lo": lo, "brier_holdout_hi": hi, "n_ci": len(byq),
-                               "diff_vs_market": None, "diff_vs_market_lo": None, "diff_vs_market_hi": None, "beats_market_ci": False}
-        shared = sorted(set(byq) & set(market))
-        if shared:
-            diffs = tuple(byq[q] - market[q] for q in shared)
-            dlo, dhi = _bootstrap(diffs)
-            row.update(diff_vs_market=sum(diffs) / len(diffs), diff_vs_market_lo=dlo, diff_vs_market_hi=dhi, beats_market_ci=dhi < 0)
-        out[pid] = row
-    return out
+    return {pid: _interval_row(byq, market) for pid, byq in per.items() if byq}
+
+
+def _interval_row(byq: dict[str, float], market: dict[str, float]) -> dict[str, Any]:
+    """Bootstrap interval fields for one model from its per-question Brier scores."""
+    lo, hi = _bootstrap(tuple(byq[q] for q in sorted(byq)))
+    row: dict[str, Any] = {"brier_holdout_lo": lo, "brier_holdout_hi": hi, "n_ci": len(byq),
+                           "diff_vs_market": None, "diff_vs_market_lo": None, "diff_vs_market_hi": None, "beats_market_ci": False}
+    shared = sorted(set(byq) & set(market))
+    if shared:
+        diffs = tuple(byq[q] - market[q] for q in shared)
+        dlo, dhi = _bootstrap(diffs)
+        row.update(diff_vs_market=sum(diffs) / len(diffs), diff_vs_market_lo=dlo, diff_vs_market_hi=dhi, beats_market_ci=dhi < 0)
+    return row
 
 
 def _rank_key(s: dict[str, Any]) -> tuple[bool, float, float]:
@@ -147,9 +147,13 @@ def leaderboard(result_like: dict[str, Any], *, external: list[dict[str, Any]] |
     for e in external or []:
         rows.append({"brier_dev": None, "brier_holdout": None, "pnl_dev": 0.0, "pnl_holdout": 0.0, "n": 0, **e, "origin": "external", "rank": 0})
     intervals = holdout_intervals(result_like)
+    market_by_q = _holdout_question_briers(result_like)[1]
     for r in rows:
+        per_question = r.pop("per_question", None)
         if r["persona_id"] in intervals and r["origin"] == "house":
             r.update(intervals[r["persona_id"]])
+        elif per_question:  # an external model that sent per-question holdout forecasts: [[qid, p_yes, outcome], ...]
+            r.update(_interval_row({str(q): brier(float(pq), int(o)) for q, pq, o in per_question}, market_by_q))
         else:
             r.update({"brier_holdout_lo": None, "brier_holdout_hi": None, "n_ci": 0, "diff_vs_market": None,
                       "diff_vs_market_lo": None, "diff_vs_market_hi": None, "beats_market_ci": False})

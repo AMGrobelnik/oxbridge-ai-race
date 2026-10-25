@@ -91,6 +91,7 @@ window.H = (() => {
   function registerTraders(lb) {
     for (const m of (lb && lb.world_models) || []) {
       if (m.origin === "external") names.set(m.persona_id, { name: m.name, color: "#495057", kind: "external", mono: "EX" });
+      if (m.origin === "human-model") names.set(m.persona_id, { name: m.name, color: m.color || "#f59f00", kind: "human-model", mono: "TH" });
     }
     for (const h of (lb && lb.humans) || []) names.set(h.user_id, { name: h.nickname, color: "#212529", kind: "human", mono: (h.nickname || "?").slice(0, 2).toUpperCase() });
   }

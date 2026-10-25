@@ -188,6 +188,7 @@
       const title = el("b", null, m.name);
       txt.append(title);
       if (m.origin === "external") txt.append(document.createTextNode(" "), el("span", "pill", "outside agent"));
+      if (m.origin === "human-model") txt.append(document.createTextNode(" "), el("span", "pill", "human-written theory"));
       const p = pmap.get(m.persona_id);
       txt.append(el("div", "conv", p ? p.world_model : (m.owner ? `by ${m.owner}` : "world model committed on the ledger")));
       nm.append(txt);
@@ -215,8 +216,9 @@
         bh.append(bar);
       }
       tr.append(bh, el("td", "num muted", b3(m.brier_dev)));
-      const ph = el("td", `num ${m.pnl_holdout >= 0 ? "yes" : "no"}`, signed(m.pnl_holdout));
-      const pl = m.pnl_live != null ? m.pnl_live : null;
+      const pho = m.origin === "human-model" ? null : m.pnl_holdout;
+      const ph = el("td", `num ${pho == null ? "" : pho >= 0 ? "yes" : "no"}`, signed(pho));
+      const pl = m.pnl_live != null && m.origin !== "human-model" ? m.pnl_live : null;
       tr.append(ph, el("td", `num ${pl == null ? "" : pl >= 0 ? "yes" : "no"}`, signed(pl)));
       tr.addEventListener("click", () => tr.classList.toggle("open"));
       lbTable.append(tr);

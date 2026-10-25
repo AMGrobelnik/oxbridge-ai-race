@@ -43,7 +43,7 @@
     if (note) note.textContent = lb.interval ? lb.interval.note : "";
     const hum = document.getElementById("hum");
     hum.innerHTML = "";
-    const rows = lb.world_models.filter((m) => m.pnl_live != null).map((m) => ({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))
+    const rows = lb.world_models.filter((m) => m.pnl_live != null && m.origin !== "human-model").map((m) => ({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))
       .concat(lb.humans.map((h) => ({ id: h.user_id, name: h.nickname, v: h.pnl || 0, human: true })));
     rows.sort((a, b) => b.v - a.v);
     const humans = rows.filter((r) => r.human);

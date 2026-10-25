@@ -159,7 +159,7 @@ def _external_scores(book: LiveBook) -> list[dict[str, Any]]:
             "persona_id": tid, "name": info.get("name", tid), "owner": info.get("owner"), "world_model_sha256": info.get("world_model_sha256"),
             "brier_holdout": fc.get("brier"), "n": int(fc.get("n") or 0), "pnl_live": book.equity(tid) - STARTING_CREDITS,
             "trades": sum(1 for t in book.trades if t["trader"] == tid),
-            **({"world_model": info.get("world_model"), "color": byo.COLOR} if byo.is_byo(tid) else {}),
+            **({"world_model": info.get("world_model"), "color": byo.COLOR, "per_question": fc.get("per_question")} if byo.is_byo(tid) else {}),
         })
     return out
 

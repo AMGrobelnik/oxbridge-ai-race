@@ -79,6 +79,8 @@ def test_byo_end_to_end_ranks_and_lands_on_leaderboard(client, demo, calls):
     rows = {m["persona_id"]: m for m in client.get("/harvest/api/leaderboard").json()["world_models"]}
     mine = rows[body["model_id"]]
     assert mine["origin"] == "human-model" and mine["brier_holdout"] == body["brier_holdout"] and mine["name"] == "Heat first"
+    assert mine["brier_holdout_lo"] <= mine["brier_holdout"] <= mine["brier_holdout_hi"] and mine["n_ci"] == body["n"]
+    assert "per_question" not in mine
     assert sum(1 for m in rows.values() if m["origin"] == "house") == 8
     kinds = [e["kind"] for e in ledger.all_entries() if e["trader"] == body["model_id"]]
     assert kinds == ["agent", "forecast"]  # committed before it was scored
