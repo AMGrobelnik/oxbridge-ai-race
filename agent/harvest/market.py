@@ -16,6 +16,7 @@ from typing import Any
 
 from agent.sealed.hashing import sha256_json
 
+from . import accounts as acct
 from . import ledger, lmsr
 from .types import BetIntent, LedgerEntry, MarketState, Payout, Persona, QuestionInstance, Side, Trade
 
@@ -270,6 +271,8 @@ class LiveBook(Book):
         self.agent_forecasts: dict[str, list[dict[str, Any]]] = {}
         self.personas: list[Persona] = []
         self.traders: dict[str, dict[str, Any]] = {}
+        self.usernames: dict[str, str] = {}
+        """username -> trader id, unique across every account (accounts.py)."""
         self.tokens: dict[str, str] = {}
         self.forecasts: dict[str, dict[str, Any]] = {}
         self.ledger_head: tuple[int, str] = (0, ledger.GENESIS)
@@ -350,6 +353,8 @@ class LiveBook(Book):
             for k in ("nickname", "name", "owner", "world_model", "world_model_sha256"):
                 if k in p:
                     info[k] = p[k]
+            if "username" not in info:
+                info["username"] = acct.claim(self.usernames, trader, p.get("username"), reserved=self.username_reserved)
             if p.get("token_sha256"):
                 self.tokens[p["token_sha256"]] = trader
             self.balance(trader)
@@ -431,6 +436,16 @@ class LiveBook(Book):
                 trade, _ = self.place_bet(trader, qid, intent["side"], intent["spend"], p_yes=f["p_yes"], rationale=f.get("rationale"))
                 return trade
         return None
+
+    # ---- accounts
+    def username_reserved(self, name: str) -> bool:
+        """True for names users may not take: reserved words and the house, verified and baseline accounts."""
+        from . import baseline_models
+
+        return name in acct.RESERVED or name in baseline_models.USERNAMES or any(acct.system_username(p["id"]) == name for p in self.personas)
+
+    def username_taken(self, name: str) -> bool:
+        return name in self.usernames or self.username_reserved(name)
 
     # ---- views
     def trader_for(self, token: str | None) -> str | None:

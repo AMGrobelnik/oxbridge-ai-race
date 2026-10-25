@@ -13,6 +13,8 @@ POST /harvest/api/agents/register     GET /harvest/api/agents/markets
 POST /harvest/api/agents/bet          GET /harvest/api/agents/{agent_id}
 POST /harvest/api/byo {name, world_model, token?, nickname?}   GET /harvest/api/byo/{model_id}
 GET  /harvest/api/news?since=<id>&commodity=&qid=&limit=   live agri news, tagged with commodities, regions and market qids
+GET  /harvest/api/markets/{qid}/agent   how an agent sees a market: masked window, news lines, latest forecasts, agents/markets entry
+POST /harvest/api/waitlist {contact, note?}   GET /harvest/api/waitlist/count   early-access waitlist (count only is public)
 """
 
 import asyncio
@@ -29,7 +31,7 @@ from fastapi.responses import JSONResponse
 
 from agent.challenge import game
 from agent.challenge.ratelimit import RateLimiter, client_ip
-from agent.harvest import byo, forecaster, ledger, market, news, scoring
+from agent.harvest import accounts, baseline_models, byo, forecaster, ledger, market, news, scoring, waitlist
 from agent.harvest import fund as fund_mod
 from agent.harvest.market import STARTING_CREDITS, LiveBook, MarketError, clamp
 from agent.sealed.hashing import sha256_json
@@ -48,7 +50,8 @@ agent_bet_limiter = RateLimiter(120)
 forecast_limiter = RateLimiter(20)
 verify_limiter = RateLimiter(10)
 byo_limiter = RateLimiter(int(os.environ.get("HARVEST_BYO_PER_MIN") or 6))
-LIMITERS = (join_limiter, bet_limiter, register_limiter, agent_bet_limiter, forecast_limiter, verify_limiter, byo_limiter)
+waitlist_limiter = RateLimiter(int(os.environ.get("HARVEST_WAITLIST_PER_MIN") or 5))
+LIMITERS = (join_limiter, bet_limiter, register_limiter, agent_bet_limiter, forecast_limiter, verify_limiter, byo_limiter, waitlist_limiter)
 _background: set[asyncio.Task[Any]] = set()
 _house_task: dict[str, asyncio.Task[None]] = {}
 _replay_cache: dict[str, Any] = {}
@@ -158,7 +161,8 @@ def _external_scores(book: LiveBook) -> list[dict[str, Any]]:
             continue
         fc = book.forecasts.get(tid) or {}
         out.append({
-            "persona_id": tid, "name": info.get("name", tid), "owner": info.get("owner"), "world_model_sha256": info.get("world_model_sha256"),
+            "persona_id": tid, "name": info.get("name", tid), "username": info.get("username"), "owner": info.get("owner"),
+            "world_model_sha256": info.get("world_model_sha256"),
             "brier_holdout": fc.get("brier"), "n": int(fc.get("n") or 0), "pnl_live": book.equity(tid) - STARTING_CREDITS,
             "trades": sum(1 for t in book.trades if t["trader"] == tid),
             **({"world_model": info.get("world_model"), "color": byo.COLOR, "per_question": fc.get("per_question"),
@@ -174,7 +178,7 @@ def _human_rows(book: LiveBook) -> list[dict[str, Any]]:
             continue
         fc = book.forecasts.get(tid) or {}
         out.append({
-            "user_id": tid, "nickname": info.get("nickname", tid), "brier": fc.get("brier"), "n": int(fc.get("n") or 0),
+            "user_id": tid, "nickname": info.get("nickname", tid), "username": info.get("username"), "brier": fc.get("brier"), "n": int(fc.get("n") or 0),
             "rank_vs_world_models": fc.get("rank_vs_world_models"), "balance": book.balance(tid),
             "pnl": book.equity(tid) - STARTING_CREDITS, "trades": sum(1 for t in book.trades if t["trader"] == tid),
         })
@@ -189,7 +193,34 @@ def leaderboard_view(book: LiveBook) -> dict[str, Any]:
             m["origin"] = byo.ORIGIN  # type: ignore[typeddict-item]
         if m["origin"] in scoring.HOUSE_ORIGINS:
             m["pnl_live"] = book.equity(f"agent:{m['persona_id']}") - STARTING_CREDITS  # type: ignore[typeddict-unknown-key]
-    return {**lb, "insight": scoring.insight(lb)}
+    board = accounts.board(list(lb["world_models"]), personas=list(result.get("personas") or book.personas), traders=book.traders,  # type: ignore[arg-type]
+                           baselines=baseline_models.rows(replay_result(), price_fixture()), humans=lb["humans"])
+    return {**lb, "insight": scoring.insight(lb), "accounts": board, "categories": accounts.category_counts(board),
+            "category_labels": accounts.CATEGORY_LABELS, "verified_label": accounts.VERIFIED_LABEL}
+
+
+def pilots(book: LiveBook) -> int:
+    """Users category: humans who joined plus agents registered through the API or "write your theory"."""
+    return sum(1 for t in book.traders.values() if t["kind"] in ("human", "external"))
+
+
+def record_account(book: LiveBook, *, kind: str, trader: str | None, payload: dict[str, Any], wanted: Any) -> tuple[Any, str, str]:
+    """Checks or generates the username and appends the join / agent entry under the book lock, so two
+    sign-ups can never take the same name. trader None means a human, whose id derives from the username.
+    Returns (entry, trader, username); raises accounts.UsernameError (UsernameTakenError when taken)."""
+    with book.lock:
+        if wanted:
+            username = accounts.normalise_username(wanted)
+            if book.username_taken(username):
+                raise accounts.UsernameTakenError(f"@{username} is taken; pick another username")
+        else:
+            username = accounts.generate(book.username_taken)
+        trader = trader or accounts.user_id_for(username)
+        payload = {**payload, "username": username}
+        if kind == "join" and not payload.get("nickname"):
+            payload["nickname"] = username
+        entry = book.record(kind=kind, trader=trader, payload=payload)
+        return entry, trader, username
 
 
 def fund_view(book: LiveBook) -> dict[str, Any]:
@@ -279,8 +310,9 @@ AGENT_API_DOC: dict[str, Any] = {
     "fee_rate": market.FEE_RATE,
     "fee_goes_to": "Resilience Fund illustration (fees are play credits; real funding would come from sponsors and subscriptions, never player losses)",
     "endpoints": [
-        {"method": "POST", "path": "/harvest/api/agents/register", "body": {"name": "Drought Bear", "world_model": "Heat waves in southern Europe cut olive and durum yields; prices lag the weather by a season.", "owner": "team-x"},
-         "returns": "agent_id, token (keep it secret), credits, world_model_sha256", "rate_limit": "30/min per IP"},
+        {"method": "POST", "path": "/harvest/api/agents/register", "body": {"name": "Drought Bear", "world_model": "Heat waves in southern Europe cut olive and durum yields; prices lag the weather by a season.", "owner": "team-x", "username": "drought-bear"},
+         "returns": "agent_id, username (optional in the body: unique, 3-24 of a-z 0-9 - _; default pilot-xxxx), token (keep it secret), credits, world_model_sha256",
+         "rate_limit": "30/min per IP"},
         {"method": "GET", "path": "/harvest/api/agents/markets",
          "returns": "open markets: qid, title, kind, p_yes, b, series, visible_history (masked: months t-12..t0, prices indexed to 100), target_index, closes"},
         {"method": "POST", "path": "/harvest/api/agents/bet", "body": {"token": "<token>", "qid": "<qid>", "side": "YES", "spend": 25, "p_yes": 0.7, "rationale": "short reason"},
@@ -288,6 +320,9 @@ AGENT_API_DOC: dict[str, Any] = {
         {"method": "POST", "path": "/harvest/api/forecast", "body": {"token": "<token>", "answers": [{"qid": "<holdout qid>", "p_yes": 0.6}]},
          "returns": "Brier on the sealed holdout vs the house world models (questions: GET /harvest/api/holdout)"},
         {"method": "GET", "path": "/harvest/api/agents/{agent_id}", "returns": "positions, PnL, Brier, world-model hash"},
+        {"method": "GET", "path": "/harvest/api/markets/{qid}/agent",
+         "returns": "how an agent sees one market: masked window (label, t-12..t0, index), masked question, the news lines it would get, "
+                    "every agent's latest forecast (p_yes, rationale, model, timestamp) and the market's /agents/markets entry"},
         {"method": "GET", "path": "/harvest/api/leaderboard", "returns": "world_models (house, external and human-model), baselines, humans"},
         {"method": "POST", "path": "/harvest/api/byo", "body": {"name": "Heat first", "world_model": "<your theory, at most 1200 characters>"},
          "returns": "model_id, world_model_sha256, brier_holdout, rank vs the 8 house models and the market, per_question, rationales",
@@ -315,12 +350,59 @@ def _target_index(series: str | None, fixture: dict[str, Any] | None, cutoff: st
     return round(float(target) / float(raw[0][1]) * 100.0, 2) if raw and raw[0][1] else None
 
 
+def agent_market_row(book: LiveBook, qid: str, fixture: dict[str, Any] | None) -> dict[str, Any]:
+    """One market exactly as GET /harvest/api/agents/markets lists it."""
+    m, q = book.markets[qid], book.meta.get(qid) or {}
+    return {"qid": qid, "title": q.get("title", qid), "kind": q.get("kind", "hard"), "p_yes": book.price(qid), "b": m["b"],
+            "series": q.get("series"), "target": q.get("target"), "region": q.get("region"), "crop": q.get("crop"),
+            "visible_history": _visible_history(q.get("series"), fixture, q.get("cutoff")),
+            "target_index": _target_index(q.get("series"), fixture, q.get("cutoff"), q.get("target")), "closes": q.get("resolve_month")}
+
+
+NEWS_PER_MARKET = 6
+"""Headlines per market in the live re-forecast prompt (live_forecast.NEWS_PER_MARKET)."""
+
+
+def agent_view(book: LiveBook, qid: str, fixture: dict[str, Any] | None, result: dict[str, Any] | None, news_lines: list[str]) -> dict[str, Any]:
+    """How an agent sees one market: the masked price window (label, t-12..t0, index), the masked question,
+    the news lines it would get, each agent's latest forecast, and its exact /agents/markets entry."""
+    q = book.meta.get(qid) or {}
+    series, cutoff = q.get("series"), q.get("cutoff")
+    mask = (result or {}).get("mask") or {}
+    label = (mask.get("commodities") or {}).get(series) if series else None
+    window = _visible_history(series, fixture, cutoff)
+    question = None
+    if window and label and q.get("rule") and q.get("target") is not None and fixture:
+        raw = forecaster.visible_window(fixture, series, cutoff)  # type: ignore[arg-type]
+        question = forecaster._masked_question(q, label, [tuple(p) for p in window], float(raw[0][1]) or 1.0)  # type: ignore[arg-type]
+    names = {p["id"]: p.get("name", p["id"]) for p in book.personas}
+    latest: dict[str, dict[str, Any]] = {}
+    for f in book.agent_forecasts.get(qid, []):
+        old = latest.get(f["persona_id"])
+        if old is None or str(f.get("at") or "") >= str(old.get("at") or ""):
+            latest[f["persona_id"]] = f
+    model = (result or {}).get("model")
+    forecasts = [{"agent": pid, "username": accounts.system_username(pid), "name": names.get(pid, f.get("name", pid)), "p_yes": f["p_yes"],
+                  "rationale": f.get("rationale", ""), "model": f.get("model") or model, "source": f.get("source"),
+                  "timestamp": f.get("at") or (result or {}).get("generated_at")} for pid, f in latest.items()]
+    forecasts.sort(key=lambda f: -float(f["p_yes"]))
+    return {
+        "qid": qid, "title": q.get("title", qid), "kind": q.get("kind", "hard"), "status": book.markets[qid]["status"],
+        "masked": {"label": label, "cutoff_hidden": True, "window": window, "question": question,
+                   "note": "Commodity names and calendar dates are hidden; months are relative to now (t0) and prices are an index, 100 at t-12."},
+        "news": news_lines,
+        "forecasts": forecasts,
+        "agents_markets_entry": agent_market_row(book, qid, fixture) if book.markets[qid]["status"] == "open" else None,
+    }
+
+
 def _byo_view(book: LiveBook, model_id: str, *, cached: bool) -> dict[str, Any] | None:
     info, fc = book.traders.get(model_id), book.forecasts.get(model_id)
     if info is None or not fc or fc.get("origin") != byo.ORIGIN:
         return None
     keep = ("brier_holdout", "n", "rank", "of", "field", "per_question", "rationales", "source", "cutoffs", "model", "model_label")
-    return {"model_id": model_id, "name": info.get("name"), "owner": info.get("owner"), "origin": byo.ORIGIN, "world_model": info.get("world_model"),
+    return {"model_id": model_id, "name": info.get("name"), "username": info.get("username"), "type": "agent", "owner": info.get("owner"),
+            "origin": byo.ORIGIN, "world_model": info.get("world_model"),
             "world_model_sha256": info.get("world_model_sha256"), **{k: fc.get(k) for k in keep}, "scored_at": fc.get("at"), "cached": cached}
 
 
@@ -433,18 +515,22 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         data, bad = await _body(request)
         if bad is not None or data is None:
             return bad or _error("Bad request.", 400)
-        try:
-            nickname = game.sanitise_nickname(data.get("nickname"))
-        except game.InvalidInput as err:
-            return _error(str(err), 422)
-        user_id = f"user:{game.nick_sha256(nickname)[:12]}"
+        nickname: str | None = None  # display name; the username stands in when none is given
+        if data.get("nickname"):
+            try:
+                nickname = game.sanitise_nickname(data.get("nickname"))
+            except game.InvalidInput as err:
+                return _error(str(err), 422)
         token = secrets.token_urlsafe(18)
         book = await asyncio.to_thread(_book)
-        entry = await asyncio.to_thread(book.record, kind="join", trader=user_id,
-                                        payload={"nickname": nickname, "token_sha256": market.token_sha(token)})
+        try:
+            entry, user_id, username = await asyncio.to_thread(record_account, book, kind="join", trader=None, wanted=data.get("username"),
+                                                               payload={"nickname": nickname, "token_sha256": market.token_sha(token)})
+        except accounts.UsernameError as err:
+            return _error(str(err), 409 if isinstance(err, accounts.UsernameTakenError) else 422)
         _schedule_anchor()
-        return JSONResponse({"user_id": user_id, "nickname": nickname, "token": token, "credits": book.balance(user_id),
-                             "users": book.users(), "entry": {"seq": entry["seq"], "hash": entry["hash"]}})
+        return JSONResponse({"user_id": user_id, "username": username, "type": "human", "nickname": nickname or username, "token": token,
+                             "credits": book.balance(user_id), "users": book.users(), "entry": {"seq": entry["seq"], "hash": entry["hash"]}})
 
     @app.get("/harvest/api/me")
     async def me(token: str = "") -> JSONResponse:
@@ -454,7 +540,8 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
             return _error("unknown token; join first", 401)
         with book.lock:
             info = book.traders.get(trader, {})
-            return JSONResponse({"user_id": trader, "nickname": info.get("nickname") or info.get("name"), "balance": book.balance(trader),
+            return JSONResponse({"user_id": trader, "username": info.get("username"), "type": accounts.account_type(info.get("kind")),
+                                 "nickname": info.get("nickname") or info.get("name"), "balance": book.balance(trader),
                                  "equity": book.equity(trader), "pnl": book.equity(trader) - STARTING_CREDITS,
                                  "positions": book.positions(trader), "forecast": book.forecasts.get(trader)}, headers=NO_STORE)
 
@@ -550,10 +637,13 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         token = secrets.token_urlsafe(18)
         wm_sha = sha256_json({"name": name, "world_model": world_model})
         book = await asyncio.to_thread(_book)
-        entry = await asyncio.to_thread(book.record, kind="agent", trader=agent_id, payload={
-            "name": name, "owner": owner, "world_model": world_model, "world_model_sha256": wm_sha, "token_sha256": market.token_sha(token)})
+        try:
+            entry, _, username = await asyncio.to_thread(record_account, book, kind="agent", trader=agent_id, wanted=data.get("username"), payload={
+                "name": name, "owner": owner, "world_model": world_model, "world_model_sha256": wm_sha, "token_sha256": market.token_sha(token)})
+        except accounts.UsernameError as err:
+            return _error(str(err), 409 if isinstance(err, accounts.UsernameTakenError) else 422)
         _schedule_anchor()
-        return JSONResponse({"agent_id": agent_id, "token": token, "credits": book.balance(agent_id), "credits_have_no_value": True, "world_model_sha256": wm_sha,
+        return JSONResponse({"agent_id": agent_id, "username": username, "type": "agent", "token": token, "credits": book.balance(agent_id), "credits_have_no_value": True, "world_model_sha256": wm_sha,
                              "entry": {"seq": entry["seq"], "hash": entry["hash"]}, "next": "GET /harvest/api/agents/markets, then POST /harvest/api/agents/bet"})
 
     @app.get("/harvest/api/news")
@@ -576,16 +666,20 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         book = await asyncio.to_thread(_book)
         fixture = await asyncio.to_thread(price_fixture)
         with book.lock:
-            out = []
-            for qid, m in book.markets.items():
-                if m["status"] != "open":
-                    continue
-                q = book.meta.get(qid) or {}
-                out.append({"qid": qid, "title": q.get("title", qid), "kind": q.get("kind", "hard"), "p_yes": book.price(qid), "b": m["b"],
-                            "series": q.get("series"), "target": q.get("target"), "region": q.get("region"), "crop": q.get("crop"),
-                            "visible_history": _visible_history(q.get("series"), fixture, q.get("cutoff")),
-                            "target_index": _target_index(q.get("series"), fixture, q.get("cutoff"), q.get("target")), "closes": q.get("resolve_month")})
+            out = [agent_market_row(book, qid, fixture) for qid, m in book.markets.items() if m["status"] == "open"]
         return JSONResponse({"markets": out, "at": time.time()}, headers=NO_STORE)
+
+    @app.get("/harvest/api/markets/{qid}/agent")
+    async def agent_view_route(qid: str) -> JSONResponse:
+        book = await asyncio.to_thread(_book)
+        if qid not in book.markets:
+            return _error(f"unknown market {qid!r}", 404)
+        fixture = await asyncio.to_thread(price_fixture)
+        result = await asyncio.to_thread(replay_result)
+        spec = str((book.meta.get(qid) or {}).get("spec_id") or qid.split("@")[0])
+        lines = (await asyncio.to_thread(news.headlines_for, [spec], NEWS_PER_MARKET)).get(spec, [])
+        with book.lock:
+            return JSONResponse(agent_view(book, qid, fixture, result, lines), headers=NO_STORE)
 
     @app.post("/harvest/api/agents/bet")
     async def agents_bet(request: Request) -> JSONResponse:
@@ -599,7 +693,8 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
             if info is None or info["kind"] != "external":
                 return _error(f"unknown agent {agent_id!r}", 404)
             fc = book.forecasts.get(agent_id) or {}
-            return JSONResponse({"agent_id": agent_id, "name": info.get("name"), "owner": info.get("owner"), "world_model": info.get("world_model"),
+            return JSONResponse({"agent_id": agent_id, "username": info.get("username"), "type": "agent", "name": info.get("name"),
+                                 "owner": info.get("owner"), "world_model": info.get("world_model"),
                                  "world_model_sha256": info.get("world_model_sha256"), "balance": book.balance(agent_id),
                                  "equity": book.equity(agent_id), "pnl": book.equity(agent_id) - STARTING_CREDITS,
                                  "positions": book.positions(agent_id), "brier": fc.get("brier"), "n_scored": int(fc.get("n") or 0),
@@ -615,7 +710,7 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         name = str((book.traders.get(model_id) or {}).get("name") or name)
         persona = byo.make_persona(model_id, name, world_model, list(result.get("personas", [])))
         if model_id not in book.traders:  # commit the world model before it sees a single question
-            await asyncio.to_thread(book.record, kind="agent", trader=model_id, payload={
+            await asyncio.to_thread(record_account, book, kind="agent", trader=model_id, wanted=None, payload={
                 "name": name, "owner": owner, "world_model": persona["world_model"], "world_model_sha256": wm_sha,
                 "origin": byo.ORIGIN, "persona_sha256": sha256_json(persona)})
         await asyncio.to_thread(forecaster._load_cache)  # parse the LLM cache off the event loop
@@ -674,6 +769,27 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         with book.lock:
             view = _byo_view(book, model_id, cached=False)
         return JSONResponse(view, headers=NO_STORE) if view is not None else _error("the backtest did not record a result", 500)
+
+    @app.post("/harvest/api/waitlist")
+    async def waitlist_add(request: Request) -> JSONResponse:
+        if (limited := _limited(waitlist_limiter, request, "sign-ups")) is not None:
+            return limited
+        data, bad = await _body(request)
+        if bad is not None or data is None:
+            return bad or _error("Bad request.", 400)
+        contact = data.get("contact") or data.get("email") or data.get("handle")
+        try:
+            out = await asyncio.to_thread(waitlist.add, contact, data.get("note"))
+        except waitlist.WaitlistError as err:
+            return _error(str(err), 422)
+        return JSONResponse({"ok": True, **out}, headers=NO_STORE)
+
+    @app.get("/harvest/api/waitlist/count")
+    async def waitlist_count() -> JSONResponse:
+        book = await asyncio.to_thread(_book)
+        n = await asyncio.to_thread(waitlist.count)
+        with book.lock:
+            return JSONResponse({"count": n, "waitlist": n, "pilots": pilots(book)}, headers=NO_STORE)
 
     @app.get("/harvest/api/byo/{model_id}")
     async def byo_detail(model_id: str) -> JSONResponse:

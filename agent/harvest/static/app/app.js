@@ -98,7 +98,7 @@
     ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"]];
   function badgeText() {
     const me = load();
-    return me && me.token ? `${me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";
+    return me && me.token ? `${me.username ? "@" + me.username : me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";
   }
   function renderChrome() {
     const page = document.body.dataset.page;
@@ -114,6 +114,7 @@
     try {
       const info = await api(`/me?token=${encodeURIComponent(me.token)}`);
       me.credits = info.balance;
+      if (info.username) me.username = info.username;
       save(me);
     } catch (e) { if (e.status === 401) save(null); }
     document.getElementById("badge").textContent = badgeText();
@@ -127,20 +128,23 @@
     }
   }
 
-  // ------------------------------------------------------------ join (nickname dialog on first use)
+  // ------------------------------------------------------------ join (username dialog on first use)
+  const suggestUsername = () => `pilot-${Math.floor(Math.random() * 0x10000).toString(16).padStart(4, "0")}`;
   function ensurePlayer() {
     const me = load();
     if (me && me.token) return Promise.resolve(me);
     return new Promise((resolve, reject) => {
-      const input = h("input", { type: "text", maxlength: "24", placeholder: "e.g. Maria", "aria-label": "Your nickname", autocomplete: "off" });
+      const input = h("input", { type: "text", maxlength: "24", value: suggestUsername(), "aria-label": "Your username",
+        autocomplete: "off", autocapitalize: "none", spellcheck: "false" });
       const msg = h("p", { class: "err" });
-      const dlg = h("dialog", {}, h("h2", { style: "margin-top:0" }, "Pick a nickname"),
-        h("p", { class: "muted" }, "You get 1,000 free play credits. No sign-up, no real money."), input, msg,
+      const dlg = h("dialog", {}, h("h2", { style: "margin-top:0" }, "Pick a username"),
+        h("p", { class: "muted" }, "It shows on the leaderboard. Lowercase letters, digits, - and _ (3 to 24). You get 1,000 free play credits; no real money."),
+        input, msg,
         h("div", { class: "actions" },
           h("button", { class: "btn primary", onclick: async (ev) => {
             ev.target.disabled = true;
             try {
-              const j = await api("/join", { nickname: input.value || "Guest" });
+              const j = await api("/join", { username: input.value.trim().toLowerCase() });
               const player = { ...j, credits: j.credits };
               save(player); dlg.close(); dlg.remove(); document.getElementById("badge").textContent = badgeText(); resolve(player);
             } catch (e) { msg.textContent = e.message; ev.target.disabled = false; }
@@ -153,7 +157,33 @@
   }
 
   // ------------------------------------------------------------ pages
+  function waitlistBox(stats) {
+    const contact = h("input", { type: "text", maxlength: "254", placeholder: "Email or handle, e.g. @maria", "aria-label": "Email or handle", autocomplete: "email" });
+    const note = h("textarea", { class: "note", maxlength: "280", placeholder: "Anything we should know? (optional)", "aria-label": "Note" });
+    const msg = h("p");
+    const go = h("button", { class: "btn primary", style: "width:100%", onclick: async () => {
+      go.disabled = true;
+      try {
+        const r = await api("/waitlist", { contact: contact.value, note: note.value });
+        msg.className = "good-msg";
+        msg.textContent = r.already ? "You're already on the list. We'll be in touch." : "You're on the list. We'll be in touch.";
+        contact.value = ""; note.value = "";
+        drawStats(stats);
+      } catch (e) { msg.className = "err"; msg.textContent = e.message; }
+      go.disabled = false;
+    } }, "Request early access");
+    return h("div", { class: "card", id: "waitlist" }, h("h2", { style: "margin-top:0" }, "Request early access"),
+      h("p", { class: "muted" }, "Leave an email or a handle and we'll let you in when the next round opens."), contact, note, go, msg);
+  }
+  async function drawStats(node) {
+    try {
+      const c = await api("/waitlist/count");
+      node.textContent = `${c.pilots} ${c.pilots === 1 ? "pilot" : "pilots"}, ${c.waitlist} on the waitlist`;
+    } catch (_) { node.textContent = ""; }
+  }
   function home() {
+    const stats = h("p", { class: "stats" });
+    drawStats(stats);
     show(h("h1", {}, "Every harvest has its prophets. We score them."),
       h("p", { class: "lead" }, "The Crophecy is a prediction game about food prices and farming under heat and drought: AI agents with rival theories bet against you, and we keep score in the open."),
       h("div", { class: "big-btns" },
@@ -161,6 +191,8 @@
         h("a", { class: "btn primary", href: "/app/live" }, "Live"),
         h("a", { class: "btn primary", href: "/app/theory" }, "Write your theory"),
         h("a", { class: "btn primary", href: "/app/leaderboard" }, "Leaderboard")),
+      stats,
+      waitlistBox(stats),
       h("p", { class: "muted small", style: "margin-top:24px" }, "Play credits only: no deposits, no cash-out, no real money."));
   }
 
@@ -236,17 +268,63 @@
     drawPrice(); drawAmounts();
     const views = agentViews(m);
     const names = new Map(state.personas.map((p) => [p.id, p.name]));
-    show(h("a", { href: "/app/markets", class: "muted small" }, "← All markets"),
-      h("h1", {}, m.title), h("p", { class: "muted" }, `${m.region} · ${m.crop} · closes ${m.resolve_month}`),
+    const humanBox = h("div"), agentBox = h("div");
+    let mode = new URLSearchParams(location.search).get("view") === "agent" ? "agent" : "human";
+    const toggle = h("div", { class: "chips view-toggle", role: "tablist" });
+    function setMode(next) {
+      mode = next;
+      toggle.replaceChildren(...[["human", "👤 Human view"], ["agent", "🤖 Agent view"]].map(([k, label]) =>
+        h("button", { class: "chip" + (k === mode ? " on" : ""), role: "tab", "aria-selected": String(k === mode), onclick: () => setMode(k) }, label)));
+      humanBox.hidden = mode !== "human";
+      agentBox.hidden = mode !== "agent";
+      const url = new URL(location.href);
+      if (mode === "agent") url.searchParams.set("view", "agent"); else url.searchParams.delete("view");
+      history.replaceState(null, "", url);
+      if (mode === "agent" && !agentBox.dataset.loaded) { agentBox.dataset.loaded = "1"; drawAgentView(qid, agentBox); }
+    }
+    humanBox.append(...[
       priceBox,
       h("h2", {}, m.status === "open" ? "Place your bet" : "This market is closed"),
       m.status === "open" ? [h("p", { class: "muted" }, "How many play credits?"), amounts, h("div", { class: "yn" }, yesBtn, noBtn)] : null,
       result, position,
       h("h2", {}, "What the agents think"),
       views.length ? views.map((v) => h("div", { class: "agent" }, h("b", {}, names.get(v.persona_id) || v.name || v.persona_id), h("span", { class: "p" }, `${pct(v.p_yes)} YES`),
-        h("span", { class: "why" }, v.rationale || ""))) : h("p", { class: "muted" }, "No agent has weighed in yet."));
+        h("span", { class: "why" }, v.rationale || ""))) : h("p", { class: "muted" }, "No agent has weighed in yet.")].flat().filter(Boolean));
+    show(h("a", { href: "/app/markets", class: "muted small" }, "← All markets"),
+      h("h1", {}, m.title), h("p", { class: "muted" }, `${m.region} · ${m.crop} · closes ${m.resolve_month}`),
+      toggle, humanBox, agentBox);
+    setMode(mode);
     yesBtn.disabled = noBtn.disabled = m.status !== "open";
     drawPosition();
+  }
+
+  // the agent view: what an AI agent is given for one market, barebones
+  // pretty JSON with arrays of plain values kept on one line (whitespace only: the content is exactly the API's)
+  const pretty = (obj) => JSON.stringify(obj, null, 2).replace(/\[\s+([^\[\]{}]*?)\s+\]/g, (_, inner) => `[${inner.split(/,\s+/).join(", ")}]`);
+  const pre = (obj) => h("pre", { class: "json" }, typeof obj === "string" ? obj : pretty(obj));
+  async function drawAgentView(qid, box) {
+    box.replaceChildren(spinner("Loading what the agents see…"));
+    let v, list;
+    try {
+      [v, list] = await Promise.all([api(`/markets/${encodeURIComponent(qid)}/agent`), api("/agents/markets").catch(() => null)]);
+    } catch (e) { box.replaceChildren(failure(e)); return; }
+    const entry = (list && (list.markets || []).find((x) => x.qid === qid)) || v.agents_markets_entry;
+    const w = v.masked.window || [];
+    box.replaceChildren(...[
+      h("p", { class: "muted" }, "This is everything an AI agent gets for this market. Names and dates are hidden in the price data, so it cannot just remember what happened."),
+      h("h2", {}, "1. The masked price window"),
+      w.length ? [h("p", {}, h("b", {}, v.masked.label || "Commodity ?"), " · months t-12 to t0 · price index, 100 at t-12"),
+        pre(w.map(([t, x]) => `${String(t).padEnd(4)}  ${Number(x).toFixed(1)}`).join("\n")),
+        v.masked.question ? h("div", { class: "card" }, h("b", {}, "The question, as the agent reads it: "), v.masked.question) : null]
+        : h("p", { class: "muted" }, "No price window: this is a policy question, so agents get only the question and the news."),
+      h("h2", {}, "2. The news it would get"),
+      v.news.length ? pre(v.news.join("\n")) : h("p", { class: "muted" }, "No headlines for this market yet."),
+      h("h2", {}, "3. Each agent's latest forecast"),
+      v.forecasts.length ? v.forecasts.map((f) => h("div", { class: "agent" }, h("b", {}, `🤖 @${f.username}`),
+        pre({ p_yes: f.p_yes, rationale: f.rationale, model: f.model, timestamp: f.timestamp }))) : h("p", { class: "muted" }, "No agent has weighed in yet."),
+      h("h2", {}, "4. The raw market JSON"),
+      h("p", { class: "muted small" }, "Exactly what ", h("a", { href: "/harvest/api/agents/markets", target: "_blank", rel: "noopener" }, "GET /harvest/api/agents/markets"), " returns for this market:"),
+      entry ? pre(entry) : h("p", { class: "muted" }, "This market is closed, so the agent API no longer lists it.")].flat(2).filter(Boolean));
   }
 
   async function live() {
@@ -314,11 +392,38 @@
       go, out);
   }
 
+  const TYPE_ICON = { human: "👤", agent: "🤖" };
+  const LB_FILTERS = [["all", "All"], ["verified", "✓ Verified"], ["house", "House"], ["baseline", "Baselines"], ["users", "Pilots"]];
+  function accountRow(a, i, labels) {
+    const srcBox = h("div", { class: "sources", hidden: true });
+    const badge = a.verified ? h("button", { class: "vbadge", title: a.verified_label || "Verified", onclick: () => { srcBox.hidden = !srcBox.hidden; } }, "✓") : null;
+    if (a.verified) {
+      srcBox.append(h("p", { class: "small muted" }, `Sourced persona: ${a.verified_label}.`),
+        (a.sources || []).length ? h("ul", {}, a.sources.map((s) => h("li", {}, s.url ? h("a", { href: s.url, target: "_blank", rel: "noopener" }, s.title || s.url) : s.title)))
+          : h("p", { class: "small muted" }, "Sources are listed in the persona file."));
+    }
+    const sub = [a.name && a.name !== a.username ? a.name : null, labels[a.category] || a.category].filter(Boolean).join(" · ");
+    return h("div", { class: "acct" }, h("div", { class: "rank" }, h("span", { class: "n" }, a.brier_holdout == null ? "–" : i + 1),
+      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", `@${a.username}`, badge,
+        h("span", { class: "sub" }, sub)),
+      h("span", { class: "sc" }, a.brier_holdout == null ? h("small", {}, "not scored yet") : [b3(a.brier_holdout),
+        a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])), srcBox);
+  }
+
   async function leaderboard() {
     show(h("h1", {}, "Leaderboard"), spinner("Loading…"));
     let s;
     try { s = await api("/state"); } catch (e) { show(h("h1", {}, "Leaderboard"), failure(e)); return; }
-    const lb = s.leaderboard, models = [...lb.world_models].sort((a, b) => (a.brier_holdout ?? 9) - (b.brier_holdout ?? 9));
+    const lb = s.leaderboard, all = lb.accounts || [], labels = lb.category_labels || {};
+    let filter = new URLSearchParams(location.search).get("filter") || "all";
+    const chips = h("div", { class: "chips" }), rows = h("div");
+    function draw() {
+      chips.replaceChildren(...LB_FILTERS.map(([k, label]) => h("button", { class: "chip" + (k === filter ? " on" : ""), onclick: () => { filter = k; draw(); } },
+        `${label} ${k === "all" ? all.length : (lb.categories || {})[k] || 0}`)));
+      const hits = all.filter((a) => filter === "all" || a.category === filter);
+      rows.replaceChildren(...(hits.length ? hits.map((a, i) => accountRow(a, i, labels)) : [h("p", { class: "muted" }, "Nobody here yet.")]));
+    }
+    draw();
     const verifyOut = h("div");
     const mk = (label, cls, tamper) => h("button", { class: "btn " + cls, onclick: async (ev) => {
       ev.target.disabled = true;
@@ -327,9 +432,6 @@
       ev.target.disabled = false;
     } }, label);
     const range = (r) => h("small", {}, `${b3(r.brier_holdout_lo)} to ${b3(r.brier_holdout_hi)}`);
-    const tagFor = (m) => m.origin === "narrative" ? "narrative" : m.origin && m.origin !== "house" ? (m.origin.includes("human") ? "player" : m.origin) : null;
-    const sources = (m) => m.origin === "narrative" ? h("details", { class: "small muted" }, h("summary", {}, `${m.disclaimer || "Based on public statements; not endorsed."} Sources`),
-      (m.sources || []).map((src) => h("div", {}, h("a", { href: src.url, target: "_blank", rel: "noopener" }, src.note || src.url), ` (${src.date})`))) : null;
     const group = (rows, sub) => rows.map((g) => h("div", { class: "rank" }, h("span", { class: "n" }, g.rank),
       h("span", { class: "nm" }, g.label, g.origin === "narrative" ? h("span", { class: "tag", style: "margin-left:8px" }, "narrative") : null,
         sub(g) ? h("div", { class: "muted small" }, sub(g)) : null),
@@ -337,7 +439,7 @@
     const cutoff = (m) => { if (!m) return ""; const [y, mo] = m.split("-"); return new Date(+y, +mo - 1, 1).toLocaleString("en-GB", { month: "short", year: "numeric" }); };
     show(h("h1", {}, "Leaderboard"),
       lb.cutoff_line ? h("p", { class: "card good" }, lb.cutoff_line) : null,
-      h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden. Lower score is better. The grey range shows how sure we are: when ranges overlap, it is too close to call.`),
+      h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden. Lower score is better; 0.25 is a coin flip. The grey range shows how sure we are: when ranges overlap, it is too close to call.`),
       (lb.by_model || []).length ? [h("h2", {}, "Which AI reads farming best"),
         h("p", { class: "muted small" }, "Each AI runs every persona; its score is the average over them."),
         h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),
@@ -345,12 +447,10 @@
       (lb.by_persona || []).length ? [h("h2", {}, "Which world view reads farming best"),
         h("p", { class: "muted small" }, "Each persona is averaged over every AI. Narrative personas follow what real organisations said in public before the sealed questions; they are based on public statements and not endorsed."),
         ...group(lb.by_persona, () => null)] : null,
-      h("h2", {}, (lb.by_model || []).length ? "Every agent (persona × AI)" : "Every agent"),
-      h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),
-      models.map((m, i) => h("div", { class: "rank" }, h("span", { class: "n" }, i + 1),
-        h("span", { class: "nm" }, m.name, tagFor(m) ? h("span", { class: "tag", style: "margin-left:8px" }, tagFor(m)) : null,
-          m.origin === "human-model" && m.model_label ? h("div", { class: "muted small" }, `ran on ${m.model_label}`) : null, sources(m)),
-        h("span", { class: "sc" }, b3(m.brier_holdout), range(m)))),
+      h("h2", {}, "Every account"),
+      h("p", { class: "muted small" }, "👤 human · 🤖 agent · ✓ verified: a sourced persona of a real organisation or person, ", lb.verified_label || "based on public statements; not endorsed",
+        ". Market-follower copies the market's closing price, so its score is the market's."),
+      chips, rows,
       lb.insight ? h("p", { class: "card" }, lb.insight) : null,
       lb.dev_note ? h("p", { class: "muted small" }, lb.dev_note) : null,
       h("h2", {}, "Can we trust it?"),

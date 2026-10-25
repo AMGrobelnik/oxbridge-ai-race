@@ -109,6 +109,9 @@
     const leg = el("div", "strip-legend");
     leg.append(el("span", null, "NO"), el("span", null, "agents' forecasts · bar = market"), el("span", null, "YES"));
     c.append(leg);
+    const av = el("a", "agent-link", "🤖 Agent view: what the agents see");
+    av.href = `/app/market/${encodeURIComponent(m.qid)}?view=agent`;
+    c.append(av);
     const node = { c, p, chg, vol, chart, mk, dots };
     cardNodes.set(m.qid, node);
     updateCard(m);
