@@ -58,9 +58,12 @@
     const b = e.target.closest("button");
     if (!b) return;
     document.querySelectorAll("#ptabs button").forEach((x) => x.classList.toggle("on", x === b));
-    for (const t of ["mk", "tm", "rank"]) document.getElementById(`tab-${t}`).hidden = t !== b.dataset.tab;
+    for (const t of ["mk", "tm", "th", "rank"]) document.getElementById(`tab-${t}`).hidden = t !== b.dataset.tab;
     if (b.dataset.tab === "rank") renderRank();
     if (b.dataset.tab === "tm" && !tmQuestions.length) loadTm();
+    if (b.dataset.tab === "th" && me.theory && !document.getElementById("th-result").childElementCount) {
+      api(`/harvest/api/byo/${encodeURIComponent(me.theory)}`).then(renderTheory).catch(() => { /* not scored here */ });
+    }
   });
   document.getElementById("spend").addEventListener("click", (e) => {
     const b = e.target.closest("button");
@@ -218,6 +221,81 @@
     }
   });
 
+  // ---------------------------------------------------------------- your theory (bring your own world model)
+  const EXAMPLES = [
+    ["Heat first", "Heat is the binding constraint on Europe's harvest. A hot, dry Mediterranean summer cuts yields faster than farmers can adapt, stocks are thin, and markets under-price that tail. Once prices start rising they keep rising for a season before they ease."],
+    ["Gravity", "Food prices are pulled back to their long-run average. Every spike brings new planting, substitution and demand destruction; every slump cuts supply. Big moves usually reverse within six months, so bet against extremes and trust the calm."],
+    ["Dollar rules", "Food prices are a macro story. A strong dollar and high interest rates make commodities cheaper and push speculators out; when rates fall the money floods back in. Weather is noise next to the dollar and the cost of credit."],
+  ];
+  const thText = document.getElementById("th-text"), thName = document.getElementById("th-name"), thCount = document.getElementById("th-count");
+  const countTheory = () => { thCount.textContent = thText.value.length; };
+  thText.addEventListener("input", countTheory);
+  for (const [name, text] of EXAMPLES) {
+    const b = el("button", null, name);
+    b.type = "button";
+    b.addEventListener("click", () => { thName.value = name; thText.value = text; countTheory(); thText.focus(); });
+    document.getElementById("th-ex").append(b);
+  }
+  const STEPS = ["Committing your theory to the ledger…", "Forecasting sealed quarter 1 of 3…", "Forecasting sealed quarter 2 of 3…", "Forecasting sealed quarter 3 of 3…", "Scoring against the eight agents and the market…"];
+  document.getElementById("th-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("th-btn"), busy = document.getElementById("th-busy"), step = document.getElementById("th-step");
+    btn.disabled = true;
+    busy.hidden = false;
+    document.getElementById("th-result").innerHTML = "";
+    let i = 0;
+    step.textContent = STEPS[0];
+    const timer = setInterval(() => { i = Math.min(i + 1, STEPS.length - 1); step.textContent = STEPS[i]; }, 4000);
+    try {
+      const r = await api("/harvest/api/byo", { method: "POST", body: { token: me.token, name: thName.value, world_model: thText.value } });
+      me.theory = r.model_id;
+      save(me);
+      renderTheory(r);
+    } catch (err) {
+      H.toast(err.message, 4000);
+    } finally {
+      clearInterval(timer);
+      busy.hidden = true;
+      btn.disabled = false;
+    }
+  });
+  function renderTheory(r) {
+    const box = document.getElementById("th-result");
+    box.innerHTML = "";
+    const c = el("div", "panel result");
+    c.append(el("div", "kicker", `${r.name} · Brier on the sealed holdout`), el("div", "big", b3(r.brier_holdout)));
+    const house = (r.field || []).filter((f) => f.kind === "house");
+    const beat = house.filter((f) => f.brier > r.brier_holdout).length;
+    const market = (r.field || []).find((f) => f.kind === "market");
+    c.append(el("div", null, `Rank ${r.rank} of ${r.of}: you beat ${beat} of ${house.length} AI world models${market ? (market.brier > r.brier_holdout ? " and the market" : `; the market scored ${b3(market.brier)}`) : ""}.`));
+    c.append(el("div", "muted", `${r.n} questions over ${(r.cutoffs || []).length} sealed quarters · lower is better · coin flip 0.250${r.cached ? " · this exact theory was already scored" : ""}`));
+    if (r.source === "fallback") c.append(el("div", "faint", "The forecaster was unavailable, so the house heuristic fallback scored it."));
+    const tbl = el("div");
+    tbl.style.cssText = "margin-top:12px;text-align:left";
+    (r.field || []).forEach((f, idx) => tbl.append(rankRow(idx + 1, { id: f.kind === "house" ? `agent:${f.id}` : f.id, name: f.name, sub: f.kind === "house" ? "AI world model" : f.kind === "market" ? "baseline" : "your theory", me: f.kind === "human-model" }, b3(f.brier))));
+    c.append(tbl);
+    for (const x of (r.rationales || []).slice(0, 2)) {
+      const w = el("div", "why");
+      w.append(el("div", "q", x.title));
+      const line = el("div");
+      line.append(document.createTextNode(`You said ${pct(x.p_yes)} YES · it resolved `), el("span", `side ${x.outcome ? "YES" : "NO"}`, x.outcome ? "YES" : "NO"));
+      w.append(line, el("div", "r", `“${x.rationale}”`));
+      c.append(w);
+    }
+    const text = `My world model "${r.name}" scored ${b3(r.brier_holdout)} Brier on Harvest's sealed holdout: rank ${r.rank} of ${r.of} against 8 AI world models and the market. Beat it: ${location.origin}/harvest/play`;
+    const share = el("div", "share");
+    const code = el("code", null, text);
+    const copy = el("button", "btn", "Copy");
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(text); H.toast("Copied"); } catch (_) { H.toast("Select the text to copy it"); }
+    });
+    share.append(code, copy);
+    c.append(share);
+    box.append(c);
+    box.scrollIntoView({ behavior: "smooth" });
+  }
+
   // ---------------------------------------------------------------- rank
   async function renderRank() {
     await refreshMe();
@@ -226,7 +304,7 @@
     mc.innerHTML = "";
     mc.append(el("div", "kicker", me.nickname), el("div", "big", `${signed(me.pnl, 1)} cr`), el("div", "muted", "live credits PnL (marked at market prices)"));
     const rows = [];
-    for (const m of s.world_models) if (m.pnl_live != null || m.origin === "external") rows.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" ? "world model" : "outside agent", v: m.pnl_live || 0 });
+    for (const m of s.world_models) if (m.origin !== "human-model" && (m.pnl_live != null || m.origin === "external")) rows.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" ? "world model" : "outside agent", v: m.pnl_live || 0 });
     for (const h of s.humans) rows.push({ id: h.user_id, name: h.nickname, sub: "human", v: h.pnl || 0, me: h.user_id === me.user_id });
     rows.sort((a, b) => b.v - a.v);
     const live = document.getElementById("rank-live");
@@ -237,7 +315,8 @@
     const tm = document.getElementById("rank-tm");
     tm.innerHTML = "";
     const t2 = [];
-    for (const m of s.world_models) if (m.brier_holdout != null) t2.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" ? "world model · full holdout" : "outside agent", v: m.brier_holdout });
+    const sub = { house: "world model · full holdout", "human-model": "human-written theory · full holdout" };
+    for (const m of s.world_models) if (m.brier_holdout != null) t2.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: sub[m.origin] || "outside agent", v: m.brier_holdout, me: me.theory && m.persona_id === me.theory });
     for (const h of s.humans) if (h.brier != null) t2.push({ id: h.user_id, name: h.nickname, sub: `human · ${h.n} questions`, v: h.brier, me: h.user_id === me.user_id });
     t2.sort((a, b) => a.v - b.v);
     t2.slice(0, 20).forEach((r, i) => tm.append(rankRow(i + 1, r, b3(r.v))));
