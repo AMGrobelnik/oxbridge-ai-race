@@ -6,6 +6,7 @@ Run it without a command to see every command and feature in this project.
 import argparse
 import asyncio
 import inspect
+import socket
 import sys
 
 from . import commands
@@ -35,8 +36,26 @@ def serve_http(args: argparse.Namespace) -> int:
 
     # 127.0.0.1 = only this computer can connect. Set HOST=0.0.0.0 when you deploy.
     host = os.environ.get("HOST") or "127.0.0.1"
-    uvicorn.run("agent.server:app", host=host, port=get_port(), reload=args.reload)
+    if args.reload:
+        uvicorn.run("agent.server:app", host=host, port=get_port(), reload=True)
+        return 0
+    # SO_REUSEPORT lets a new server bind the port while the old one still serves, so a redeploy can start the
+    # new process, wait until it listens, then stop the old one: no window where the port is closed.
+    sock = reuseport_socket(host, get_port())
+    config = uvicorn.Config("agent.server:app", host=host, port=get_port())
+    uvicorn.Server(config).run(sockets=[sock])
     return 0
+
+
+def reuseport_socket(host: str, port: int) -> socket.socket:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if hasattr(socket, "SO_REUSEPORT"):
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    sock.bind((host, port))
+    sock.set_inheritable(True)
+    return sock
 
 
 def main(argv: list[str] | None = None) -> int:

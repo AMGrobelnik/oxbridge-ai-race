@@ -36,7 +36,7 @@ from agent.challenge import game
 from agent.challenge.ratelimit import RateLimiter, client_ip
 from agent.harvest import accounts, baseline_models, byo, follow, forecaster, ledger, market, news, scoring, waitlist
 from agent.harvest import fund as fund_mod
-from agent.harvest.market import STARTING_CREDITS, LiveBook, MarketError, clamp
+from agent.harvest.market import STARTING_CREDITS, LiveBook, MarketError, clamp, clip_words
 from agent.sealed.hashing import sha256_json
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "harvest" / "data"
@@ -660,7 +660,7 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         if spend is None:
             return _error("spend must be a number", 422)
         p_yes = _num(data.get("p_yes"))
-        rationale = str(data.get("rationale") or "")[:200] or None
+        rationale = clip_words(str(data.get("rationale") or "")) or None
         try:
             trade, entry = await asyncio.to_thread(book.place_bet, trader, str(data.get("qid") or ""), side,  # type: ignore[arg-type]
                                                    round(clamp(spend, SPEND_MIN, SPEND_MAX), 2),

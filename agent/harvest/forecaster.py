@@ -93,6 +93,49 @@ def unmask(text: str, mask: Mask) -> str:
     return _LABEL_RE.sub(lambda m: names.get(m.group(0), m.group(0)), text)
 
 
+_INDEX_NUM = re.compile(r"(?:\bindex\s+)?(?<![\w$.,])(\d{2,4}\.\d{1,2})(?![\d%])")
+_fixture_cache: dict[str, PriceFixture] = {}
+
+
+def _live_fixture() -> PriceFixture | None:
+    if "f" not in _fixture_cache:
+        try:
+            _fixture_cache["f"] = prices.load_fixture()
+        except (OSError, ValueError, KeyError):
+            return None
+    return _fixture_cache["f"]
+
+
+def _money(value: float, unit: str) -> str:
+    if unit == "USc/lb":
+        return f"{value:,.0f}¢/lb"
+    return f"${value:,.0f}/mt" if unit == "USD/mt" else f"{value:,.0f} {unit}"
+
+
+def humanize_rationale(text: str, q: dict[str, Any] | None, fixture: PriceFixture | None = None) -> str:
+    """An agent reads prices as an index (100 at t-12), so its rationale may say "a rise to 175.1". For people that
+    number is meaningless next to "$247/mt": this rewrites index levels in the rationale of a price question as prices."""
+    if not text or not q or q.get("kind") != "hard" or not q.get("series") or not q.get("cutoff"):
+        return text
+    fixture = fixture or _live_fixture()
+    sid = str(q["series"])
+    if not fixture or sid not in fixture.get("series", {}):
+        return text
+    win = visible_window(fixture, sid, str(q["cutoff"]))
+    if not win or not win[0][1]:
+        return text
+    ref = float(win[0][1])
+    idx = [v / ref * 100.0 for _, v in win]
+    lo, hi = 0.5 * min(idx), 1.6 * max(idx)
+    unit = prices.SERIES.get(sid, ("", "USD/mt"))[1]
+
+    def sub(m: re.Match[str]) -> str:
+        x = float(m.group(1))
+        return _money(x * ref / 100.0, unit) if lo <= x <= hi else m.group(0)
+
+    return _INDEX_NUM.sub(sub, text)
+
+
 # ---------------------------------------------------------------- prompt
 def _hard(questions: list[QuestionInstance]) -> list[QuestionInstance]:
     return [q for q in questions if q["kind"] == "hard" and q.get("series") and q.get("rule") and q.get("target") is not None]

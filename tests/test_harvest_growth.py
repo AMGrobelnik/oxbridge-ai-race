@@ -54,7 +54,7 @@ def test_market_card_json_and_png(client):
     qid = first_qid(client)
     card = client.get(f"/harvest/api/card/market/{qid}").json()
     assert card["headline"].startswith("The market says ") and card["tagline"] == "Every harvest has its prophets. We score them."
-    assert card["image_url"] == f"https://crophecy.example/harvest/og/market/{qid}.png"
+    assert card["image_url"].startswith(f"https://crophecy.example/harvest/og/market/{qid}.png?v=")  # versioned: a new take is a new URL
     r = client.get(f"/harvest/og/market/{qid}.png")
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
     assert Image.open(io.BytesIO(r.content)).size == (1200, 630)
@@ -65,11 +65,13 @@ def test_market_card_json_and_png(client):
 def test_market_page_has_open_graph_tags(client):
     qid = first_qid(client)
     html = client.get(f"/app/market/{qid}").text
-    assert f'<meta property="og:image" content="https://crophecy.example/harvest/og/market/{qid}.png">' in html
+    assert f'<meta property="og:image" content="https://crophecy.example/harvest/og/market/{qid}.png?v=' in html
     assert '<meta name="twitter:card" content="summary_large_image">' in html
     assert f'<link rel="canonical" href="https://crophecy.example/app/market/{qid}">' in html
     assert "/harvest/static/app/share.js" in html and html.count("<title>") == 1
-    assert "og:image" not in client.get("/app/market/nope").text  # unknown market: plain page, no tags
+    missing = client.get("/app/market/nope")
+    assert missing.status_code == 404 and "og:image" not in missing.text  # unknown market: the page (it says not found), no tags, a real 404
+    assert client.get("/app/agent/nobody-at-all").status_code == 404
 
 
 def test_agent_card_png_and_page(client):

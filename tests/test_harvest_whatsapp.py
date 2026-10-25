@@ -70,15 +70,18 @@ def test_help_and_unknown_crop():
 def test_reply_prefers_region_and_gives_probability_reason_confidence_link():
     out = farmer_chat.reply("will wheat go up in France by harvest?", base_url="https://x.test")
     assert out["crop"] == "wheat" and out["region"] == "France"
-    assert out["probability"] == pytest.approx(market.live_book().price("wheat-down@2026-06"), abs=1e-3)
-    assert "below $222" in out["reply"] and "Chance:" in out["reply"] and "Why:" in out["reply"]
+    # "go up" gets the price-rise market even though the only France-labelled wheat market asks about a fall
+    assert out["probability"] == pytest.approx(market.live_book().price("wheat-up@2026-06"), abs=1e-3)
+    assert "above $272" in out["reply"] and "Chance:" in out["reply"] and "Why:" in out["reply"]
+    down = farmer_chat.reply("will wheat fall in France?")
+    assert down["probability"] == pytest.approx(market.live_book().price("wheat-down@2026-06"), abs=1e-3) and "below $222" in down["reply"]
     assert out["confidence"] in ("high", "medium", "low") and "Confidence:" in out["reply"]
     assert out["link"] == "https://x.test/app/farmer?crop=wheat&region=France"
 
 
 def test_reply_falls_back_to_closest_region():
     out = farmer_chat.reply("maize Romania")
-    assert out["probability"] is not None and "No Romania market for maize yet; the closest is Spain" in out["reply"]
+    assert out["probability"] is not None and "No Romania market for maize asks this yet; the closest is Spain" in out["reply"]
 
 
 def test_confidence_from_forecaster_agreement():

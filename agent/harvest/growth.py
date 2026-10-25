@@ -6,6 +6,7 @@ explicit allow-list.
 """
 
 import csv
+import hashlib
 import io
 import re
 from collections import defaultdict
@@ -24,6 +25,11 @@ FAO_PREFIX = "narr-fao"
 _SUBJECT = re.compile(r"^Will (.+?) \(now", re.I)
 _DOWN = re.compile(r"\b(below|lower|under|less|fall)\b", re.I)
 _UP = re.compile(r"\b(above|higher|more|over|rise)\b", re.I)
+
+
+def _versioned(url: str, *parts: Any) -> str:
+    """The image URL plus a short hash of what the card shows, so an edge or link-preview cache never serves an old take."""
+    return f"{url}?v={hashlib.sha256(repr(parts).encode()).hexdigest()[:8]}"
 
 
 def pct(p: float) -> int:
@@ -49,7 +55,7 @@ def market_card(view: dict[str, Any], *, base_url: str) -> dict[str, Any]:
     if view.get("status") == "resolved":
         stats.insert(0, "Resolved " + ("YES" if view.get("outcome") == 1 else "NO"))
     return {"kind": "market", "id": qid, "name": NAME, "tagline": TAGLINE, "headline": f"The market says {take(view['title'], view['p_yes'])}",
-            "subtitle": view["title"], "p_yes": view["p_yes"], "stats": stats, "url": page, "image_url": f"{base_url}/harvest/og/market/{qid}.png",
+            "subtitle": view["title"], "p_yes": view["p_yes"], "stats": stats, "url": page, "image_url": _versioned(f"{base_url}/harvest/og/market/{qid}.png", view["title"], pct(view["p_yes"])),
             "description": f"{view['title']} The market says {pct(view['p_yes'])}% YES. {TAGLINE}"}
 
 
@@ -106,7 +112,7 @@ def agent_card(account: dict[str, Any], take_: dict[str, Any] | None, *, rank_of
         sub, p = ("A human forecaster" if icon == "human" else "An AI forecaster") + " scored in the open.", None
     ident = account.get("username") or account["id"]
     return {"kind": "agent", "id": account["id"], "name": NAME, "tagline": TAGLINE, "headline": headline, "subtitle": sub, "p_yes": p, "stats": stats,
-            "type": icon, "username": ident, "qid": take_["qid"] if take_ else None, "url": f"{base_url}/app/agent/{ident}", "image_url": f"{base_url}/harvest/og/agent/{ident}.png",
+            "type": icon, "username": ident, "qid": take_["qid"] if take_ else None, "url": f"{base_url}/app/agent/{ident}", "image_url": _versioned(f"{base_url}/harvest/og/agent/{ident}.png", headline, sub, stats),
             "description": f"{headline}. {sub} {TAGLINE}"}
 
 
@@ -177,6 +183,8 @@ def season(book: LiveBook, *, personas_verified: set[str]) -> dict[str, Any]:
         if info is None and not tid.startswith("agent:"):
             continue
         kind = "human" if info and info["kind"] == "human" else "agent"
+        if kind == "human" and accounts.is_test(book.username_of(tid)):
+            continue  # our own QA accounts are not in the season
         pairs = [((stated[(tid, q)] - float(book.markets[q]["outcome"])) ** 2) for q in resolved if (tid, q) in stated]
         pid = tid.removeprefix("agent:")
         rows.append({

@@ -105,9 +105,14 @@ def test_handles() -> frozenset[str]:
         return frozenset()
 
 
+TEST_PREFIXES = ("qa-",)
+"""Handles our QA agents pick for themselves (qa-judge-d, qa-e2e-...): test accounts without a list entry."""
+
+
 def is_test(username: str | None) -> bool:
     """True for a human account flagged as a test account: shown with 🧪 and never counted as a pilot."""
-    return bool(username) and str(username).lower() in test_handles()
+    name = str(username or "").lower()
+    return bool(name) and (name in test_handles() or name.startswith(TEST_PREFIXES))
 
 
 def is_swarm(info: dict[str, Any] | None) -> bool:
@@ -180,14 +185,16 @@ def board(world_models: list[dict[str, Any]], *, personas: list[dict[str, Any]],
           baselines: list[dict[str, Any]], humans: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Every account on one leaderboard, best holdout Brier first, unscored last; each row has a category and type."""
     index = persona_index(personas)
+    tester_names = {t.get("nickname") for t in traders.values() if t.get("kind") == "human" and is_test(t.get("username"))} - {None, ""}
     rows: list[dict[str, Any]] = []
     for m in world_models:
         pid = str(m["persona_id"])
         info = traders.get(pid)
         base = {"id": pid, "name": m.get("name", pid), "color": m.get("color"), "origin": m.get("origin"), **_score_fields(m)}
         if info is not None:  # registered through the agent API or "write your theory"
+            by_tester = bool(info.get("owner")) and info.get("owner") in tester_names  # a theory a test account wrote is a test too
             rows.append({**base, "username": info.get("username") or system_username(pid), "type": "agent",
-                         "category": "swarm" if is_swarm(info) else "agents", "verified": False, "owner": info.get("owner")})
+                         "category": "swarm" if is_swarm(info) else "test" if by_tester else "agents", "verified": False, "owner": info.get("owner")})
             continue
         persona = _persona_for(pid, index)
         row = {**base, "username": system_username(pid), "type": "agent", "category": "house", "verified": False}

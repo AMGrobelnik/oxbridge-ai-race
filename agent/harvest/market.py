@@ -20,6 +20,7 @@ from agent.sealed.hashing import sha256_json
 
 from . import accounts as acct
 from . import follow, ledger, lmsr
+from .forecaster import humanize_rationale
 from .types import BetIntent, LedgerEntry, MarketState, Payout, Persona, QuestionInstance, Side, Trade
 
 DEFAULT_B = 100.0
@@ -46,6 +47,15 @@ def _now() -> str:
 
 def clamp(x: float, lo: float, hi: float) -> float:
     return min(max(x, lo), hi)
+
+
+def clip_words(text: str, n: int = 200) -> str:
+    """At most n characters, cut at a word boundary with an ellipsis. Text that arrives exactly n long was cut
+    mid-word upstream, so it is trimmed back to its last whole word too."""
+    text = " ".join(str(text or "").split())
+    if len(text) < n:
+        return text
+    return text[: n - 1].rsplit(" ", 1)[0].rstrip(",;:-") + "…"
 
 
 def live_b() -> float:
@@ -318,9 +328,12 @@ class LiveBook(Book):
 
     def _forecast_view(self, f: dict[str, Any]) -> dict[str, Any]:
         persona = next((p for p in self.personas if p["id"] == f["persona_id"]), None)
+        rationale = humanize_rationale(clip_words(f.get("rationale", "")), self.meta.get(f["qid"]))  # type: ignore[arg-type]
+        if rationale.lower().rstrip(".") == "world-model lean on the prior":
+            rationale = "No researched forecast on this question yet: it leans on its world view."
         return {"persona_id": f["persona_id"], "name": persona["name"] if persona else f["persona_id"],
                 "color": persona["color"] if persona else "#888888", "p_yes": f["p_yes"],
-                "rationale": f.get("rationale", ""), "source": f.get("source", ""), "at": f.get("at")}
+                "rationale": rationale, "source": f.get("source", ""), "at": f.get("at")}
 
     def set_live_forecasts(self, persona_id: str, rows: list[tuple[str, float, str]], *, source: str = "live") -> int:
         """Replace `persona_id`'s forecast on each open qid with a live re-forecast (p_yes, rationale), stamped now."""
@@ -331,7 +344,7 @@ class LiveBook(Book):
                 if qid not in self.markets or self.markets[qid]["status"] != "open":
                     continue
                 view = self._forecast_view({"persona_id": persona_id, "qid": qid, "p_yes": round(clamp(float(p_yes), 0.01, 0.99), 4),
-                                            "rationale": str(rationale)[:200], "source": source, "at": at})
+                                            "rationale": clip_words(rationale), "source": source, "at": at})
                 fs = [f for f in self.agent_forecasts.get(qid, []) if f["persona_id"] != persona_id]
                 self.agent_forecasts[qid] = [*fs, view]
                 n += 1
@@ -342,6 +355,18 @@ class LiveBook(Book):
 
     def replay_ledger(self) -> None:
         for e in ledger.all_entries():
+            try:
+                self._apply(e, replaying=True)
+            except MarketError as err:
+                self.replay_errors.append(f"entry {e['seq']}: {err}")
+            self.ledger_head = (e["seq"], e["hash"])
+
+    def catch_up(self) -> None:
+        """Applies entries another process appended after this book's head. During a zero-downtime redeploy the old and
+        the new server overlap for a moment; this keeps the new book equal to the chain before it writes."""
+        if ledger.head()[0] <= self.ledger_head[0]:
+            return
+        for e in ledger.entries_after(self.ledger_head[0]):
             try:
                 self._apply(e, replaying=True)
             except MarketError as err:
@@ -376,7 +401,7 @@ class LiveBook(Book):
             trade = self.buy(trader, p["qid"], p["side"], p["spend"], cutoff=p.get("cutoff"), at=e["at"])
             for k in ("rationale", "copied_from"):
                 if p.get(k):
-                    trade[k] = p[k]  # type: ignore[literal-required]
+                    trade[k] = clip_words(p[k]) if k == "rationale" else p[k]  # type: ignore[literal-required]
             return trade
         elif e["kind"] == "resolve" and replaying and p.get("qid") in self.markets and self.markets[p["qid"]]["status"] == "open":
             self.resolve(p["qid"], int(p["outcome"]))
@@ -384,6 +409,7 @@ class LiveBook(Book):
 
     def record(self, *, kind: str, trader: str, payload: dict[str, Any]) -> LedgerEntry:
         with self.lock:
+            self.catch_up()
             entry = ledger.append(kind=kind, trader=trader, payload=payload)
             self._apply(entry)
             self.ledger_head = (entry["seq"], entry["hash"])
@@ -422,6 +448,7 @@ class LiveBook(Book):
     def _place(self, trader: str, qid: str, side: Side, spend: float, *, p_yes: float | None = None, rationale: str | None = None,
                extra: dict[str, Any] | None = None) -> tuple[Trade, LedgerEntry]:
         with self.lock:
+            self.catch_up()
             trade = self.buy(trader, qid, side, spend)
             payload: dict[str, Any] = {"qid": qid, "side": side, "spend": trade["spend"], "shares": trade["shares"], "price_after": trade["price_after"], **(extra or {})}
             if p_yes is not None:

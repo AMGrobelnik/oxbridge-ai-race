@@ -76,11 +76,13 @@ def _pick(views: list[dict[str, Any]], crop: str, region: str | None, direction:
     if not cands:
         return None
 
-    def score(v: dict[str, Any]) -> tuple[int, int, int, float]:
+    def score(v: dict[str, Any]) -> tuple[int, int, int, int, float]:
+        # A crop price is one world price, so "will my price go up" must get a price-rise market even when the only
+        # market labelled with the farmer's region asks about a fall; the region breaks ties, then Europe-wide ones.
         title = str(v.get("title", "")).lower()
         moves = "above" if " above " in title else "below" if " below " in title else ""
-        return (int(bool(region) and v.get("region") == region), int(v.get("kind") == "hard"),
-                int(direction is not None and moves == direction), float(v.get("volume") or 0))
+        return (int(direction is not None and moves == direction), int(v.get("kind") == "hard"),
+                int(bool(region) and v.get("region") == region), int(v.get("region") in ("EU", "EU importers")), float(v.get("volume") or 0))
 
     return max(cands, key=score)
 
@@ -145,7 +147,7 @@ def reply(text: str, *, base_url: str = "") -> dict[str, Any]:
         return out | {"crop": crop, "region": region, "reply": f"I don't have a live forecast for {crop} right now. {UNKNOWN_CROP}"}
     link = farmer_link(base_url, crop, region)
     found = answer.get("region")
-    note = f"No {region} market for {crop} yet; the closest is {found}. " if region and found and found != region else ""
+    note = f"No {region} market for {crop} asks this yet; the closest is {found}. " if region and found and found != region else ""
     lines = [
         f"{note}{answer['question'] or crop.capitalize()}".strip(),
         f"Chance: {_pct(answer['p'])}",

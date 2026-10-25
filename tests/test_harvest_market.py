@@ -196,6 +196,39 @@ def test_live_book_seeds_live_and_soft_markets_and_replays_ledger():
     assert again.trader_for("tok") == "user:a" and again.balance("user:a") == pytest.approx(960)
 
 
+def test_live_book_catches_up_with_another_process_before_it_writes():
+    """During a zero-downtime redeploy two servers share the ledger for a moment: the new book must apply the old
+    server's late bets before its own, so balances and prices match a fresh replay of the chain."""
+    book = market.live_book()
+    book.record(kind="join", trader="user:a", payload={"nickname": "a", "token_sha256": market.token_sha("tok")})
+    market.reset_live_book()
+    old = market.live_book()  # the other process, with its own copy of the book
+    market.reset_live_book()
+    new = market.live_book()
+    old.place_bet("user:a", "a@2026-06", "YES", 40)  # lands on the old server after the new one replayed
+    new.place_bet("user:a", "a@2026-06", "YES", 10)
+    market.reset_live_book()
+    fresh = market.live_book()
+    assert new.balance("user:a") == pytest.approx(fresh.balance("user:a")) == pytest.approx(950)
+    assert new.price("a@2026-06") == pytest.approx(fresh.price("a@2026-06"))
+
+
+def test_clip_words_cuts_at_a_word():
+    assert market.clip_words("short reason") == "short reason"
+    cut = market.clip_words("requires sustained support " * 20, 60)
+    assert len(cut) <= 60 and cut.endswith("support…")
+
+
+def test_rationales_quote_prices_not_the_masked_index():
+    from agent.harvest import forecaster
+
+    fixture = {"series": {"PWHEAMTUSDM": {"points": [(f"2025-{m:02d}", 200.0 + m) for m in range(9, 13)] + [(f"2026-{m:02d}", 220.0 + m) for m in range(1, 10)]}}}
+    q = {"kind": "hard", "series": "PWHEAMTUSDM", "cutoff": "2026-09"}  # window starts at 209: index 100 = $209
+    text = forecaster.humanize_rationale("A +10% rise to 120.5 in six months, index 130.0 at most; 6 months, 21%.", q, fixture)
+    assert text == "A +10% rise to $252/mt in six months, $272/mt at most; 6 months, 21%."
+    assert forecaster.humanize_rationale("rise to 120.5", {"kind": "soft"}, fixture) == "rise to 120.5"
+
+
 def test_house_step_trades_towards_forecast():
     book = market.live_book()
     trade = book.house_step()

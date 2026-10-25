@@ -32,6 +32,7 @@ APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app
 # /app/market/{qid} and /app/agent/{id} are served by harvest_growth.py, which adds Open Graph tags
 PRICES_FROM = "2021-01"
 WAITLIST_DIR = Path(__file__).resolve().parents[2] / "waitlist"
+FAVICON = Path(__file__).resolve().parents[2] / "frontend" / "assets" / "crophecy-favicon.svg"
 WAITLIST_ASSETS = {"hero-loop.mp4": "video/mp4", "hero.jpg": "image/jpeg"}
 _WAITLIST_CONST = {"SUPABASE_URL": re.compile(r"const SUPABASE_URL = '[^']*';"), "SUPABASE_ANON_KEY": re.compile(r"const SUPABASE_ANON_KEY = '[^']*';")}
 _story_cache: dict[str, Any] = {}
@@ -174,6 +175,10 @@ def register(app: FastAPI) -> None:
         except ImportError:
             return JSONResponse({"error": "QR codes need the segno package (requirements.txt)."}, status_code=501)
         return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "no-cache"})
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon() -> FileResponse:  # browsers ask for it on every page; SVG is fine for every current browser
+        return FileResponse(FAVICON, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
 
     @app.get("/harvest/api/playurl")
     async def play_url(request: Request) -> JSONResponse:

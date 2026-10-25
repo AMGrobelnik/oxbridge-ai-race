@@ -21,7 +21,7 @@ from agent.challenge.ratelimit import RateLimiter
 from agent.harvest import accounts, growth
 from agent.routes import harvest as api
 from agent.routes.challenge import public_base_url
-from agent.routes.harvest_pages import STATIC_DIR, _page
+from agent.routes.harvest_pages import STATIC_DIR, _page, versioned
 from agent.routes.public_mode import request_limiter
 
 PAGES = {"/app/season": "app/season.html", "/app/developers": "app/developers.html"}
@@ -157,8 +157,9 @@ def register(app: FastAPI) -> None:
         _page(app, path, name)
 
     async def page_with_card(request: Request, name: str, card: dict[str, Any] | None) -> HTMLResponse:
-        body = (STATIC_DIR / name).read_text()
-        return HTMLResponse(growth.with_meta(body, card) if card else body, headers={"Cache-Control": "no-cache"})
+        """The page with its share-card meta; an unknown market or agent gets the same page (it says "not found") as a real 404."""
+        body = versioned((STATIC_DIR / name).read_text())
+        return HTMLResponse(growth.with_meta(body, card) if card else body, status_code=200 if card else 404, headers={"Cache-Control": "no-cache"})
 
     @app.get("/app/market/{qid:path}", response_class=HTMLResponse)
     async def market_page(request: Request, qid: str) -> HTMLResponse:

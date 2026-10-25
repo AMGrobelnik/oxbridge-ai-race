@@ -54,17 +54,29 @@ def latest_agents(view: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _agent(f: dict[str, Any]) -> dict[str, Any]:
     return {"persona_id": f["persona_id"], "name": f.get("name", f["persona_id"]), "color": f.get("color"),
-            "p_yes": round(float(f["p_yes"]), 4), "reason": str(f.get("rationale") or "")[:200]}
+            "p_yes": round(float(f["p_yes"]), 4), "reason": str(f.get("rationale") or "")}
+
+
+_UNLIKELY = re.compile(r"\b(unlikely|improbable|implausible|doubtful)\b", re.I)
+_LIKELY = re.compile(r"(?<!un)\b(likely|probable|plausible)\b", re.I)
+
+
+def reads_the_other_way(f: dict[str, Any]) -> bool:
+    """True when a forecast's reason argues against its own number (an LLM that put 80% on a move it calls "unlikely")."""
+    p, text = float(f["p_yes"]), str(f.get("rationale") or "")
+    return (p >= 0.6 and bool(_UNLIKELY.search(text)) and not _LIKELY.search(text)) or (p <= 0.4 and bool(_LIKELY.search(text)) and not _UNLIKELY.search(text))
 
 
 def spread(view: dict[str, Any]) -> dict[str, Any] | None:
-    """Spread of the agents' latest forecasts on one market, or None with fewer than two agents."""
+    """Spread of the agents' latest forecasts on one market, or None with fewer than two agents. The bull and the bear
+    quoted are the most extreme agents whose reason agrees with their number."""
     agents = latest_agents(view)
     if len(agents) < 2:
         return None
     ps = [float(f["p_yes"]) for f in agents]
-    hi = max(agents, key=lambda f: float(f["p_yes"]))
-    lo = min(agents, key=lambda f: float(f["p_yes"]))
+    quotable = [f for f in agents if not reads_the_other_way(f)] or agents
+    hi = max(quotable, key=lambda f: float(f["p_yes"]))
+    lo = min(quotable, key=lambda f: float(f["p_yes"]))
     return {"n_agents": len(ps), "mean": round(statistics.fmean(ps), 4), "std": round(statistics.pstdev(ps), 4),
             "range": round(max(ps) - min(ps), 4), "bull": _agent(hi), "bear": _agent(lo)}
 
@@ -132,13 +144,23 @@ def confidence(s: dict[str, Any] | None) -> dict[str, Any]:
             "text": f"{lvl.capitalize()}: {words[lvl]} (spread {std * 100:.0f} points across {s['n_agents']} agents)."}
 
 
+def _rise_market(views: list[dict[str, Any]], crops: tuple[str, ...], region: str) -> dict[str, Any] | None:
+    """The open "price above" market for the crop that best fits the farmer: one labelled with their region, else a
+    Europe-wide one, else the nearest (smallest) rise. The price is a world price; the region only picks the label."""
+    rises = [v for v in views if v.get("status") == "open" and v.get("kind", "hard") == "hard" and v.get("crop") in crops
+             and " above " in str(v.get("title", "")) and v.get("base_value") and v.get("target")]
+    if not rises:
+        return None
+    return min(rises, key=lambda v: (v.get("region") != region, v.get("region") not in EUROPE_WIDE, float(v["target"]) / float(v["base_value"])))
+
+
 def farmer_context(views: list[dict[str, Any]], crop: str, region: str, data: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """Everything the farmer answer needs, or None for an unknown crop or a missing market."""
     spec = CROPS.get(crop)
     if spec is None:
         return None
     by_spec = {str(v["qid"]).split("@")[0]: v for v in views}
-    view = by_spec.get(spec["market"])
+    view = _rise_market(views, spec["crops"], region) or by_spec.get(spec["market"])
     if view is None:
         return None
     s = spread(view)

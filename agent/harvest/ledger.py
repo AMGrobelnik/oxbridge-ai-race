@@ -140,6 +140,12 @@ def all_entries(limit: int = 100_000) -> list[LedgerEntry]:
         return [_row(r) for r in conn.execute("SELECT * FROM entries ORDER BY seq ASC LIMIT ?", (limit,))]
 
 
+def entries_after(seq: int) -> list[LedgerEntry]:
+    """Entries with a seq above `seq`, oldest first: what another server process appended since this one last looked."""
+    with connect() as conn:
+        return [_row(r) for r in conn.execute("SELECT * FROM entries WHERE seq > ? ORDER BY seq ASC", (seq,))]
+
+
 def recent_entries(limit: int = 50) -> list[LedgerEntry]:
     with connect() as conn:
         rows = [_row(r) for r in conn.execute("SELECT * FROM entries ORDER BY seq DESC LIMIT ?", (limit,))]
