@@ -261,7 +261,7 @@
           h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, titles.get(t.qid) || t.qid), h("span", { class: "muted small" }, ` · ${ago(t.at)}`),
           t.rationale ? h("div", { class: "muted", style: "font-size:15px;margin-top:4px" }, t.rationale) : null)));
       } catch (e) { feed.replaceChildren(failure(e)); }
-      try { news.replaceChildren(...newsItems(await api("/news"))); } catch (e) { news.replaceChildren(h("p", { class: "muted" }, e.status === 404 ? "News is coming soon." : e.message)); }
+      try { news.replaceChildren(...newsItems(await api("/news?limit=8"))); } catch (e) { news.replaceChildren(h("p", { class: "muted" }, e.status === 404 ? "News is coming soon." : e.message)); }
     }
     tick();
     const timer = setInterval(() => { if (!document.hidden) tick(); }, 5000);
@@ -273,10 +273,10 @@
     return arr.slice(0, 12).map((n) => {
       const title = typeof n === "string" ? n : n.title || n.headline || "";
       const url = typeof n === "string" ? null : n.url || n.link;
-      const tags = typeof n === "string" ? [] : [].concat(n.tags || n.tag || n.topics || []).map((t) => (typeof t === "string" ? t : t.name || t.label || ""));
+      const tags = typeof n === "string" ? [] : [].concat(n.commodities || [], n.regions || [], n.tags || []).map((t) => (typeof t === "string" ? t : t.name || t.label || ""));
       return h("div", { class: "feed-item" }, tags.filter(Boolean).slice(0, 3).map((t) => h("span", { class: "tag" }, t)),
         url ? h("a", { href: url, target: "_blank", rel: "noopener" }, title) : title,
-        n.published || n.at || n.date ? h("span", { class: "muted small" }, ` · ${ago(n.published || n.at || n.date)}`) : null);
+        n.published_at ? h("span", { class: "muted small" }, ` · ${ago(n.published_at)}`) : null);
     });
   }
 
