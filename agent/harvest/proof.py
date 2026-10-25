@@ -14,7 +14,7 @@ from . import scoring
 START = 1000.0
 """Every agent starts each quarter's fresh book with this many play credits (market.STARTING_CREDITS)."""
 SCORED = ("dev", "holdout")
-ECE_RESAMPLES = 1000
+ECE_RESAMPLES = 500
 COMMODITY = {"wheat": "wheat", "maize": "maize", "olive": "olive oil", "coffee": "coffee", "cocoa": "cocoa",
              "sugar": "sugar", "sunoil": "sunflower oil", "rice": "rice"}
 PAYERS = [
@@ -174,10 +174,12 @@ def calibration(result: dict[str, Any] | None, agent: str, *, split: str = "all"
 
 def calibration_summary(result: dict[str, Any] | None, *, split: str = "all", bins: int = 10) -> dict[str, Any]:
     rows = []
+    all_pairs = _forecast_pairs(result, split) if result else {}
     for a in calibration_agents(result):
-        c = calibration(result, a["id"], split=split, bins=bins)
-        if c:
-            rows.append({**a, **{k: c[k] for k in ("n", "ece", "ece_lo", "ece_hi", "brier")}})
+        pairs = all_pairs.get(a["id"], [])
+        lo, hi = _ece_interval(pairs, bins) if pairs else (None, None)
+        rows.append({**a, "n": len(pairs), "ece": _r(_ece(pairs, bins)) if pairs else None, "ece_lo": _r(lo), "ece_hi": _r(hi),
+                     "brier": _r(scoring.mean_brier(pairs))})
     rows.sort(key=lambda r: (r["ece"] is None, r["ece"] or 0.0))
     return {"split": split, "bins": bins, "agents": rows, "interval_level": scoring.CI_LEVEL}
 

@@ -37,8 +37,8 @@
   const fail = (e) => h("p", { class: "err" }, e.message || String(e));
   const css = `
     .race { position:relative; margin:12px 0 4px; }
-    .race .r { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:center; gap:10px; transition:transform .6s ease; }
-    .race .nm { width:150px; flex:none; font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .race .r { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:center; gap:10px; transition:transform .6s ease, opacity .4s; }
+    .race .nm { width:220px; flex:none; font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .race .track { flex:1 1 auto; height:26px; background:var(--soft); border-radius:6px; overflow:hidden; }
     .race .fill { height:100%; border-radius:6px; }
     .race .v { width:118px; flex:none; text-align:right; font-weight:800; font-variant-numeric:tabular-nums; font-size:15px; }
@@ -53,7 +53,7 @@
     table.t th:first-child, table.t td:first-child { text-align:left; }
     .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
     .stat { font-size:44px; font-weight:800; line-height:1.05; }
-    @media (max-width:520px) { .race .nm { width:96px; font-size:13px; } .race .v { width:92px; font-size:13px; } }`;
+    @media (max-width:520px) { table.t { font-size:14px; } table.t th, table.t td { padding:6px 3px; } .race .nm { width:120px; font-size:12px; } .race .v { width:92px; font-size:13px; } }`;
   document.head.append(h("style", {}, css));
 
   // ------------------------------------------------------------ s. tournament replay
@@ -61,7 +61,8 @@
     let t;
     try { t = await get("/replay/timeline"); } catch (e) { main().replaceChildren(fail(e)); return; }
     if (!t.has_replay || !t.steps.length) { main().replaceChildren(h("p", { class: "muted" }, "The backtest has not been run yet.")); return; }
-    const agents = t.agents, steps = t.steps, n = steps.length, ROW = 44;
+    const agents = t.agents, steps = t.steps, n = steps.length, ROW = 44, TOP = Math.min(agents.length, 12);
+    const star = new Set(t.final.slice(0, TOP).map((r) => r.id));
     const maxBank = Math.max(...steps.flatMap((st) => agents.map((a) => st.agents[a.id].bankroll)));
     const STEP_MS = 30000 / n;
     let pos = 0, speed = 1, playing = false, last = 0;
@@ -74,7 +75,7 @@
       const r = h("div", { class: "r" }, h("div", { class: "nm", title: a.name }, a.name), h("div", { class: "track" }, fill), v);
       return [a.id, { r, fill, v }];
     }));
-    const race = h("div", { class: "race", style: `height:${agents.length * ROW}px` }, [...rows.values()].map((x) => x.r));
+    const race = h("div", { class: "race", style: `height:${TOP * ROW}px` }, [...rows.values()].map((x) => x.r));
     const chart = s("svg", { class: "chart", viewBox: "0 0 640 240", role: "img", "aria-label": "Cumulative Brier score per agent" });
     const finalBox = h("div");
     const playBtn = h("button", { class: "btn small primary", onclick: () => toggle() }, "▶ Play");
@@ -84,14 +85,14 @@
 
     main().replaceChildren(
       h("h1", {}, "Tournament replay"),
-      h("p", { class: "lead" }, `${agents.length} AI world models trade ${n} quarters of real European crop prices. Each one only sees data up to the quarter it bets in; the last quarters are a sealed holdout.`),
+      h("p", { class: "lead" }, `${agents.length} AI agents trade ${n} quarters of real European crop prices. Each one only sees data up to the quarter it bets in; the last quarters are a sealed holdout.`),
       h("div", { class: "actions", style: "align-items:center" }, playBtn,
         h("button", { class: "btn small", onclick: () => { pos = 0; finalBox.replaceChildren(); draw(); } }, "↺ Restart"),
         h("div", { class: "chips", style: "margin:0" }, speeds)),
       h("div", { class: "quarter" }, quarter, phase),
       h("div", { class: "prog" }, progress),
       h("h2", { style: "margin-top:14px" }, "Bankroll (play credits)"),
-      h("p", { class: "muted small", style: "margin-top:-6px" }, "1,000 to start, plus every quarter's profit or loss carried forward, so a bad trader can end below zero."),
+      h("p", { class: "muted small", style: "margin-top:-6px" }, `1,000 to start, plus every quarter's profit or loss carried forward, so a bad trader can end below zero.${agents.length > TOP ? ` The top ${TOP} of ${agents.length} are shown at each moment.` : ""}`),
       race,
       h("h2", {}, "Brier score so far (lower is better)"),
       chart,
@@ -111,9 +112,10 @@
     chart.append(s("line", { x1: 46, x2: 626, y1: Y(0.25), y2: Y(0.25), stroke: "#c92a2a", "stroke-dasharray": "4 4" }),
       s("text", { x: 624, y: Y(0.25) - 4, "text-anchor": "end", fill: "#c92a2a" }, "coin flip 0.25"));
     steps.forEach((st, i) => { if (i % 2 === 0 || i === n - 1) chart.append(s("text", { x: X(i), y: 234, "text-anchor": i === n - 1 ? "end" : "middle", fill: "#6b6b6b" }, st.cutoff)); });
-    const lines = new Map(agents.map((a) => [a.id, s("polyline", { fill: "none", stroke: a.color || "#2b8a3e", "stroke-width": 2.5 })]));
+    const lines = new Map(agents.map((a) => [a.id, star.has(a.id) ? s("polyline", { fill: "none", stroke: a.color || "#2b8a3e", "stroke-width": 2.5 })
+      : s("polyline", { fill: "none", stroke: "#ced4da", "stroke-width": 1, opacity: 0.6 })]));
     const marketLine = s("polyline", { fill: "none", stroke: "#1a1a1a", "stroke-width": 2, "stroke-dasharray": "6 3" });
-    chart.append(...lines.values(), marketLine);
+    chart.append(...agents.filter((a) => !star.has(a.id)).map((a) => lines.get(a.id)), ...agents.filter((a) => star.has(a.id)).map((a) => lines.get(a.id)), marketLine);
     const marketLabel = s("text", { fill: "#1a1a1a", "font-weight": 700 }, "market");
     chart.append(marketLabel);
 
@@ -139,10 +141,12 @@
       phase.textContent = steps[i].split === "holdout" ? "sealed holdout" : "dev quarter";
       phase.className = "tag " + (steps[i].split === "holdout" ? "no" : "");
       progress.style.width = `${(pos / (n - 1)) * 100}%`;
-      const order = agents.map((a) => [a.id, lerp(a.id, "bankroll", pos)]).sort((x, y) => y[1] - x[1]);
+      const at = steps[Math.min(n - 1, Math.round(pos))].agents; // re-rank once per quarter, so rows glide instead of jitter
+      const order = agents.map((a) => [a.id, lerp(a.id, "bankroll", pos), at[a.id].bankroll]).sort((x, y) => y[2] - x[2]);
       order.forEach(([id, bank], rank) => {
         const r = rows.get(id);
-        r.r.style.transform = `translateY(${rank * ROW}px)`;
+        r.r.style.transform = `translateY(${Math.min(rank, TOP) * ROW}px)`;
+        r.r.style.opacity = rank < TOP ? "1" : "0";
         r.fill.style.width = `${Math.max(1, (bank / maxBank) * 100)}%`;
         r.v.replaceChildren(credits(bank), h("small", {}, `Brier ${b3(lerp(id, "brier_cum", pos))}`));
       });
@@ -151,13 +155,15 @@
       const mb = steps[i].market_brier_cum;
       if (mb != null) { marketLabel.setAttribute("x", Math.min(X(pos) + 4, 590)); marketLabel.setAttribute("y", Y(mb) - 6); }
     }
+    const table = (rowsF) => h("table", { class: "t" }, h("tr", {}, h("th", {}, "World model"), h("th", {}, "Bankroll"), h("th", {}, "Brier"), h("th", {}, "Brier rank")), rowsF);
     function finish() {
-      const rowsF = t.final.map((r) => h("tr", {},
+      const row = (r) => h("tr", {},
         h("td", {}, `${r.rank_bankroll}. `, h("span", { class: "dot", style: `background:${r.color}` }), r.name),
-        h("td", {}, credits(r.bankroll)), h("td", {}, b3(r.brier_cum)), h("td", {}, `#${r.rank_brier}`)));
+        h("td", {}, credits(r.bankroll)), h("td", {}, b3(r.brier_cum)), h("td", {}, `#${r.rank_brier}`));
       const last = steps[n - 1];
       finalBox.replaceChildren(h("h2", {}, "Final ranking"),
-        h("table", { class: "t" }, h("tr", {}, h("th", {}, "World model"), h("th", {}, "Bankroll"), h("th", {}, "Brier"), h("th", {}, "Brier rank")), rowsF),
+        table(t.final.slice(0, TOP).map(row)),
+        t.final.length > TOP && h("details", {}, h("summary", {}, `All ${t.final.length} agents`), table(t.final.slice(TOP).map(row))),
         h("p", { class: "muted small" }, `The market's own Brier over the same questions: ${b3(last.market_brier_cum)}. A coin flip scores 0.250. `,
           h("a", { href: "/app/impact" }, "What would this have meant in the real world? →")));
     }
@@ -229,9 +235,9 @@
         h("span", { class: "muted" }, d.early_warning.note)),
       h("h2", {}, "By commodity (sealed holdout)"),
       h("table", { class: "t" },
-        h("tr", {}, h("th", {}, "Commodity"), h("th", {}, "Questions"), h("th", {}, "Market"), h("th", {}, "Base rate"), h("th", {}, "Better")),
+        h("tr", {}, h("th", {}, "Commodity"), h("th", {}, "n"), h("th", {}, "Market"), h("th", {}, "Base rate"), h("th", {}, "Better")),
         d.by_commodity.map((c) => h("tr", {}, h("td", {}, c.commodity), h("td", {}, c.n), h("td", {}, b3(c.market.brier)), h("td", {}, b3(c.base_rate.brier)),
-          h("td", {}, c.market.brier < c.base_rate.brier ? h("span", { class: "tag yes" }, "market") : h("span", { class: "tag" }, "base rate"))))),
+          h("td", {}, c.market.brier < c.base_rate.brier ? h("span", { class: "tag yes" }, "market") : h("span", { class: "tag" }, "base"))))),
       h("p", { class: "muted small" }, "Each commodity has only 3 to 9 sealed questions, so single rows are noisy; read the pattern, not one cell."),
       h("h2", {}, "Who would pay for this"),
       h("div", {}, d.payers.map((p) => h("div", { class: "agent" }, h("b", {}, p.who), h("span", { class: "why" }, p.why)))),
@@ -270,9 +276,9 @@
     try { sum = await get("/calibration"); } catch (e) { box.replaceChildren(fail(e)); return; }
     if (!sum.agents.length) { box.remove(); return; }
     const detail = h("div");
-    const chips = h("div", { class: "chips" });
+    const chips = h("select", { "aria-label": "Agent", style: "font:inherit;padding:10px;border:2px solid var(--line);border-radius:12px;max-width:100%;margin:8px 0", onchange: (ev) => pick(ev.target.value) });
     async function pick(id) {
-      for (const b of chips.children) b.classList.toggle("on", b.dataset.id === id);
+      chips.value = id;
       try {
         const c = await get(`/calibration?agent=${encodeURIComponent(id)}`);
         detail.replaceChildren(reliability(c),
@@ -280,13 +286,17 @@
           h("p", { class: "muted small" }, c.note, " Dot size is the number of forecasts in the bin; the line through each dot is its interval."));
       } catch (e) { detail.replaceChildren(fail(e)); }
     }
-    for (const a of sum.agents) chips.append(h("button", { class: "chip", "data-id": a.id, onclick: () => pick(a.id) }, h("span", { class: "dot", style: `background:${a.color}` }), a.name));
+    for (const a of sum.agents) chips.append(h("option", { value: a.id }, `${a.name} (ECE ${b3(a.ece)})`));
+    const calRow = (a) => h("tr", {}, h("td", {}, h("span", { class: "dot", style: `background:${a.color}` }), a.name), h("td", {}, b3(a.ece)),
+      h("td", {}, `${b3(a.ece_lo)}–${b3(a.ece_hi)}`), h("td", {}, b3(a.brier)));
+    const calTable = (list) => h("table", { class: "t" }, h("tr", {}, h("th", {}, "Forecaster"), h("th", {}, "ECE"), h("th", {}, `${Math.round(sum.interval_level * 100)}% interval`), h("th", {}, "Brier")), list.map(calRow));
+    const featured = sum.agents.filter((a, i) => i < 10 || a.id === "market" || a.id === "consensus");
+    const rest = sum.agents.filter((a) => !featured.includes(a));
     box.replaceChildren(h("h2", {}, "Calibration: when they say 70%, does it happen 70% of the time?"),
-      h("p", { class: "muted small" }, `Every resolved backtest forecast (${sum.agents[0].n} per agent), grouped into ${sum.bins} probability bins. Pick an agent:`),
+      h("p", { class: "muted small" }, `Every resolved backtest forecast (${sum.agents[0].n} per agent), grouped into ${sum.bins} probability bins. Pick a forecaster (sorted by ECE, best first):`),
       chips, detail,
-      h("table", { class: "t" }, h("tr", {}, h("th", {}, "Forecaster"), h("th", {}, "ECE"), h("th", {}, `${Math.round(sum.interval_level * 100)}% interval`), h("th", {}, "Brier")),
-        sum.agents.map((a) => h("tr", {}, h("td", {}, h("span", { class: "dot", style: `background:${a.color}` }), a.name), h("td", {}, b3(a.ece)),
-          h("td", {}, `${b3(a.ece_lo)}–${b3(a.ece_hi)}`), h("td", {}, b3(a.brier))))));
+      h("h3", {}, "Best calibrated, plus the market and the consensus"), calTable(featured),
+      rest.length > 0 && h("details", {}, h("summary", {}, `All ${sum.agents.length} forecasters`), calTable(rest)));
     pick(sum.agents[0].id);
     if (location.hash === "#calibration") box.scrollIntoView();
   }
