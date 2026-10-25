@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Beat the Seal</title>
+<meta name="description" content="Tune a SOL/USDC strategy on real 2025 prices, then seal it against unseen 2026 data. Overfit and the seal catches you.">
+<link rel="stylesheet" href="/challenge/static/style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="lock" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4M12 15v2"/></symbol>
+</svg>
+<div class="wrap">
+  <header class="hero">
+    <div class="brand"><svg><use href="#lock"/></svg>Beat the Seal</div>
+    <h1>Can your strategy survive data it has <em>never seen</em>?</h1>
+    <p>Tune a SOL/USDC trading rule on real 2025 Kraken prices. Then seal it: we score it on unseen 2026 windows and four stress tests. Overfit, and the seal catches you.</p>
+    <div class="counters">
+      <div class="counter" id="c-players"><b>0</b><span>players</span></div>
+      <div class="counter" id="c-sealed"><b>0</b><span>sealed</span></div>
+      <div class="counter" id="c-gen"><b>0</b><span>generalised</span></div>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2><span class="step">1</span>Your nickname</h2>
+    <input id="nick" class="field" maxlength="24" autocomplete="nickname" autocapitalize="off" spellcheck="false" placeholder="e.g. sol_whisperer">
+    <div class="hint">No signup. Shown on the leaderboard; only its hash goes on chain.</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span>Build your strategy</h2>
+    <div class="describe">
+      <input id="sentence" class="field" maxlength="200" placeholder="buy dips hard, stop at 10%" enterkeyhint="go">
+      <button id="parse" class="btn">Ask AI</button>
+    </div>
+    <p id="parse-note" class="parse-note">Say it in one sentence and Gemini sets the sliders, or tune them yourself.</p>
+    <div class="rules" id="rules" role="group" aria-label="Rule"></div>
+    <div id="sliders"></div>
+    <button id="reset" class="reset">Reset to the naive 50/50 baseline</button>
+    <div class="breakdown" id="breakdown"></div>
+  </section>
+
+  <section class="card hidden reveal" id="reveal" aria-live="polite"></section>
+
+  <section class="card">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-lb" aria-selected="true">Leaderboard</button>
+      <button role="tab" id="tab-wall" aria-selected="false">Overfit wall</button>
+    </div>
+    <ol class="rows" id="list"></ol>
+  </section>
+
+  <p class="foot">
+    Real Kraken SOL/USD daily closes. Dev: 11 windows of 60 days in 2025. Sealed: 9 windows in 2026 plus 4 stress tests,
+    judged by the same sealed gate as <a href="/sealed">Sealed</a>.<br>
+    Every entry is hash-chained and batch-anchored on Solana devnet: <a href="/challenge/verify">verify the chain</a> · <a href="/challenge/board">big screen</a><br>
+    Simulation on historical data, not financial advice.
+  </p>
+</div>
+
+<div class="scorebar">
+  <div class="inner">
+    <div class="devscore">
+      <small>Visible score (2025)</small>
+      <span class="big num" id="dev">--</span><span class="chip flat" id="dev-delta">vs baseline</span>
+    </div>
+    <button class="btn primary seal-btn" id="seal"><svg><use href="#lock"/></svg>Seal &amp; reveal</button>
+  </div>
+</div>
+<div class="overlay hidden" id="overlay"><div class="unseal"><svg><use href="#lock"/></svg><p>Breaking the seal on 2026&hellip;</p></div></div>
+<div class="toast hidden" id="toast"></div>
+<script src="/challenge/static/common.js"></script>
+<script src="/challenge/static/challenge.js"></script>
+</body>
+</html>

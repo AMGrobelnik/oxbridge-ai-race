@@ -15,3 +15,6 @@ __pycache__/
 
 # Human co-sign records (agent/payments/cosign.py)
 .cosign/
+
+# Beat the Seal challenge ledger (agent/challenge/ledger.py)
+.challenge/

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beat the Seal Board</title>
+<link rel="stylesheet" href="/challenge/static/style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="lock" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4M12 15v2"/></symbol>
+</svg>
+<div class="board">
+  <header class="board-head">
+    <div>
+      <div class="brand"><svg><use href="#lock"/></svg>Beat the Seal · live</div>
+      <h1>Overfit the visible test, and <em>the seal catches you</em>.</h1>
+      <p>Tune a SOL/USDC rule on real 2025 prices; it is judged on sealed 2026 data and four stress tests.</p>
+    </div>
+    <div class="board-counters">
+      <div class="counter" id="c-players"><b>0</b><span>players</span></div>
+      <div class="counter" id="c-sealed"><b>0</b><span>strategies sealed</span></div>
+      <div class="counter" id="c-gen"><b>0</b><span>generalised</span></div>
+    </div>
+  </header>
+  <div class="board-grid">
+    <section class="panel">
+      <h2><span>Leaderboard</span><span class="tag">GENERALISES only, ranked by sealed 2026 score</span></h2>
+      <ol class="rows" id="lb"></ol>
+    </section>
+    <section class="panel">
+      <h2><span>Overfit wall</span><span class="tag red">Biggest visible &rarr; sealed collapses</span></h2>
+      <ol class="rows" id="wall"></ol>
+    </section>
+    <aside class="panel qrpanel">
+      <div class="scan">Scan to play</div>
+      <div class="qr"><img id="qr" src="/challenge/qr.svg" alt="QR code for the challenge"></div>
+      <div class="url" id="url"></div>
+      <div class="chainbox mono" id="chain"></div>
+      <ul class="ticker" id="ticker"></ul>
+    </aside>
+  </div>
+</div>
+<script src="/challenge/static/common.js"></script>
+<script src="/challenge/static/board.js"></script>
+</body>
+</html>
