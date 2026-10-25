@@ -1,0 +1,9 @@
+{
+  "seeds": [450, 475, 500, 525, 550, 575, 600, 625, 650],
+  "shifts": [
+    {"id": "crash", "label": "35% SOL crash over 3 days", "params": {"crash_pct": 35, "crash_day": 20}},
+    {"id": "usdc_depeg", "label": "USDC depeg to $0.88 for 4 days", "params": {"depeg_pct": 12, "depeg_day": 25, "depeg_days": 4}},
+    {"id": "fee_spike", "label": "5x swap fees and slippage", "params": {"fee_mult": 5}},
+    {"id": "vol_spike", "label": "1.6x SOL volatility", "params": {"vol_mult": 1.6}}
+  ]
+}

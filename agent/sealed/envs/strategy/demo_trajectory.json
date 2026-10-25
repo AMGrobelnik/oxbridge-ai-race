@@ -1,0 +1,122 @@
+[
+  {
+    "hypothesis": "Staking the whole SOL leg raises the dev score, because 7% a year of carry costs nothing extra.",
+    "rationale": "The baseline leaves SOL idle; staking adds yield with no extra trades.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "hold",
+      "lookback_days": 20,
+      "entry_threshold_pct": 5,
+      "risk_on_sol_weight": 0.5,
+      "risk_off_sol_weight": 0.5,
+      "staked_share": 1.0,
+      "rebalance_band": 0.1,
+      "stop_loss_pct": 0
+    }
+  },
+  {
+    "hypothesis": "A slow 60-day trend filter that cuts SOL from 50% to 30% in downtrends beats static 50/50 on dev.",
+    "rationale": "2025 had long slides; a slow filter trades rarely, so fees stay low.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "momentum",
+      "lookback_days": 60,
+      "entry_threshold_pct": 0,
+      "risk_on_sol_weight": 0.5,
+      "risk_off_sol_weight": 0.3,
+      "staked_share": 1.0,
+      "rebalance_band": 0.1,
+      "stop_loss_pct": 0
+    }
+  },
+  {
+    "hypothesis": "A fast 7-day momentum rule, all in or all out, captures more of the swings.",
+    "rationale": "Shorter lookback reacts faster to breakouts.",
+    "strategy": "pivot",
+    "candidate": {
+      "rule": "momentum",
+      "lookback_days": 7,
+      "entry_threshold_pct": 5,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.1,
+      "stop_loss_pct": 0
+    }
+  },
+  {
+    "hypothesis": "Buying 20% dips below the 30-day average and selling 20% rallies earns the range on dev.",
+    "rationale": "SOL mean-reverted inside a range for much of 2025.",
+    "strategy": "pivot",
+    "candidate": {
+      "rule": "mean_reversion",
+      "lookback_days": 30,
+      "entry_threshold_pct": 20,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.1,
+      "stop_loss_pct": 0
+    }
+  },
+  {
+    "hypothesis": "Adding a 10% stop-loss to the dip-buyer cuts the losing legs and lifts the dev score.",
+    "rationale": "The dip-buyer's worst windows were catching falling knives.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "mean_reversion",
+      "lookback_days": 30,
+      "entry_threshold_pct": 20,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.1,
+      "stop_loss_pct": 10
+    }
+  },
+  {
+    "hypothesis": "Tightening the rebalance band to 5% tracks the dip-buyer's target more closely.",
+    "rationale": "Drift away from target cost a little on dev.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "mean_reversion",
+      "lookback_days": 30,
+      "entry_threshold_pct": 20,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.05,
+      "stop_loss_pct": 10
+    }
+  },
+  {
+    "hypothesis": "A 21-day lookback fits the dip-buyer's cycle better than 30 days.",
+    "rationale": "Dev swings looked shorter than a month.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "mean_reversion",
+      "lookback_days": 21,
+      "entry_threshold_pct": 20,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.05,
+      "stop_loss_pct": 10
+    }
+  },
+  {
+    "hypothesis": "An 18% entry threshold squeezes the last dev gain out of the dip-buyer.",
+    "rationale": "Grid around the champion: 18% beat 20% on dev.",
+    "strategy": "continue",
+    "candidate": {
+      "rule": "mean_reversion",
+      "lookback_days": 30,
+      "entry_threshold_pct": 18,
+      "risk_on_sol_weight": 1.0,
+      "risk_off_sol_weight": 0.0,
+      "staked_share": 1.0,
+      "rebalance_band": 0.05,
+      "stop_loss_pct": 10
+    }
+  }
+]
