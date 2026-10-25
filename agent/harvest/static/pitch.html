@@ -18,7 +18,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body { background: var(--bg); color: var(--ink); font: 16px/1.4 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
-  .stage { height: 100vh; display: grid; grid-template-columns: minmax(300px, 23vw) 1fr minmax(320px, 27vw); grid-template-rows: auto 1fr; gap: 2.2vh 2vw; padding: 3vh 2.4vw; }
+  .stage { height: 100vh; display: grid; grid-template-columns: minmax(300px, 23vw) minmax(0, 1fr) minmax(340px, 27vw); grid-template-rows: auto 1fr; gap: 2.2vh 2vw; padding: 3vh 2.4vw; }
   header { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 2vw; }
   .brand { font: 600 1.6vh var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
   h1 { margin: .4vh 0 0; font: 700 7.2vh/1 var(--display); letter-spacing: -.035em; }
@@ -36,7 +36,8 @@
   .market { display: flex; flex-direction: column; gap: 1.6vh; }
   .qtitle { font: 600 3.3vh/1.2 var(--display); letter-spacing: -.01em; margin: 0; }
   .qmeta { color: var(--muted); font: 500 1.7vh var(--mono); letter-spacing: .04em; }
-  .prob { display: flex; align-items: baseline; gap: 1.6vh; white-space: nowrap; }
+  .prob { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.6vh; }
+  .prob > span { white-space: nowrap; }
   .prob .delta { margin-left: auto; }
   .prob .big { font: 700 11vh/1 var(--display); letter-spacing: -.04em; color: var(--yes); font-variant-numeric: tabular-nums; }
   .prob .lbl { font: 600 2.6vh var(--display); color: var(--muted); }
@@ -52,9 +53,9 @@
   .bar { height: 1vh; border-radius: 1vh; background: var(--no-bg); margin-top: 1vh; overflow: hidden; }
   .bar i { display: block; height: 100%; background: var(--yes); transition: width .6s; }
   .feed { display: flex; flex-direction: column; gap: 1.2vh; overflow: hidden; }
-  .feed h2 { margin: 0; font: 600 2.4vh var(--display); display: flex; justify-content: space-between; align-items: baseline; }
+  .feed h2 { margin: 0; white-space: nowrap; gap: 1vh; font: 600 2.4vh var(--display); display: flex; justify-content: space-between; align-items: baseline; }
   .feed h2 span { font: 500 1.6vh var(--mono); color: var(--muted); }
-  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .9vh; overflow: hidden; }
+  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .9vh; overflow: hidden; flex: 1; min-height: 0; -webkit-mask-image: linear-gradient(#000 88%, transparent); mask-image: linear-gradient(#000 88%, transparent); }
   li { display: grid; grid-template-columns: 3.6vh 1fr auto; align-items: center; gap: 1.2vh; padding: 1vh 1.2vh; border-radius: 1.2vh; background: var(--panel2); border: 1px solid transparent; font-size: 1.85vh; }
   li.human { border-color: var(--human); background: #2a2310; }
   li.new { animation: slide .6s ease-out; }

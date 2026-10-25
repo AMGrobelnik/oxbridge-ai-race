@@ -93,7 +93,7 @@
       side("h", s.tally.human);
       side("b", s.tally.bot);
       const lastMin = s.path.filter((r) => r[0] >= s.now - 60000).length;
-      $("rate").textContent = `${lastMin} in the last minute`;
+      $("rate").textContent = `${lastMin} in the last min`;
       $("guests").innerHTML = s.tally.human.traders ? `<b>${fmt(s.tally.human.traders)}</b> humans have bet so far.` : "";
       renderFeed(s.feed);
     } catch (e) {
