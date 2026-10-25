@@ -784,6 +784,16 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .lv-lb .sc b{display:block;font:500 14px var(--f-mono);color:var(--ink)}
 @media (max-width:1180px){.lv-main{grid-template-columns:1fr 1fr;height:auto}.lv-stage{grid-column:1/-1;order:-1;height:660px}.lv-pane{height:520px}}
 @media (max-width:700px){.lv-main{grid-template-columns:1fr}.lv-stage{height:620px}.node .nm,.node .pl{display:none}.node .av{width:34px;height:34px;font-size:10px}.lv-risk{display:none}.lv-fund{flex-wrap:wrap}}
+/* /live, decluttered: four key numbers, a roomier globe with labels on hover or for the top movers, short lists, one headline */
+.lv-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding-block:28px 22px}.lv-kpis .kpi:nth-child(5){display:none}.kpi{padding:16px 20px}
+.lv-main{grid-template-columns:280px minmax(0,1fr) 300px;gap:20px;height:clamp(680px,calc(100svh - var(--hdr) - 100px),920px)}
+.node .nm,.node .pl{opacity:0;transition:opacity .2s}
+.node:hover .nm,.node:hover .pl,.node:focus-visible .nm,.node:focus-visible .pl,.node.sel .nm,.node.sel .pl,.node.top .nm,.node.top .pl{opacity:1}
+.lv-cap .k,.lv-cap em{display:none}.lv-cap p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lv-body .od:nth-child(n+9),[data-stream] .st:nth-child(n+10){display:none}.od{padding:13px 10px}.st{padding:12px 10px}
+@media (max-width:1180px){.lv-main{grid-template-columns:1fr 1fr;height:auto}.lv-pane{height:auto}}
+@media (max-width:900px){.lv-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.lv-main{grid-template-columns:1fr;gap:16px}.lv-kpis{gap:12px;padding-block:20px 16px}.kpi{padding:14px 16px}.kpi b{font-size:20px}.kpi small{display:block;margin:2px 0 0}.lv-main>.lv-pane:last-of-type{order:0}.lv-main>.lv-pane:first-of-type{order:1}.lv-stage{height:560px}.lv-body .od:nth-child(n+7),[data-stream] .st:nth-child(n+7){display:none}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -837,7 +847,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
       <canvas id="c-rain" aria-hidden="true"></canvas>
       <canvas id="g-orbit" class="og" aria-label="Globe that dives into each trade as you scroll"></canvas>
       <div class="gtag" data-tag><div class="glass"><b data-tag-t></b><span data-tag-s></span></div></div>
-      <div class="h-intro" data-intro><div class="wrap"><span class="kicker">Orbit · scroll to dive</span><h2>Six live bets, from <em class="s">Andalusia</em> to Odesa.</h2></div></div>
+      <div class="h-intro" data-intro><div class="wrap"><span class="kicker">Orbit · scroll to dive</span><h2>Live bets</h2></div></div>
       <div class="h-hud glass spot" data-hud style="opacity:0">
         <div class="swap">
           <div class="top mono"><span data-h-n>01 / 06</span><span data-h-side class="side no">NO 55¢</span></div>
@@ -1691,13 +1701,18 @@ class TermMap{
   frame(){
     if(this.bw!==this.w||this.bh!==this.h)this.build();
     const g=this.x,w=this.w,h=this.h;g.clearRect(0,0,w,h);g.drawImage(this.bg,0,0,w,h);
-    g.font='500 10.5px "Geist Mono", monospace';let ext=0;
+    g.font='500 10.5px "Geist Mono", monospace';let ext=0;const tags=[];
     REGIONS.forEach((r,k)=>{let x,y,out=false;
       if(r.lat<this.G.lat0+.5){out=true;x=w-10;y=16+ext*15;ext++}else[x,y]=this.xy(r.lat,r.lon);
       this.pos[k]=[x,y];const col=RISKC[riskWord(r.risk)],hit=this.hits[k]&&this.t-this.hits[k]<700;
       if(out){g.textAlign='right';g.fillStyle=col;g.fillText(`▶ ${r.n.toUpperCase()} ${r.risk}`,x,y+3);g.textAlign='left';return}
       g.fillStyle=col;g.fillRect(x-4,y-4,8,8);if(hit){const v=(this.t-this.hits[k])/700;g.strokeStyle=col;g.globalAlpha=1-v;g.strokeRect(x-6-v*10,y-6-v*10,12+v*20,12+v*20);g.globalAlpha=1}
-      g.fillStyle='#2a3322';g.fillText(`${r.n.split(',')[0].replace('Port of ','').toUpperCase()} ${r.risk}`,x+8,y+3)});
+      tags.push({x,y,v:r.vol,t:`${r.n.split(',')[0].replace('Port of ','').toUpperCase()} ${r.risk}`})});
+    /* declutter: biggest regions label first; each label takes the first free slot around its square, or is left off */
+    const box=tags.map(o=>[o.x-5,o.y-5,o.x+5,o.y+5]);g.fillStyle='#2a3322';
+    for(const o of tags.sort((a,b)=>b.v-a.v)){const tw=g.measureText(o.t).width;
+      for(const [dx,dy] of [[8,3],[-8-tw,3],[8,-8],[8,14],[-8-tw,-8],[-8-tw,14]]){const b=[o.x+dx-1,o.y+dy-9,o.x+dx+tw+1,o.y+dy+2];
+        if(b[0]<0||b[2]>w||b[1]<0||b[3]>h||box.some(q=>b[0]<q[2]&&q[0]<b[2]&&b[1]<q[3]&&q[1]<b[3]))continue;box.push(b);g.fillText(o.t,o.x+dx,o.y+dy);break}}
     const keep=[];
     for(const p of this.pk){const u=(this.t-p.b)/p.d,x0=this.hx[p.a]??w/2,dst=this.pos[p.k];if(!dst){continue}
       const [x1,y1]=dst,L1=y1,L2=Math.abs(x1-x0),L=L1+L2,s=Math.min(1,u)*L;let px,py;if(s<L1){px=x0;py=s}else{px=x0+Math.sign(x1-x0)*(s-L1);py=y1}
@@ -1848,7 +1863,7 @@ function initLive(){
   $('[data-nodes]').addEventListener('pointerover',e=>{const b=e.target.closest('.node');if(b&&+b.dataset.node<NA&&!(liveSel&&liveSel.t==='a'))gLive.focusAgent=+b.dataset.node});
   $('[data-nodes]').addEventListener('pointerout',e=>{const b=e.target.closest('.node');if(b&&!(liveSel&&liveSel.t==='a'))gLive.focusAgent=-1});
   gLive=new Globe($('#g-live'),{rf:LV_RF,oy:LV_OY,labels:true,keepDrag:true,flows:false,risk:true,nodePos:i=>NODEP[i],start:{lon:12,lat:44,zoom:1.25},onPick:k=>{if(k>=0)pickRegion(k)}});gLive.set({lon:12,lat:44,zoom:1.25});
-  new ResizeObserver(layoutNodes).observe($('.lv-stage'));layoutNodes();
+  const lro=new ResizeObserver(layoutNodes);lro.observe($('.lv-stage'));lro.observe($('[data-cap]'));layoutNodes();
   $$('[data-lf]').forEach(b=>b.addEventListener('click',()=>setLF(b.dataset.lf)));
   $$('[data-lt]').forEach(b=>b.addEventListener('click',()=>{lvTab=b.dataset.lt;$$('[data-lt]').forEach(x=>x.setAttribute('aria-pressed',x===b));renderLeft()}));
   $('[data-left]').addEventListener('click',e=>{const b=e.target.closest('[data-ai],[data-rk]');if(!b)return;if(b.dataset.ai!=null)pickAgent(+b.dataset.ai);else pickRegion(+b.dataset.rk)});
@@ -1863,8 +1878,8 @@ function initLive(){
 }
 function layoutNodes(){
   const st=$('.lv-stage');if(!st)return;const w=st.clientWidth,h=st.clientHeight;if(!w)return;
-  const cx=w*.5,cy=h*LV_OY,R0=Math.min(w,h)*LV_RF,rx=Math.min(w/2-46,R0*1.62),ry=Math.min(cy-150,R0*1.3);
-  $$('.node').forEach((el,s)=>{const i=+el.dataset.node,a=(-240+s*300/(SLOT_ORDER.length-1))*D2R,x=cx+Math.cos(a)*rx,y=cy+Math.sin(a)*ry;NODEP[i]=[x,y];el.style.left=x+'px';el.style.top=y+'px'});
+  const cx=w*.5,cy=h*LV_OY,R0=Math.min(w,h)*LV_RF,rx=Math.min(w/2-46,R0*1.62),ry=Math.min(cy-150,R0*1.3),cap=$('[data-cap]'),yMax=cap&&cap.offsetHeight?cap.offsetTop-42:h;
+  $$('.node').forEach((el,s)=>{const i=+el.dataset.node,a=(-240+s*300/(SLOT_ORDER.length-1))*D2R,x=cx+Math.cos(a)*rx,y=Math.min(cy+Math.sin(a)*ry,yMax);NODEP[i]=[x,y];el.style.left=x+'px';el.style.top=y+'px'});
 }
 function setLF(f){LF=f;$$('[data-lf]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lf===f));
   $$('.node').forEach(n=>{const i=+n.dataset.node,k=i<NA?AGENTS[i].fam:i===EXT_I?'ext':'hum';n.classList.toggle('dim',f!=='all'&&f!==k)});renderStream()}

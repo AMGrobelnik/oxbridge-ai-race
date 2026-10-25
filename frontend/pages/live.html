@@ -784,6 +784,16 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .lv-lb .sc b{display:block;font:500 14px var(--f-mono);color:var(--ink)}
 @media (max-width:1180px){.lv-main{grid-template-columns:1fr 1fr;height:auto}.lv-stage{grid-column:1/-1;order:-1;height:660px}.lv-pane{height:520px}}
 @media (max-width:700px){.lv-main{grid-template-columns:1fr}.lv-stage{height:620px}.node .nm,.node .pl{display:none}.node .av{width:34px;height:34px;font-size:10px}.lv-risk{display:none}.lv-fund{flex-wrap:wrap}}
+/* /live, decluttered: four key numbers, a roomier globe with labels on hover or for the top movers, short lists, one headline */
+.lv-kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding-block:28px 22px}.lv-kpis .kpi:nth-child(5){display:none}.kpi{padding:16px 20px}
+.lv-main{grid-template-columns:280px minmax(0,1fr) 300px;gap:20px;height:clamp(680px,calc(100svh - var(--hdr) - 100px),920px)}
+.node .nm,.node .pl{opacity:0;transition:opacity .2s}
+.node:hover .nm,.node:hover .pl,.node:focus-visible .nm,.node:focus-visible .pl,.node.sel .nm,.node.sel .pl,.node.top .nm,.node.top .pl{opacity:1}
+.lv-cap .k,.lv-cap em{display:none}.lv-cap p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lv-body .od:nth-child(n+9),[data-stream] .st:nth-child(n+10){display:none}.od{padding:13px 10px}.st{padding:12px 10px}
+@media (max-width:1180px){.lv-main{grid-template-columns:1fr 1fr;height:auto}.lv-pane{height:auto}}
+@media (max-width:900px){.lv-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.lv-main{grid-template-columns:1fr;gap:16px}.lv-kpis{gap:12px;padding-block:20px 16px}.kpi{padding:14px 16px}.kpi b{font-size:20px}.kpi small{display:block;margin:2px 0 0}.lv-main>.lv-pane:last-of-type{order:0}.lv-main>.lv-pane:first-of-type{order:1}.lv-stage{height:560px}.lv-body .od:nth-child(n+7),[data-stream] .st:nth-child(n+7){display:none}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -837,7 +847,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
       <canvas id="c-rain" aria-hidden="true"></canvas>
       <canvas id="g-orbit" class="og" aria-label="Globe that dives into each trade as you scroll"></canvas>
       <div class="gtag" data-tag><div class="glass"><b data-tag-t></b><span data-tag-s></span></div></div>
-      <div class="h-intro" data-intro><div class="wrap"><span class="kicker">Orbit · scroll to dive</span><h2>Six live bets, from <em class="s">Andalusia</em> to Odesa.</h2></div></div>
+      <div class="h-intro" data-intro><div class="wrap"><span class="kicker">Orbit · scroll to dive</span><h2>Live bets</h2></div></div>
       <div class="h-hud glass spot" data-hud style="opacity:0">
         <div class="swap">
           <div class="top mono"><span data-h-n>01 / 06</span><span data-h-side class="side no">NO 55¢</span></div>

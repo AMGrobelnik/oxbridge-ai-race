@@ -194,7 +194,21 @@
     for (const t of [...(body.recent_trades || [])].reverse()) { const ev = eventOf(t); if (ev) EVENTS.push(ev); }
     ODDS = EVENTS.map((e) => e.m.id).filter((id, i, a) => a.indexOf(id) === i).concat(out.map((m) => m.id)).filter((id, i, a) => a.indexOf(id) === i);
     FUND = body.fund ? body.fund.treasury : 0; INFLOW = 0; bets = 0;
+    seedTape();
     vol = out.reduce((s, m) => s + m.vol, 0); v24 = vol;
+  }
+  function seedTape() { // the terminal's 60 s tape, YES/NO split and per-actor chips start from the trades already loaded, not from zero
+    const now = Date.now();
+    bpmW.length = 0; YN[0] = 0; YN[1] = 0; HEADS.length = 0; HEADS.push(...Array(AGENTS.length + 2).fill(0));
+    for (const e of [...EVENTS].reverse()) {
+      if (now - e.ts <= 60000) bpmW.push([e.ts, e.stake]);
+      YN[e.side === "YES" ? 0 : 1]++; HEADS[e.ai] = (HEADS[e.ai] || 0) + 1;
+    }
+  }
+  function paintTape() {
+    while (bpmW.length && Date.now() - bpmW[0][0] > 60000) bpmW.shift();
+    setText("[data-tbpm]", String(bpmW.length)); setText("[data-tnot]", money(bpmW.reduce((s, x) => s + x[1], 0))); setText("[data-tyn]", `${YN[0]}/${YN[1]}`);
+    qa("[data-hd]").forEach((b) => { const n = q1("b", b); if (n) n.textContent = String(HEADS[+b.dataset.hd] || 0); });
   }
   function liveCrops() { // the farmer calculator prices each crop off its live 6-month "up N%" market; crops without one drop out
     const pre = { "Olive": "olive-up", "wheat": "wheat-up", "Maize": "maize-up", "Sunflower": "sunoil-up", "rice": "rice-above" };
@@ -238,6 +252,7 @@
     EVENTS.unshift(ev); EVENTS.length = Math.min(EVENTS.length, 150);
     bets++; vol += ev.stake; v24 += ev.stake; FUND += ev.fee; INFLOW += ev.fee; YN[ev.side === "YES" ? 0 : 1]++;
     if (ev.ai < AGENTS.length) AGS[ev.ai].bets++;
+    HEADS[ev.ai] = (HEADS[ev.ai] || 0) + (VIEW === "markets" && tMap ? 0 : 1); // termOnBet counts it on the terminal
     bpmW.push([Date.now(), ev.stake]); while (bpmW.length && Date.now() - bpmW[0][0] > 60000) bpmW.shift();
     if (VIEW === "live" && gLive && !paused) liveOnBet(ev);
     if (VIEW === "markets" && tMap) termOnBet(ev);
@@ -260,7 +275,7 @@
       for (const [id, row] of Object.entries(body.house || {})) { const ai = AGENTS.findIndex((a) => a.id === id); if (ai >= 0) { AGS[ai].pnl = Math.round(row.pnl); AGS[ai].bets = row.bets; } }
       vol = MARKETS.reduce((s, m) => s + m.vol, 0); v24 = vol;
       setText("[data-vol]", money(vol)); setText("[data-v24]", money(vol)); setText("[data-v24n]", `+${bets} since you arrived`);
-      renderFund(); paintLedger();
+      renderFund(); paintLedger(); markMovers();
     } catch (e) { console.warn("crophecy poll", e); }
     setTimeout(poll, POLL_MS);
   }
@@ -316,6 +331,7 @@
     if (kp[2]) { relabel(kp[2].querySelector("b"), `${AGENTS.length} + ${num(S.agents)}`); relabel(kp[2].querySelector("small"), "house models + outside agents"); }
     if (kp[3]) relabel(kp[3].querySelector("small"), "2% of volume");
     if (kp[4]) relabel(kp[4].querySelector("span"), "Ledger entries");
+    markMovers();
     setText("[data-v24]", money(vol)); setText("[data-v24n]", "live");
     const hard = MARKETS.filter((m) => m.kind === "hard").length; setText("[data-hard]", `${hard} price · ${MARKETS.length - hard} policy`);
     const lbl = q1(".lv-fund .lbl span");
@@ -324,11 +340,17 @@
     const ftk = q1("[data-ftk]"); if (ftk) ftk.innerHTML = ft + ft;
     paintLedger();
   }
+  function markMovers() { // the globe labels only its six biggest movers by P&L; the rest show on hover
+    const top = AGENTS.map((a, i) => [i, Math.abs((AGS[i] || {}).pnl || 0)]).sort((x, y) => y[1] - x[1]).slice(0, 6).map((x) => x[0]);
+    qa(".node").forEach((n) => n.classList.toggle("top", top.includes(+n.dataset.node)));
+  }
   async function paintMarkets() {
     const st = q1(".tm-st");
     if (st) st.childNodes.forEach((n) => { if (n.nodeType === 3 && /SOLANA/.test(n.textContent)) n.textContent = "LIVE · LEDGER #"; });
     qa(".tp-rg .tm-stats span").forEach((s) => { if (/CUT OF VOL/.test(s.textContent)) s.innerHTML = "CUT OF VOL <b>2.00%</b>"; if (/INFLOW/.test(s.textContent)) s.firstChild.textContent = "INFLOW SINCE OPEN "; });
-    setText("[data-inflow]", money(INFLOW)); paintLedger();
+    setText("[data-inflow]", money(INFLOW)); paintLedger(); paintTape();
+    if (tMap) EVENTS.slice(0, 8).reverse().forEach((e, i) => setTimeout(() => tMap.send(e), i * 180)); // the latest trades fly in on arrival
+    setInterval(() => { if (VIEW === "markets") paintTape(); }, 1000);
     const box0 = q1("[data-news]"); if (box0) box0.innerHTML = "<span>■ LOADING NEWS…</span>";
     try {
       const n = await call("/news?limit=14");
@@ -341,6 +363,13 @@
   // ---------------------------------------------------------------- overrides of the page's demo renderers
   function install() {
     try { money = (n) => cr(n); kfmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(2) + "M cr" : n >= 1e4 ? Math.round(n / 1e3) + "k cr" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k cr" : Math.round(n) + " cr"); } catch (_) { /* let hook missing */ }
+    if (typeof TermMap !== "undefined") TermMap.prototype.send = function (ev) { if (this.pk.length > 40) return; this.pk.push({ k: ev.m.ri, a: ev.ai, col: ev.side === "YES" ? "#2f7a45" : "#b8432f", b: this.t, d: 1500 + Math.random() * 700, l: `${ev.code.slice(0, 4)} ${ev.side[0]} ${money(ev.stake)}` }); };
+    const origGoNow = goNow;
+    goNow = function (route, opt = {}) { // /leaderboard and the Farmers link are anchors on home: light their own nav tab, not Overview
+      origGoNow(route, opt);
+      qa(".topbar nav.links a[data-anchor]").forEach((x) => x.removeAttribute("aria-current"));
+      if (opt.anchor) { const a = q1(`.topbar nav.links a[data-anchor="${opt.anchor}"]`); if (a) { qa("[data-nav]").forEach((x) => x.toggleAttribute("aria-current", false)); a.setAttribute("aria-current", "page"); } }
+    };
     const orig = { go, initHome, initLive, initMarkets, renderDetail, pickAgent, desHelp };
     go = function (route, opt = {}) {
       route = route || "home";
@@ -557,6 +586,7 @@
     if (!view) { view = document.createElement("main"); view.className = "view cr-x"; view.dataset.view = name; view.hidden = true; q1("main.view:last-of-type").after(view); (name === "theory" ? renderTheory : renderFarmer)(view); }
     qa(".view").forEach((v) => { v.hidden = v.dataset.view !== name; });
     qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === name));
+    qa(".topbar nav.links a[data-anchor]").forEach((x) => x.removeAttribute("aria-current"));
     scrollTo(0, 0);
     try { history.replaceState(null, "", "/" + name); } catch (_) { /* sandboxed */ }
   }
