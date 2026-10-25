@@ -11,7 +11,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from . import chain, gate, prereg
+from . import audit, chain, gate, prereg
 from .environment import Environment, load_environment
 from .proposer import ProposerError, make_proposer
 from .records import (
@@ -99,6 +99,7 @@ def _new_record(env_name: str, run_id: str, proposer: str, iterations: int, env:
         "iterations": [],
         "reveal": None,
         "error": None,
+        "audit": None,
     }
 
 
@@ -186,6 +187,7 @@ async def run_sealed(
                 "at": utc_now(),
             }
         )
+        await audit.anchor_round(record, audit.append_round(record, record["iterations"][-1]), enabled=anchor)
         await checkpoint()
 
         # 3. Search on dev seeds only.
@@ -259,6 +261,7 @@ async def run_sealed(
                 entry["champion_score"] = report["score"]
             entry["duration_s"] = round(time.monotonic() - started, 3)
             record["iterations"].append(entry)
+            await audit.anchor_round(record, audit.append_round(record, entry), enabled=anchor)
             await checkpoint()
 
         # 4. Reveal.

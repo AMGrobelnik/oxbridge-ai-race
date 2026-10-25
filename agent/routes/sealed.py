@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from agent.sealed import chain, harness, prereg, store
+from agent.sealed import audit, chain, harness, prereg, store
 from agent.sealed.environment import UnknownEnvironmentError, list_environments, load_environment
 from agent.sealed.records import RUN_ID_PATTERN
 
@@ -178,7 +178,9 @@ def register(app: FastAPI) -> None:
                 _onchain_memo(prereg_part.get("chain") if isinstance(prereg_part, dict) else None),
                 _onchain_memo(reveal_part.get("chain") if isinstance(reveal_part, dict) else None),
             )
-            report = await asyncio.to_thread(prereg.verify_bundle, record, env, commit_memo_onchain=commit_memo, reveal_memo_onchain=reveal_memo)  # type: ignore[arg-type]
+            round_memos = {i: m for i, m in (await audit.fetch_round_memos(record)).items() if m is not None}
+            extra = {"round_memos_onchain": round_memos} if round_memos else {}
+            report = await asyncio.to_thread(prereg.verify_bundle, record, env, commit_memo_onchain=commit_memo, reveal_memo_onchain=reveal_memo, **extra)  # type: ignore[arg-type]
         except NotImplementedError as err:
             return _not_ready(err)
         return JSONResponse(report)

@@ -111,10 +111,17 @@ def result_digest(record: RunRecord) -> str:
     return sha256_json(result_payload(record))
 
 
-def verify_bundle(record: RunRecord, env: Environment, *, commit_memo_onchain: str | None, reveal_memo_onchain: str | None) -> VerifyReport:
-    """Recomputes code, holdout commitment, commitment and result hash and compares them with the
-    recorded values and, when given, the on-chain memos. Never raises on a tampered bundle: it
-    returns ok=False with reasons."""
+def verify_bundle(
+    record: RunRecord,
+    env: Environment,
+    *,
+    commit_memo_onchain: str | None,
+    reveal_memo_onchain: str | None,
+    round_memos_onchain: dict[int, str | None] | None = None,
+) -> VerifyReport:
+    """Recomputes code, holdout commitment, commitment, result hash and the per-round audit chain
+    and compares them with the recorded values and, when given, the on-chain memos. Never raises
+    on a tampered bundle: it returns ok=False with reasons."""
     report: VerifyReport = {
         "ok": False,
         "code_match": False,
@@ -134,7 +141,21 @@ def verify_bundle(record: RunRecord, env: Environment, *, commit_memo_onchain: s
     except Exception as err:  # a malformed bundle must give a report, never a 500
         report["ok"] = False
         report["reasons"].append(f"bundle is malformed: {type(err).__name__}: {err}"[:200])
+    _verify_audit_into(report, record, round_memos_onchain)
     return report
+
+
+def _verify_audit_into(report: VerifyReport, record: Any, round_memos_onchain: dict[int, str | None] | None) -> None:
+    """Folds the audit chain check (SPEC.md section 13) into the report; a bundle without an
+    audit chain (made before it existed) reports audit_match=None and is not failed for it."""
+    from . import audit  # audit imports chain; kept local so prereg stays import-light
+
+    audit_report = audit.verify_chain(record, round_memos_onchain) if isinstance(record, dict) else None
+    report["audit"] = audit_report
+    report["audit_match"] = None if audit_report is None else audit_report["ok"]
+    if audit_report is not None and not audit_report["ok"]:
+        report["ok"] = False
+        report["reasons"].extend(r for r in audit_report["reasons"] if not r.startswith("on-chain round memos pending"))
 
 
 def _verify_into(report: VerifyReport, record: Any, env: Environment, commit_onchain: str | None, reveal_onchain: str | None) -> None:

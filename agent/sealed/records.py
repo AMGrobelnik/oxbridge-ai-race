@@ -3,7 +3,7 @@
 Architect-owned contract: workstreams import these and never change their shape.
 """
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 Candidate = dict[str, Any]
 """The editable artifact: data validated against the plug-in's CANDIDATE_SCHEMA, never code."""
@@ -168,6 +168,48 @@ class Reveal(TypedDict):
     chain: ChainReceipt
 
 
+class AuditRound(TypedDict):
+    """One link of the per-round audit chain (SPEC.md section 13)."""
+
+    index: int
+    prev_sha256: str
+    sha256: str
+    memo: str
+    """sealed:v1:round:<run_id>:<index>:<sha256>"""
+    chain: ChainReceipt
+
+
+class AuditChain(TypedDict):
+    v: int
+    genesis: str
+    """The preregistration commitment the chain starts from."""
+    head: str
+    """sha256 of the last round (the genesis while there are no rounds)."""
+    rounds: list[AuditRound]
+
+
+class AuditRoundCheck(TypedDict):
+    index: int
+    sha256_recomputed: str
+    sha256_recorded: str | None
+    sha256_onchain: str | None
+    match: bool
+    onchain_status: Literal["confirmed", "pending", "unreachable"]
+
+
+class AuditReport(TypedDict):
+    ok: bool
+    length: int
+    genesis_match: bool
+    head_recomputed: str | None
+    head_recorded: str | None
+    broken_at: int | None
+    """Index of the first round whose record no longer matches its hash, else None."""
+    onchain_status: Literal["confirmed", "pending", "unreachable"]
+    rounds: list[AuditRoundCheck]
+    reasons: list[str]
+
+
 class RunRecord(TypedDict):
     schema: str
     run_id: str
@@ -185,6 +227,8 @@ class RunRecord(TypedDict):
     iterations: list[IterationRecord]
     reveal: Reveal | None
     error: str | None
+    audit: NotRequired[AuditChain | None]
+    """Per-round hash chain (SPEC.md section 13); absent in records made before it existed."""
 
 
 class RunSummary(TypedDict):
@@ -219,3 +263,6 @@ class VerifyReport(TypedDict):
     result_match: bool | None
     onchain_status: Literal["confirmed", "pending", "unreachable"]
     reasons: list[str]
+    audit_match: NotRequired[bool | None]
+    """Audit chain intact (None when the bundle has no audit chain)."""
+    audit: NotRequired[AuditReport | None]

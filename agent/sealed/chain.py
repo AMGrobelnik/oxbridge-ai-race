@@ -144,7 +144,7 @@ async def fetch_memo(signature: str) -> str | None:
 
 
 async def anchor_pending(record: RunRecord) -> RunRecord:
-    """Re-anchors every pending receipt (commit first, then reveal) and returns the updated record.
+    """Re-anchors every pending receipt (commit first, then audit rounds, then reveal) and returns the updated record.
     Confirmed receipts are left untouched."""
     updated = copy.deepcopy(record)
     prereg = updated.get("preregistration")
@@ -152,6 +152,16 @@ async def anchor_pending(record: RunRecord) -> RunRecord:
     changed = False
     if prereg is not None and prereg["chain"]["status"] == "pending":
         prereg["chain"] = await anchor(prereg["memo"])
+        changed = True
+    rounds = (updated.get("audit") or {}).get("rounds") or []
+    for entry in rounds:
+        if entry["chain"]["status"] != "pending":
+            continue
+        if prereg is not None and prereg["chain"]["status"] != "confirmed":
+            # A round chains from the commitment, so it never lands before the commit.
+            entry["chain"] = pending_receipt(entry["memo"], prereg["chain"]["error"] or "pending on-chain: commit not anchored yet")
+        else:
+            entry["chain"] = await anchor(entry["memo"])
         changed = True
     if reveal is not None and reveal["chain"]["status"] == "pending":
         if prereg is not None and prereg["chain"]["status"] != "confirmed":

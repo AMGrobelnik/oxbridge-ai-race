@@ -98,7 +98,7 @@ async def _cmd_anchor(args: argparse.Namespace) -> int:
 
 
 async def _cmd_verify(args: argparse.Namespace) -> int:
-    from agent.sealed import chain, prereg
+    from agent.sealed import audit, chain, prereg
     from agent.sealed.environment import load_environment
     from agent.sealed.store import RunNotFoundError, RunStore
 
@@ -114,8 +114,18 @@ async def _cmd_verify(args: argparse.Namespace) -> int:
         commit_onchain = await chain.fetch_memo(reg_chain["signature"])
     if rev_chain.get("status") == "confirmed" and rev_chain.get("signature"):
         reveal_onchain = await chain.fetch_memo(rev_chain["signature"])
-    report = prereg.verify_bundle(record, load_environment(record["env"]), commit_memo_onchain=commit_onchain, reveal_memo_onchain=reveal_onchain)
+    round_memos = {i: m for i, m in (await audit.fetch_round_memos(record)).items() if m is not None}
+    report = prereg.verify_bundle(
+        record, load_environment(record["env"]), commit_memo_onchain=commit_onchain, reveal_memo_onchain=reveal_onchain, round_memos_onchain=round_memos
+    )
     print(json.dumps(report, indent=2))
+    audit_report = report.get("audit")
+    if audit_report is None:
+        print("audit chain: none in this bundle")
+    elif audit_report["ok"]:
+        print(f"audit chain: intact, {audit_report['length']} rounds, head {audit_report['head_recomputed']} ({audit_report['onchain_status']})")
+    else:
+        print(f"audit chain: BROKEN at round {audit_report['broken_at']}")
     print("VERIFIED: bundle matches the sealed record" if report["ok"] else "MISMATCH: bundle does not match the sealed record")
     return 0 if report["ok"] else 1
 
