@@ -1,4 +1,4 @@
-"""The Crophecy landing page at / and its live feed (agent/routes/landing.py)."""
+"""GET / (the frontend/ site for browsers, JSON for code) and the landing/ page at /landing-alt with its live feed (agent/routes/landing.py)."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,8 +22,16 @@ def client(tmp_path, monkeypatch):
     landing._cache.clear()
 
 
-def test_root_serves_the_landing_page_to_browsers(client):
+def test_root_serves_the_frontend_site_to_browsers(client):
     r = client.get("/", headers=HTML)
+    assert r.status_code == 200
+    page = r.text
+    assert "/frontend/js/api.js" in page and 'class="brand"' in page  # frontend/, wired to the live market
+    assert 'class="jp-seal"' not in page and 'href="/waitlist"' in page and 'href="waitlist/index.html"' not in page
+
+
+def test_landing_alt_serves_the_landing_page(client):
+    r = client.get("/landing-alt", headers=HTML)
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
     page = r.text

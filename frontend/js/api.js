@@ -106,17 +106,19 @@
   }
   function mapAgents(body) {
     const lb = body.leaderboard || {};
-    const rows = (lb.by_persona || []).filter((r) => r.origin === "house");
+    const rows = (lb.by_persona || []).filter((r) => r.origin === "house" || r.origin === "narrative");
     const ids = Object.keys(body.house || {});
     const keys = rows.length ? rows.map((r) => r.key) : ids;
     const brier = Object.fromEntries(rows.map((r) => [r.key, r.brier_holdout]));
-    const sorted = [...keys].sort((a, b) => (brier[a] ?? 9) - (brier[b] ?? 9)).slice(0, 8);
+    const sorted = [...keys].sort((a, b) => (brier[a] ?? 9) - (brier[b] ?? 9));
     return sorted.map((key) => {
       const p = (body.personas || []).find((x) => String(x.id).split("--")[0] === key) || {};
       const row = rows.find((r) => r.key === key) || {};
       const name = String(row.label || p.name || key).split(" · ")[0];
       const wm = String(p.world_model || "");
-      return { id: key, n: name, ab: initials(name), c: p.color || "#6d3df5", b: brier[key] ?? 0.25, nModels: row.n_agents || 1,
+      const fam = key.startsWith("narr-") || row.origin === "narrative" ? "trk" : "wm";
+      return { id: key, n: name, ab: initials(name), c: p.color || "#6d3df5", fam, code: PERSONA_CODES[key] || key.replace(/^narr-/, "").replace(/[^a-z]/gi, "").slice(0, 4).toUpperCase(),
+        watch: fam === "trk" ? (p.world_model || "").split(". ")[0] : undefined, b: brier[key] ?? 0.25, nModels: row.n_agents || 1,
         v: (p.beliefs && p.beliefs[0] ? p.beliefs[0] + "." : wm.split(". ")[0] + ".").replace(/\.\.$/, "."), style: wm.length > 260 ? wm.slice(0, 257) + "…" : wm };
     });
   }
@@ -126,8 +128,8 @@
       if (ai >= 0) return { kind: "ai", ai, a: AGENTS[ai] };
     }
     const name = S.names[trader] || trader.replace(/^(ext|user):/, "").replace(/-[0-9a-f]{6}$/, "");
-    if (trader.startsWith("user:")) return { kind: "hum", ai: 9, a: { n: name, ab: name.slice(0, 2).toUpperCase(), c: "#9a98a8", code: name.toUpperCase().slice(0, 10) } };
-    return { kind: "ext", ai: 8, a: { n: name, ab: "API", c: "#0b0a10", code: name.toUpperCase().slice(0, 10) } };
+    if (trader.startsWith("user:")) return { kind: "hum", ai: HUM_I, a: { n: name, role: "player", ab: name.slice(0, 2).toUpperCase(), c: "#9a98a8", code: name.toUpperCase().slice(0, 10) } };
+    return { kind: "ext", ai: EXT_I, a: { n: name, ab: "API", c: "#0b0a10", code: name.toUpperCase().slice(0, 10) } };
   }
   function eventOf(t) {
     const m = MK[t.qid];
@@ -158,7 +160,11 @@
     for (const h of (S.lb && S.lb.humans) || []) S.names[h.user_id] = h.nickname;
     const agents = mapAgents(body);
     AGENTS.splice(0, AGENTS.length, ...agents);
-    agents.forEach((a, i) => { CODES[i] = PERSONA_CODES[a.id] || a.id.replace(/[^a-z]/gi, "").slice(0, 4).toUpperCase(); });
+    CODES.splice(0, CODES.length, ...agents.map((a) => a.code), "EXT", "HUM");
+    try { NA = agents.length; EXT_I = NA; HUM_I = NA + 1; } catch (_) { /* let hook missing: indices stay demo-sized */ }
+    if (typeof HEAD_ORDER !== "undefined") HEAD_ORDER.splice(0, HEAD_ORDER.length, ...agents.keys(), EXT_I, HUM_I);
+    if (typeof SLOT_ORDER !== "undefined") SLOT_ORDER.splice(0, SLOT_ORDER.length, HUM_I, ...agents.keys(), EXT_I);
+    if (typeof NOTE_GENS !== "undefined") NOTE_GENS.forEach((g, i) => { if (!g.safe) { const f = () => { try { return g(); } catch (_) { return null; } }; f.safe = true; NOTE_GENS[i] = f; } }); // notes about demo-only agents drop out
     const { out, alloc } = mapMarkets(body);
     const seqs = {};
     for (const v of body.markets) seqs[v.qid] = (v.history || []).map((x) => x[0]);
@@ -166,6 +172,7 @@
     MARKETS.splice(0, MARKETS.length, ...out);
     for (const k of Object.keys(MK)) delete MK[k];
     for (const m of out) MK[m.id] = m;
+    if (typeof CROPS !== "undefined") liveCrops();
     const cats = [...new Set(out.map((m) => m.cat))];
     CATS.splice(0, CATS.length, ...["Grains", "Oils", "Softs", "Weather", "Policy", "Land", "Logistics"].filter((c) => cats.includes(c)));
     REGIONS.length = 0;
@@ -188,6 +195,27 @@
     FUND = body.fund ? body.fund.treasury : 0; INFLOW = 0; bets = 0;
     vol = out.reduce((s, m) => s + m.vol, 0); v24 = vol;
   }
+  function liveCrops() { // the farmer calculator prices each crop off its live 6-month "up N%" market; crops without one drop out
+    const pre = { "Olive": "olive-up", "wheat": "wheat-up", "Maize": "maize-up", "Sunflower": "sunoil-up", "rice": "rice-above" };
+    const keep = CROPS.map((c) => {
+      const key = Object.keys(pre).find((k) => c.k.includes(k));
+      const m = key && MARKETS.find((x) => x.id.startsWith(pre[key]));
+      if (!m) return null;
+      const up = /-up(\d+)-/.exec(m.id);
+      return { ...c, id: m.id, rise: "yes", up: up ? +up[1] / 100 : c.up };
+    }).filter(Boolean);
+    CROPS.splice(0, CROPS.length, ...keep);
+    if (typeof HEDGES === "undefined") return;
+    const risks = [ // the hedge calculator's events, each a live market
+      { k: "National drought emergency in Italy", id: "it-drought-2027", ev: "Italy declares a national drought emergency in 2027" },
+      { k: "Short French wheat harvest", id: "fr-wheat-crop-2027", ev: "France's 2027 soft wheat harvest comes in below 30 Mt" },
+      { k: "Short Spanish olive oil harvest", id: "es-olive-output-2027", ev: "Spain's 2027/28 olive oil output falls below 1.0 Mt" },
+      { k: "Black Sea grain halt or export ban", id: "ru-grain-ban-2027", ev: "Russia or Ukraine halts grain exports for over 30 days by end of 2027" },
+      { k: "Water rationing in Greece", id: "gr-water-rationing-2027", ev: "Athens or a major Greek island rations household water in 2027" },
+      { k: "Olive oil price spike (for buyers and mills)", id: "olive-up15-6m@2026-09", ev: "olive oil rises 15% by March 2027" },
+    ].filter((h) => MK[h.id]);
+    HEDGES.splice(0, HEDGES.length, ...risks);
+  }
   function fundRegions(alloc) {
     for (const r of REGIONS) {
       const a = alloc[r.gk];
@@ -208,13 +236,13 @@
     m.vol += t.spend; m.fees = (m.fees || 0) + ev.fee;
     EVENTS.unshift(ev); EVENTS.length = Math.min(EVENTS.length, 150);
     bets++; vol += ev.stake; v24 += ev.stake; FUND += ev.fee; INFLOW += ev.fee; YN[ev.side === "YES" ? 0 : 1]++;
-    if (ev.ai < 8) AGS[ev.ai].bets++;
+    if (ev.ai < AGENTS.length) AGS[ev.ai].bets++;
     bpmW.push([Date.now(), ev.stake]); while (bpmW.length && Date.now() - bpmW[0][0] > 60000) bpmW.shift();
     if (VIEW === "live" && gLive && !paused) liveOnBet(ev);
     if (VIEW === "markets" && tMap) termOnBet(ev);
     if (VIEW === "home") {
-      if (gHero) gHero.comet(m.ri, "#6d3df5", ev.ai);
-      if (gOrbit && gOrbit.active < 0) gOrbit.comet(m.ri, "#6d3df5", ev.ai);
+      if (typeof gHero !== "undefined" && gHero) gHero.comet(m.ri, "#6d3df5", ev.ai);
+      if (typeof gOrbit !== "undefined" && gOrbit && gOrbit.active < 0) gOrbit.comet(m.ri, "#6d3df5", ev.ai);
       const ul = q1("[data-tx]");
       if (ul) { ul.insertAdjacentHTML("afterbegin", `<li><b>${escH(ev.sig)}</b><span>${escH(ev.a.n)} · ${escH(m.code)}</span><span>${ev.side}</span></li>`); while (ul.children.length > 3) ul.lastElementChild.remove(); }
     }
@@ -368,7 +396,7 @@
   }
   function pathFor(route, opt) {
     if (opt && opt.anchor === "h-agents") return "/leaderboard";
-    if (route === "home") return location.pathname === "/" ? "/" : "/home"; // GET / is the waitlist landing
+    if (route === "home") return "/";
     if (route.startsWith("m-")) return "/market/" + encodeURIComponent(route.slice(2));
     return "/" + route;
   }
@@ -600,7 +628,7 @@
       if (d) { e.stopPropagation(); const [ai, c] = d.dataset.crDesf.split(":"); follow(+ai, c === "1", q1("[data-des-b] [data-cr-fmsg]")); }
     }, true);
     const nav = q1(".topbar nav.links");
-    if (nav) nav.insertAdjacentHTML("beforeend", '<a href="#theory" data-nav="theory">Theory</a><a href="#farmer" data-nav="farmer" class="opt">Farmers</a>');
+    if (nav) nav.insertAdjacentHTML("beforeend", '<a href="#theory" data-nav="theory">Theory</a><a href="#farmer" data-nav="farmer" class="opt">Farm chat</a>');
   }
   function styles() {
     const css = `.cr-preview{position:sticky;top:0;z-index:80;background:#fff4d6;color:#5c4400;font:500 13px var(--f-body);padding:8px 16px;text-align:center}

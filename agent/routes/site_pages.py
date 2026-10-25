@@ -1,12 +1,13 @@
 """The Crophecy site: frontend/ (the teammates' design, copied verbatim from main) on clean routes, wired to the live market.
 
-GET /home, /live, /markets, /market/{qid}, /leaderboard, /theory, /farmer serve frontend/index.html (GET / is the waitlist
-landing, agent/routes/landing.py; page_response() serves this site there instead if wanted), a single-page app with hash routes.
+GET / (for browsers, agent/server.py), /home, /live, /markets, /market/{qid}, /leaderboard, /theory, /farmer serve frontend/index.html,
+a single-page app with hash routes. The older landing/ page (agent/routes/landing.py) moved to /landing-alt.
 frontend/ stays byte-identical to main so a later copy never conflicts; the wiring lives in frontend/js/api.js, and this module
 injects it plus a few named hooks into the page as it is served:
   - boot: the page's first render waits for crophecyBoot (api.js), which swaps the demo data for the live market first;
   - sim:  the in-browser bet simulator only starts when api.js is absent (live trades drive the page instead);
-  - let:  `money`, `kfmt` and `MAXV` become `let`, so api.js can show play credits and rescale the globe to real volumes.
+  - let:  `money`, `kfmt`, `MAXV` and `NA` become `let`, so api.js can show play credits, rescale the globe to real volumes and
+          re-index the agents (NA, EXT_I, HUM_I) to the live roster.
 A hook whose anchor is gone (the page changed on main) is skipped and logged; api.js then labels the page as a preview.
 Once main carries a hook itself (it mentions crophecyBoot / CROPHECY_LIVE), its patch is skipped.
 
@@ -38,7 +39,7 @@ HOOKS: tuple[tuple[str, str, re.Pattern[str], str], ...] = (
     ("boot", "crophecyBoot", re.compile(r"^go\(\(location\.hash\|\|'#(\w+)'\)\.slice\(1\),\{keep:true\}\);$", re.M),
      r"(window.crophecyBoot||(f=>f()))(()=>go((location.hash||'#\1').slice(1),{keep:true}));"),
     ("sim", "CROPHECY_LIVE", re.compile(r"^setInterval\(tick,1000\);$", re.M), "window.CROPHECY_LIVE||setInterval(tick,1000);"),
-    ("let", "let money=", re.compile(r"\bconst (money|kfmt|MAXV)="), r"let \1="),
+    ("let", "let money=", re.compile(r"\bconst (money|kfmt|MAXV|NA)="), r"let \1="),
 )
 HISTORY_POINTS = 120
 POLL_TRADES = 200
@@ -58,6 +59,7 @@ def wired_page(source: str, version: str) -> tuple[str, list[str]]:
             applied.append(name)
         else:
             logger.warning("site: hook %r not found in frontend/index.html; the page will be labelled a preview", name)
+    source = source.replace('href="waitlist/index.html"', 'href="/waitlist"')  # the bundled copy; /waitlist is the live one (Supabase)
     tag = f"<script>window.CROPHECY_HOOKS={json.dumps(applied)};</script>{API_JS.format(v=version)}"
     head = source.find("<script>")
     html = source[:head] + tag + "\n" + source[head:] if head >= 0 else source.replace("</body>", tag + "</body>")

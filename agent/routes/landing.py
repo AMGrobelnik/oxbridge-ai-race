@@ -160,6 +160,10 @@ def _geo() -> dict[str, Any]:
 
 
 def register(app: FastAPI) -> None:
+    @app.get("/landing-alt", include_in_schema=False)
+    async def landing_alt(request: Request) -> HTMLResponse:
+        return landing_response(request)
+
     @app.get("/classic", include_in_schema=False)
     async def classic(request: Request) -> HTMLResponse:
         from agent.landing import render_landing
