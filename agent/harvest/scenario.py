@@ -39,6 +39,7 @@ CROP_WEIGHTS: dict[str, tuple[float, float, float]] = {
     "water": (0.5, 1.4, 0.0), "all crops": (0.4, 0.9, 0.05), "farmland": (0.15, 0.3, 0.0),
 }
 DEFAULT_WEIGHTS = (0.3, 0.8, 0.1)
+STRESS_SCALE = 0.5  # keeps the rules' moves in the range the LLM agents give for the same scenario
 # How strongly each persona's world model lets climate stress move its forecast.
 SENSITIVITY = {"climate-pessimist": 1.6, "agronomist": 1.3, "efficient-market-skeptic": 1.1, "geopolitics-hawk": 0.8,
                "land-grab-realist": 0.7, "macro-dollar": 0.6, "adaptation-optimist": 0.45, "crowd-follower": 0.5}
@@ -103,7 +104,7 @@ def stress(q: dict[str, Any], scenario: dict[str, Any]) -> tuple[float, list[str
     heat = europe if local is None else 0.6 * local + 0.4 * europe
     dry = -scenario["rain_pct"] / 50.0
     wt, wr, we = CROP_WEIGHTS.get(str(q.get("crop") or ""), DEFAULT_WEIGHTS)
-    value = wt * heat + wr * dry + we * scenario["enso"]
+    value = STRESS_SCALE * (wt * heat + wr * dry + we * scenario["enso"])
     drivers = []
     if wt * heat >= 0.1:
         drivers.append(f"+{local:.1f}°C in {region}" if local else f"+{europe:.1f}°C across Europe")
@@ -246,5 +247,7 @@ def merge_llm(rows: list[dict[str, Any]], llm: dict[tuple[str, str], tuple[float
 
 
 def exposed(rows: list[dict[str, Any]], k: int = LLM_MARKETS) -> list[dict[str, Any]]:
-    """The k markets the scenario stresses most (the ones worth an LLM's attention)."""
-    return sorted((r for r in rows if abs(r["stress"]) > 0.01), key=lambda r: -abs(r["stress"]))[:k]
+    """The k markets the rules move most (the ones shown first, so worth an LLM's attention)."""
+    def move(r: dict[str, Any]) -> float:
+        return abs(sum(a["delta"] for a in r["agents"])) / max(1, len(r["agents"]))
+    return sorted((r for r in rows if abs(r["stress"]) > 0.01), key=lambda r: -move(r))[:k]
