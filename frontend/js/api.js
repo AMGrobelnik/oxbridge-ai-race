@@ -663,7 +663,7 @@
     install();
     wireGlobalClicks();
     paintChrome();
-    if (!window.__croppyLoaded) croppy(); // the site-wide Croppy (/harvest/static/croppy.js) replaces this one
+    if (!window.__croppyLoaded && !document.querySelector("script[src*=\"/harvest/static/croppy.js\"]")) croppy(); // the site-wide Croppy (/harvest/static/croppy.js, deferred) replaces this one
     go(routeFromPath(), { keep: true });
     setTimeout(poll, POLL_MS);
   }
