@@ -11,7 +11,7 @@ pass for a human. The swarm runs as its own process and only talks HTTP to the l
   world model, price windows, NOAA climate context, market prices, news), paced per provider and
   per model inside the documented free-tier limits, with backoff on 429 and on errors;
 - bets through POST /harvest/api/agents/bet, sized by edge and capped by bankroll, at most
-  SWARM_BETS_PER_MIN (default 90, under the server's 120/min per IP agent limit).
+  SWARM_BETS_PER_MIN (default 100, under the server's 120/min per IP agent limit).
 
 Stops at SWARM_UNTIL (local HH:MM), when SWARM_STOP_FILE exists, or on SIGTERM.
 Run: python -m agent.harvest.swarm [probe]. Account tokens are kept in SWARM_STATE (mode 600).
@@ -76,7 +76,7 @@ class Model:
 
 PROVIDERS = {
     # OpenRouter :free variants: 20 requests/min, 1000/day for keys with purchased credits (ours).
-    "openrouter": Provider("openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", rpm=18, budget=800),
+    "openrouter": Provider("openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", rpm=18, budget=900),
     # Gemini API free tier: per-model limits (below); no shared cap.
     "gemini": Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", rpm=0, budget=10**6),
 }
@@ -87,13 +87,13 @@ MODELS = [
     Model("gemini-2.5-flash-lite", "gemini", "gemini-2.5-lite", "Gemini", rpm=10, budget=600),
     Model("gemini-2.5-flash", "gemini", "gemini-2.5-flash", "Gemini", rpm=5, budget=150),
     # OpenRouter :free models (catalog of 2026-10-25), shared 20 RPM.
-    Model("google/gemma-4-31b-it:free", "openrouter", "gemma-4-31b", "Gemma", rpm=6, budget=200),
-    Model("nvidia/nemotron-3.5-lightning:free", "openrouter", "nemotron-3.5", "Nemotron", rpm=6, budget=200),
-    Model("poolside/laguna-s-2.1:free", "openrouter", "laguna-s-2.1", "Laguna", rpm=6, budget=200),
-    Model("dots-studio/dots-3-note-preview:free", "openrouter", "dots-3-note", "dots", rpm=6, budget=200),
-    Model("xingchen-agi/xing4.0-29b-a4b:free", "openrouter", "xing-4.0", "Xing", rpm=6, budget=200),
-    Model("recursive/flint-v1.0:free", "openrouter", "flint-1.0", "Flint", rpm=6, budget=200),
-    Model("liquid/lfm-2.5-2.6b:free", "openrouter", "lfm-2.5", "LFM", rpm=6, budget=200),
+    Model("google/gemma-4-31b-it:free", "openrouter", "gemma-4-31b", "Gemma", rpm=4, budget=900),
+    Model("nvidia/nemotron-3.5-lightning:free", "openrouter", "nemotron-3.5", "Nemotron", rpm=4, budget=900),
+    Model("poolside/laguna-s-2.1:free", "openrouter", "laguna-s-2.1", "Laguna", rpm=4, budget=900),
+    Model("dots-studio/dots-3-note-preview:free", "openrouter", "dots-3-note", "dots", rpm=4, budget=900),
+    Model("xingchen-agi/xing4.0-29b-a4b:free", "openrouter", "xing-4.0", "Xing", rpm=4, budget=900),
+    Model("recursive/flint-v1.0:free", "openrouter", "flint-1.0", "Flint", rpm=4, budget=900),
+    Model("liquid/lfm-2.5-2.6b:free", "openrouter", "lfm-2.5", "LFM", rpm=4, budget=900),
 ]
 
 
@@ -433,6 +433,33 @@ class Swarm:
         tmp.chmod(0o600)
         tmp.replace(self.state_file)
 
+    def _beliefs_file(self) -> Path:
+        return self.state_file.with_name("swarm_beliefs.json")
+
+    def _save_beliefs(self) -> None:
+        data = {a.key: {"at": a.believed_at, "beliefs": a.beliefs} for a in self.agents if a.beliefs}
+        try:
+            tmp = self._beliefs_file().with_suffix(".tmp")
+            tmp.write_text(json.dumps(data))
+            tmp.replace(self._beliefs_file())
+        except OSError as err:
+            logger.warning("could not save beliefs: %s", type(err).__name__)
+
+    def load_beliefs(self) -> int:
+        """Beliefs from an earlier run (so a restart keeps trading at once); kept only for markets still open."""
+        try:
+            data = json.loads(self._beliefs_file().read_text())
+        except (OSError, ValueError):
+            return 0
+        n = 0
+        for a in self.agents:
+            row = data.get(a.key)
+            if a.kind == "llm" and row:
+                a.beliefs = {q: (float(v[0]), str(v[1])) for q, v in row["beliefs"].items()}
+                a.believed_at = float(row["at"])
+                n += 1
+        return n
+
     async def register_all(self, http: httpx.AsyncClient) -> None:
         saved = self._load_state()
         for a in self.agents:
@@ -525,7 +552,7 @@ class Swarm:
     async def llm_worker(self, http: httpx.AsyncClient, model: Model) -> None:
         pacer = self.model_pacers[model.id]
         prov = self.provider_pacers.get(model.provider)
-        fails = 0
+        fails = limited = 0
         while not self.stop.is_set():
             mine = [a for a in self.agents if a.model is model and a.token]
             if not mine or not self.markets:
@@ -543,10 +570,9 @@ class Swarm:
                 parsed = parse_reply(text, len(qs))
             except RateLimited as err:
                 self.stats["llm_429"][model.label] = self.stats["llm_429"].get(model.label, 0) + 1
-                wait = min(max(err.retry_after, 20.0), 300.0)
-                pacer.backoff(wait, time.time())
-                if prov is not None and model.provider == "openrouter":
-                    prov.backoff(min(wait, 30.0), time.time())
+                limited += 1
+                wait = min(max(err.retry_after, 30.0 * 2 ** min(limited - 1, 4)), 600.0)
+                pacer.backoff(wait, time.time())  # OpenRouter :free 429s are per upstream model; the shared pacer keeps the account limit
                 logger.warning("%s rate-limited, backing off %.0fs", model.label, wait)
                 continue
             except Exception as err:  # noqa: BLE001 - any model failure backs that model off; the others keep going
@@ -556,10 +582,11 @@ class Swarm:
                 pacer.backoff(wait, time.time())
                 logger.warning("%s call failed (%s: %s), backing off %.0fs", model.label, type(err).__name__, str(err)[:120], wait)
                 continue
-            fails = 0
+            fails = limited = 0
             self.stats["calls"][model.label] = self.stats["calls"].get(model.label, 0) + 1
             agent.beliefs = {q["qid"]: parsed[f"Q{i}"] for i, q in enumerate(qs, start=1) if f"Q{i}" in parsed}
             agent.believed_at = now
+            self._save_beliefs()
             logger.info("%s refreshed %d beliefs in %.1fs", agent.name, len(agent.beliefs), time.time() - now)
 
     # ---- betting
@@ -712,7 +739,8 @@ def main() -> None:
     swarm = Swarm(base=os.environ.get("SWARM_BASE") or "http://127.0.0.1:3001", until=_until_epoch(os.environ.get("SWARM_UNTIL") or "19:45"),
                   stop_file=Path(os.environ.get("SWARM_STOP_FILE") or LOGS / "swarm.stop"),
                   state_file=Path(os.environ.get("SWARM_STATE") or LOGS / "swarm_accounts.json"), models=models,
-                  bets_per_min=float(os.environ.get("SWARM_BETS_PER_MIN") or 90))
+                  bets_per_min=float(os.environ.get("SWARM_BETS_PER_MIN") or 100))
+    logger.info("restored beliefs of %d LLM agents", swarm.load_beliefs())
     logger.info("swarm: %d agents (%d LLM on %d models, %d baselines), until %s", len(swarm.agents), sum(1 for a in swarm.agents if a.kind == "llm"),
                 len(models), sum(1 for a in swarm.agents if a.kind != "llm"), datetime.fromtimestamp(swarm.until).strftime("%H:%M"))
     asyncio.run(swarm.run())
