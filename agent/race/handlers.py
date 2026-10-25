@@ -304,6 +304,7 @@ def parse_payment(task: Task) -> dict[str, Any] | None:
 
 async def pay(task: Task, payment: dict[str, Any]) -> TaskOutput:
     from agent.paidapi.buyer import get_spending_tracker
+    from agent.payments import cosign
     from agent.payments.config import PaymentsConfigError
     from agent.payments.transfer import TransferError, load_agent_keypair, pay_usdc
 
@@ -313,6 +314,11 @@ async def pay(task: Task, payment: dict[str, Any]) -> TaskOutput:
         raise TaskError("invalid_input", "The payment amount must be positive.")
     if max_spend is not None and amount > float(max_spend) + 1e-9:
         raise TaskError("limit_exceeded", f"Paying {amount} USDC is over the task's spending limit of {max_spend}.")
+    if cosign.needs_cosign(amount):
+        approval = cosign.queue(to, amount, memo, reason="AI Race run_workflow payment")
+        logger.info("[race] %s devnet USDC to %s awaits human co-sign (%s)", amount, to, approval["id"])
+        text = f"Awaiting human co-sign: paying {amount} devnet USDC to {to} is over the {cosign.cap_usd():.2f} USDC autonomy cap, so nothing was sent. Approval {approval['id']} is queued."
+        return {"text": text, "data": {"status": "awaiting_cosign", "approvalId": approval["id"], "amount": amount, "to": to, "memo": memo, "capUsd": cosign.cap_usd()}}
     try:
         keypair = load_agent_keypair()
         signature = await pay_usdc(keypair, to=to, amount_usdc=amount, memo=memo, guard=get_spending_tracker())

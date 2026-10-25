@@ -28,11 +28,12 @@ class SpendingTracker:
         self._reservations: dict[int, int] = {}
         self._lock = threading.Lock()
 
-    def try_reserve(self, amount_micros: int) -> SpendDecision:
+    def try_reserve(self, amount_micros: int, *, cosigned: bool = False) -> SpendDecision:
+        """cosigned=True (a human approved this payment) skips the per-payment cap but not the budget."""
         with self._lock:
             if amount_micros <= 0:
                 return SpendDecision(ok=False, reason="Payment amount must be positive")
-            if amount_micros > self.policy.max_payment_micros:
+            if not cosigned and amount_micros > self.policy.max_payment_micros:
                 return SpendDecision(
                     ok=False,
                     reason=f"Payment of ${micros_to_usd(amount_micros)} is above the per-payment cap "
@@ -50,6 +51,10 @@ class SpendingTracker:
             self._spent += amount_micros
             self._payments += 1
             return SpendDecision(ok=True, reservation_id=reservation_id)
+
+    def cosigned_guard(self) -> "CosignedGuard":
+        """A guard for a payment a human co-signed (agent/payments/cosign.py)."""
+        return CosignedGuard(self)
 
     def release(self, reservation_id: int) -> None:
         """Gives the money back to the budget, e.g. when the payment was never settled."""
@@ -76,3 +81,19 @@ class SpendingTracker:
             "remainingUsd": micros_to_usd(self.remaining()),
             "payments": self._payments,
         }
+
+
+class CosignedGuard:
+    """The tracker's guard shape for a human co-signed payment: budget enforced, per-payment cap lifted."""
+
+    def __init__(self, tracker: SpendingTracker) -> None:
+        self._tracker = tracker
+
+    def try_reserve(self, amount_micros: int) -> SpendDecision:
+        return self._tracker.try_reserve(amount_micros, cosigned=True)
+
+    def release(self, reservation_id: int) -> None:
+        self._tracker.release(reservation_id)
+
+    def commit(self, reservation_id: int) -> None:
+        self._tracker.commit(reservation_id)

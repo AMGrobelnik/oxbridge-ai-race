@@ -252,3 +252,78 @@ The judges' demo never waits on Gemini or devnet:
 
 `python -m agent sealed run --env epidemic [--iterations 8] [--proposer gemini|scripted] [--no-anchor] [--freeze]`,
 `python -m agent sealed anchor <run_id> [--freeze]`, `python -m agent sealed verify <run_id>`.
+
+## Human co-sign guardrail (`agent/payments/cosign.py`, `agent/routes/cosign.py`)
+
+Limited autonomy for agent payments: any payment over `COSIGN_CAP_USD` (env/.env, default
+`0.50` devnet USDC) is **not sent**. It is queued as an approval and the agent gets an
+"awaiting human co-sign" result (the AI Race `run_workflow` handler returns
+`data: {"status": "awaiting_cosign", "approvalId", "amount", "to", "memo", "capUsd"}`).
+Payments at or under the cap go through `pay_usdc` unchanged (verifier payments are 0.01).
+A co-signed payment skips the per-payment autonomy cap (`MAX_PAYMENT_USD`) but still counts
+against the total budget (`AGENT_BUDGET_USD`). State lives in `COSIGN_DIR` (default
+`.cosign/`, git-ignored): `approvals.json` and the append-only `audit.jsonl`.
+
+`Approval`: `{"id": "cs_<12 hex>", "status", "amount_usdc", "to", "memo", "reason", "cap_usd",
+"created_at", "decided_at", "decided_by", "note", "signature", "explorer_url", "onchain_error"}`,
+with `status` one of `pending`, `approved_pending_onchain` (approved, not yet on chain;
+`onchain_error` says "pending on-chain: ..."; approve again to retry), `sent`, `rejected`.
+
+| Method and path | Body | Returns |
+|---|---|---|
+| `GET /api/cosign/pending` | | `{"capUsd", "pending": [Approval]}`: `pending` and `approved_pending_onchain`, newest first |
+| `GET /api/cosign/approvals?status=` | | `{"capUsd", "approvals": [Approval]}`; status `open`, `pending`, `approved_pending_onchain`, `sent`, `rejected` or none for all |
+| `POST /api/cosign/{id}/approve` | `{"by"?: str, "note"?: str}` | `Approval` after `pay_usdc`: `sent` with `signature`/`explorer_url`, or `approved_pending_onchain` |
+| `POST /api/cosign/{id}/reject` | `{"by"?: str, "note"?: str}` | `Approval` with `status: "rejected"` (only from `pending`) |
+| `GET /api/cosign/audit?limit=200` | | `{"audit": [{"at", "event", "approval_id", "amount_usdc", "to", "memo", ...}]}`, newest first; events `queued`, `approved`, `rejected`, `sent` (+`signature`), `send_pending` (+`onchain_error`) |
+
+Errors are `{"error"}`: 404 unknown id, 409 already decided, 401 when `COSIGN_TOKEN` is set and
+the request lacks `Authorization: Bearer <COSIGN_TOKEN>` (approve and reject only).
+
+## 13. Per-round audit log (`audit.py`, notarised audit trail)
+
+Every iteration, the baseline included, becomes one link of a hash chain that starts at the
+preregistration commitment, so the log is bound to the sealed test and no round can be edited,
+dropped or reordered after the fact without breaking every later link.
+
+- `round_sha256 = sha256(canonical_json({"v": 1, "run_id", "index", "prev", "hypothesis",
+  "rationale", "strategy", "candidate", "dev_score", "decision"}))`, where `prev` is the
+  previous round's hash (the commitment for round 0) and `dev_score` is `dev.score` or null.
+- Memo per round: `sealed:v1:round:<run_id>:<index>:<round_sha256>` (under 160 bytes), posted
+  through `chain.anchor` right after the round is recorded. A round never lands before the
+  commit it chains from: while the commit receipt is pending, the round's receipt is pending
+  with the commit's reason ("pending on-chain: agent wallet not funded"); with `anchor=False`
+  it is pending with "anchoring disabled". `chain.anchor_pending` retries commit, then every
+  pending round in order, then the reveal.
+
+Run-record field (absent in records made before this section; such bundles still verify):
+
+```jsonc
+"audit": {
+  "v": 1,
+  "genesis": "<preregistration.commitment>",
+  "head": "<sha256 of the last round>",
+  "rounds": [{"index": 0, "prev_sha256": "<genesis>", "sha256": "...",
+              "memo": "sealed:v1:round:<run_id>:0:<sha256>", "chain": ChainReceipt}, ...]
+} | null
+```
+
+`prereg.verify_bundle(..., round_memos_onchain: dict[int, str] | None = None)` recomputes the
+chain from `iterations` and adds two fields to `VerifyReport` (the CLI prints them too, and
+`POST /sealed/api/verify` and `python -m agent sealed verify` fetch the memos of confirmed
+round receipts):
+
+```jsonc
+"audit_match": true | false | null,      // null: the bundle has no audit chain
+"audit": {
+  "ok": true, "length": 9, "genesis_match": true,
+  "head_recomputed": "...", "head_recorded": "...",
+  "broken_at": null,                     // index of the first round that no longer matches
+  "onchain_status": "confirmed|pending|unreachable",
+  "rounds": [{"index", "sha256_recomputed", "sha256_recorded", "sha256_onchain",
+              "match", "onchain_status"}],
+  "reasons": []
+} | null
+```
+
+A broken chain sets `ok=false` and adds "audit chain breaks at round <i>" to `reasons`.

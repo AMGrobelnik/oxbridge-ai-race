@@ -12,3 +12,6 @@ __pycache__/
 
 # Sealed run records (agent/sealed/store.py)
 .sealed_runs/
+
+# Human co-sign records (agent/payments/cosign.py)
+.cosign/
