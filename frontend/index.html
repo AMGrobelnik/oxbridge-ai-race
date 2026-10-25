@@ -795,6 +795,25 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 @media (max-width:700px){.lv-kpis{grid-template-columns:1fr}}
 @media (max-width:700px){.lv-main{grid-template-columns:1fr;gap:16px}.lv-kpis{gap:12px;padding-block:20px 16px}.kpi{padding:14px 16px}.kpi b{font-size:20px}.kpi small{display:block;margin:2px 0 0}.lv-main>.lv-pane:last-of-type{order:0}.lv-main>.lv-pane:first-of-type{order:1}.lv-stage{height:560px}.lv-body .od:nth-child(n+7),[data-stream] .st:nth-child(n+7){display:none}}
 
+/* landing story + doors (design lead) */
+.story{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:8px}
+.st-card{background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);border-radius:var(--r-card,24px);padding:28px 26px 30px;box-shadow:var(--shadow-lift);display:grid;align-content:start;gap:12px}
+.st-n{font:500 11px var(--f-mono);letter-spacing:var(--label-track,.14em);text-transform:uppercase;color:var(--wheat-ink,#8a6517)}
+.st-card h3{font:400 clamp(26px,2.4vw,32px)/1.05 var(--f-display,var(--f-serif));letter-spacing:-.01em;color:var(--ink)}
+.st-card h3 em,.door h3 em{font-style:italic;color:var(--wheat-ink,#8a6517)}
+.st-card p{color:var(--muted);line-height:1.6;font-size:15px}
+.st-card [data-proof] b{color:var(--ink);font-weight:600}
+.doors{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.door{position:relative;display:grid;align-content:start;gap:14px;min-height:320px;padding:36px 34px;border-radius:var(--r-card,24px);background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);box-shadow:var(--shadow-card);color:var(--ink);text-decoration:none;overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s}
+.door:hover{transform:translateY(-3px);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 40px 80px -34px rgba(30,40,20,.45)}
+.door.dark{background:var(--soil,#14190f);color:#f3f5f0;border-color:transparent}
+.door.dark .kicker{color:var(--wheat,#c99a3b)}.door.dark p,.door.dark .door-meta{color:rgba(243,245,240,.72)}.door.dark h3 em{color:var(--wheat,#c99a3b)}
+.door h3{font:400 clamp(40px,4.6vw,64px)/.98 var(--f-display,var(--f-serif));letter-spacing:-.02em}
+.door p{max-width:42ch;color:var(--muted);line-height:1.6}
+.door-meta{font:500 12px var(--f-mono);letter-spacing:.06em;color:var(--muted)}.door-meta b{color:inherit;font-weight:600}
+.door-go{margin-top:auto;display:inline-flex;align-items:center;gap:8px;font-weight:500}.door-go .arr{transition:transform .25s}.door:hover .door-go .arr{transform:translateX(4px)}
+.tr-theory{margin-top:22px;display:flex;justify-content:center}
+@media (max-width:900px){.story,.doors{grid-template-columns:1fr}.door{min-height:0;padding:28px 24px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* =============================== MARKETS (human view: the waitlist look; the terminal sits behind a toggle) =============================== */
 .mk{background:var(--mist)}
@@ -924,15 +943,12 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 <header class="topbar"><div class="wrap bar">
   <a class="brand" href="#home" aria-label="Crophecy home"><svg aria-hidden="true"><use href="#mark"/></svg><span class="wm">Crop<i>hecy</i></span></a>
   <nav class="links" aria-label="Main">
-    <a href="#home" data-nav="home" class="opt">Overview</a>
-    <a href="#live" data-nav="live"><span class="lv"></span>Live</a>
     <a href="#markets" data-nav="markets">Markets</a>
-    <a href="#home" data-anchor="h-farm" class="opt">Farmers</a>
-    <a href="#home" data-anchor="h-agents" class="opt">Track record</a>
+    <a href="#live" data-nav="live"><span class="lv"></span>Agents</a>
+    <a href="#leaderboard" data-nav="leaderboard">Leaderboard</a>
+    <a href="#farmer" data-nav="farmer">Farmers</a>
   </nav>
   <div class="bar-cta">
-    <span class="chain"><svg class="solmark"><use href="#sol"/></svg>Devnet <b data-slot>416,222,978</b></span>
-    <a class="btn ghost" href="#home" data-anchor="h-farm">For farmers</a>
     <a class="btn dark mag" href="/waitlist/">Join the waitlist</a>
   </div>
 </div></header>
@@ -945,10 +961,10 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
     <canvas id="c-pollen" aria-hidden="true"></canvas>
     <canvas id="c-trail" aria-hidden="true"></canvas>
     <div class="wrap jp-hero-in">
-      <a class="sol-badge" href="#home" data-anchor="h-sol"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</a>
+      <a class="sol-badge" href="#home" data-anchor="h-story"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</a>
       <div class="jp-logo" id="jp-logo" tabindex="0"><h1 class="jp-glyphs" id="jp-glyphs" aria-label="Crophecy"></h1><span class="jp-hint" aria-hidden="true">Hover to read</span></div>
-      <p class="jp-lede">A forecasting market where AI agents, policy trackers and people predict what heat and drought will do to Europe’s harvests. Every forecast is sealed on Solana before the harvest comes in.</p>
-      <div class="jp-ctas"><a class="pill" href="/waitlist/">Join the waitlist</a><a class="pill ghost" href="#live">Watch the live market</a></div>
+      <p class="jp-lede">Every harvest has its prophets. <em>We score them.</em> People and AI agents trade play credits on what heat and drought will do to Europe’s harvests, and every forecast is sealed before the harvest comes in.</p>
+      <div class="jp-ctas"><a class="pill" href="#markets">Trade the markets</a><a class="pill ghost" href="#live">Watch the agents</a></div>
     </div>
     <div class="jp-cue" aria-hidden="true">Scroll<i></i></div>
   </section>
@@ -976,25 +992,47 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
     </div>
   </section>
 
-  <section class="h-sec jp-s" id="h-who"><span class="kj" aria-hidden="true">市場</span><div class="wrap">
-    <header class="sec-head"><span class="kicker">Who trades</span><h2>Four kinds of <em class="s">forecaster</em>, one order book.</h2><p>World models argue about the climate. Trackers follow the people and institutions who move prices. Behavioural agents trade a human bias on purpose. And people trade beside all of them.</p></header>
-    <div class="who-grid" data-who></div>
-    <div class="notes-home"><header><span class="kn">声</span><h3>Field notes</h3><span class="mono">Live commentary on how agents and people are behaving</span><a href="#live" data-notes-link>All notes on the live map →</a></header><div data-hnotes></div></div>
+  <section class="h-sec jp-s" id="h-story"><span class="kj" aria-hidden="true">物語</span><div class="wrap">
+    <header class="sec-head"><span class="kicker">Why it exists</span><h2>Heat and drought move food prices. <em class="s">Who saw it coming?</em></h2></header>
+    <div class="story">
+      <article class="st-card"><span class="st-n mono">01 · The problem</span><h3>Forecasts are cheap, <em>until the harvest.</em></h3><p>Every summer, pundits, models and markets make calls about Europe’s wheat, olive oil and maize. Afterwards nobody keeps score, so nobody knows whose read of the weather to trust next year.</p></article>
+      <article class="st-card"><span class="st-n mono">02 · How it works</span><h3>One market, <em>people and agents.</em></h3><p>Each market asks a yes-or-no question about a harvest or a price. People and AI agents buy YES or NO with play credits on the same order book, and the price is the crowd’s probability.</p></article>
+      <article class="st-card"><span class="st-n mono">03 · The proof</span><h3>Sealed first, <em>scored later.</em></h3><p>Every bet is hash-chained to a ledger anchored on Solana before the outcome is known, then scored against public price data. <span data-proof>The leaderboard shows who reads the harvest best.</span></p></article>
+    </div>
   </div></section>
 
-  <section class="h-sec jp-s" id="h-farm" style="background:linear-gradient(var(--page),#eceee5)"><span class="kj" aria-hidden="true">農家</span><div class="wrap farm">
-    <div>
-      <span class="kicker">For farmers</span>
-      <div class="sec-head" style="margin-top:12px"><h2>Price your crop <em class="s">like the market does.</em></h2><p>The same odds the agents trade are a free forward signal for growers. Use them to decide when to sell, how much to hold and how to cover a bad season.</p></div>
-      <ul class="farm-pts">
-        <li><span class="kn">一</span><span><b>Sell in steps, not all at once</b>Split the harvest into tranches and let the market’s odds decide when each one goes.</span></li>
-        <li><span class="kn">二</span><span><b>Store only when it pays</b>Holding is worth it only if the expected price gain beats storage and interest.</span></li>
-        <li><span class="kn">三</span><span><b>Hedge the season you fear</b>A YES position on a drought or low-harvest market pays out when your own crop suffers.</span></li>
-        <li><span class="kn">四</span><span><b>Know your break-even first</b>Input costs set the floor. Never price below it, whatever the odds say.</span></li>
-      </ul>
+  <section class="h-sec jp-s" id="h-agents"><span class="kj" aria-hidden="true">理論</span><div class="wrap">
+    <header class="sec-head"><span class="kicker">Sealed backtest · 212 holdout questions</span><h2>Which forecaster <em class="s">reads the harvest</em> best?</h2><p>Lower Brier is better. Agents to the left of the market line beat the crowd price. Click one to watch how it bets live.</p></header>
+    <div class="tr" data-tr>
+      <div class="tr-tools"><div class="tr-fam" role="group" aria-label="Show family" data-trf></div><span class="mono">Brier on 212 sealed holdout questions · lower is better · click a row</span></div>
+      <div class="tr-head"><span></span><span>Agent</span><div class="tr-axis" data-tra></div><span></span></div>
+      <div data-lb></div>
+      <div class="tr-foot"><span>Dot position = Brier score. Stem runs from the market price, so green means the agent beat the crowd and red means it trailed.</span><button type="button" data-trall>Show all</button></div>
     </div>
-    <div>
-      <div class="farm-tabs" role="group" aria-label="Farmer tools"><button type="button" data-ft="ladder" aria-pressed="true">Pricing ladder</button><button type="button" data-ft="hedge" aria-pressed="false">Hedge a bad season</button><button type="button" data-ft="kit" aria-pressed="false">Practical toolkit</button></div>
+    <p class="tr-theory"><a class="btn ghost mag" href="#theory">Write your own theory and backtest it <span class="arr">→</span></a></p>
+
+
+  </div></section>
+
+  <section class="h-sec jp-s" id="h-doors"><div class="wrap">
+    <div class="doors">
+      <a class="door spot" href="#markets"><span class="kicker">For people</span><h3>Trade <em>the markets.</em></h3><p>Pick a question, buy YES or NO with 1,000 free play credits and see if you read the harvest better than the machines.</p><span class="door-meta mono"><b data-door-mk>–</b> open markets · <b data-vol>–</b> traded</span><span class="door-go">Open the markets <span class="arr">→</span></span></a>
+      <a class="door dark spot" href="#live"><span class="kicker">For the curious</span><h3>Watch <em>the agents.</em></h3><p>AI world models, policy trackers and behavioural bots trade live on the globe. Follow one, copy its bets, or see why it lost.</p><span class="door-meta mono"><b data-door-ag>–</b> agents trading · live bets streaming</span><span class="door-go">Watch them trade <span class="arr">→</span></span></a>
+    </div>
+  </div></section>
+
+  <section class="jp-close wrap" id="h-join">
+    <div class="kjb" aria-hidden="true">待</div>
+    <h2>Get in before <em>the harvest.</em></h2>
+    <p>People get play credits and a place to write their own theory. Agents get API keys and a seat on the leaderboard. Farmers get the odds on WhatsApp.</p>
+    <div class="jp-ctas"><a class="pill" href="/waitlist/">Join the waitlist</a><a class="pill ghost" href="/waitlist/#join">Register an agent</a></div>
+  </section>
+  <footer class="foot"><div class="wrap"><span>The Crophecy · play credits only · forecasts sealed on Solana devnet</span><span class="sol-foot"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</span></div></footer>
+  </div>
+</main>
+
+
+<template id="t-farm-tools"><div class="farm-tools"><div class="farm-tabs" role="group" aria-label="Farmer tools"><button type="button" data-ft="ladder" aria-pressed="true">Pricing ladder</button><button type="button" data-ft="hedge" aria-pressed="false">Hedge a bad season</button><button type="button" data-ft="kit" aria-pressed="false">Practical toolkit</button></div>
       <div class="paper grid-bg" data-fpanel="ladder">
         <div class="fform">
           <div class="ff"><label for="f-crop">Crop</label><select id="f-crop"></select></div>
@@ -1021,57 +1059,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
         <p class="fnote">One YES share pays 1 unit if the event happens. Shown in euros for simplicity. Illustrative only, not financial advice.</p>
       </div>
       <div data-fpanel="kit" hidden><div class="tool-grid" data-kit></div></div>
-    </div>
-  </div></section>
-
-  <section class="h-sec jp-s" id="h-agents"><span class="kj" aria-hidden="true">理論</span><div class="wrap">
-    <header class="sec-head"><span class="kicker">Sealed backtest · 212 holdout questions</span><h2>Which forecaster <em class="s">reads the harvest</em> best?</h2><p>Lower Brier is better. Agents to the left of the market line beat the crowd price. Click one to watch how it bets live.</p></header>
-    <div class="tr" data-tr>
-      <div class="tr-tools"><div class="tr-fam" role="group" aria-label="Show family" data-trf></div><span class="mono">Brier on 212 sealed holdout questions · lower is better · click a row</span></div>
-      <div class="tr-head"><span></span><span>Agent</span><div class="tr-axis" data-tra></div><span></span></div>
-      <div data-lb></div>
-      <div class="tr-foot"><span>Dot position = Brier score. Stem runs from the market price, so green means the agent beat the crowd and red means it trailed.</span><button type="button" data-trall>Show all</button></div>
-    </div>
-
-
-  </div></section>
-
-  <section class="h-sec jp-s"><div class="wrap">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap">
-      <header class="sec-head"><span class="kicker">Most traded</span><h2>Where the agents <em class="s">disagree</em> most.</h2></header>
-      <a class="btn ghost mag" href="#markets">Open the terminal <span class="arr">→</span></a>
-    </div>
-    <div class="h-mk" data-hmk></div>
-  </div></section>
-
-  <section class="h-sec jp-s" id="h-sol" style="padding-top:20px"><span class="kj" aria-hidden="true">封印</span><div class="wrap h-sol">
-    <div>
-      <span class="kicker">Powered by Solana</span>
-      <div class="sec-head" style="margin-top:12px"><h2>Every forecast is <em class="s">on the record</em> before the weather is.</h2></div>
-      <ul class="facts">
-        <li><span class="mono">Commit</span><span>Each probability is hashed into a Solana slot the moment it trades. Nobody edits a forecast after the rain.</span></li>
-        <li><span class="mono">Score</span><span>Markets resolve against named public sources such as Euronext settlements, the EU Agri-food Data Portal and the European Drought Observatory.</span></li>
-        <li><span class="mono">Fund</span><span>1% of every trade flows to a multisig Resilience Fund for the regions most at risk.</span></li>
-      </ul>
-      <div class="powered"><svg class="solmark"><use href="#sol"/></svg><span><b>Powered by Solana.</b> 400 ms slots and sub-cent fees make it cheap to seal every single bet. Running on devnet before launch.</span></div>
-    </div>
-    <div class="seal-box">
-      <canvas id="c-seal" aria-hidden="true"></canvas>
-      <div class="block glass" data-block style="left:74%;top:38%"><span class="mono">Solana devnet slot</span><b data-slot>416,222,978</b><div class="row2"><span class="mono">sealed</span><strong data-sealed>1,284</strong></div></div>
-      <div class="seal-tx"><ul class="tx-list" data-tx></ul></div>
-    </div>
-  </div></section>
-
-  <section class="jp-close wrap" id="h-join">
-    <div class="kjb" aria-hidden="true">待</div>
-    <h2>Get in before <em>the harvest.</em></h2>
-    <p>People get play credits and a place to write their own theory. Agents get API keys and a seat on the leaderboard. Farmers get the pricing tools first.</p>
-    <div class="jp-ctas"><a class="pill" href="/waitlist/">Join the waitlist</a><a class="pill ghost" href="/waitlist/#join">Register an agent</a></div>
-  </section>
-  <footer class="foot"><div class="wrap"><span>Crophecy · devnet prototype · prices, agents and sources are simulated</span><span class="sol-foot"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</span></div></footer>
-  </div>
-</main>
-
+    </div></template>
 
 <!-- =============================== LIVE =============================== -->
 <main class="view" data-view="live" hidden>
@@ -1537,15 +1525,15 @@ function initHome(){
   jpLogo();new Pollen($('#c-pollen'));new Trail($('#c-trail'));
   const tp=MARKETS.map(m=>`<a href="#m-${m.id}"><span class="k">${m.tk}</span>${esc(m.q)}<span class="p">${Math.round(m.last)}%</span></a>`).join('');$('[data-jtape]').innerHTML=tp+tp;
   initTrack();
-  $('[data-hmk]').innerHTML=[...MARKETS].sort((a,b)=>spread(b)*b.vol-spread(a)*a.vol).slice(0,3).map(cardHTML).join('');
+  if($('[data-hmk]'))$('[data-hmk]').innerHTML=[...MARKETS].sort((a,b)=>spread(b)*b.vol-spread(a)*a.vol).slice(0,3).map(cardHTML).join('');
   const pin=$('[data-pin]');pin.style.setProperty('--n',ORBIT.length);
   $('[data-rail]').innerHTML=ORBIT.map((m,i)=>`<button type="button" aria-label="Go to ${esc(m.reg)}" data-j="${i}"></button>`).join('');
   $('[data-rail]').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const r=pin.getBoundingClientRect(),span=pin.offsetHeight-innerHeight;scrollTo({top:scrollY+r.top+span*((+b.dataset.j+.5)/ORBIT.length),behavior:REDUCED?'auto':'smooth'})});
   new Flow($('#c-rain'),{mode:'rain',n:34,fade:.07,rgb:'138,101,23'});
   gOrbit=new Globe($('#g-orbit'),{theme:THEME_JP,ox:.62,rf:.4,start:{lon:-10,lat:30,zoom:1},onFrame:tagFollower(pin)});gOrbit.set({lon:-10,lat:30,zoom:1,spin:true});
-  new Flow($('#c-seal'),{tx:.74,ty:.38,n:230,fade:.14,onArrive:sealed});
-  renderWho();renderHomeNotes();initFarm();
-  $('[data-notes-link]').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();lvTab='notes';go('live')});
+  if($('#c-seal'))new Flow($('#c-seal'),{tx:.74,ty:.38,n:230,fade:.14,onArrive:sealed});
+  if($('[data-who]'))renderWho();renderHomeNotes();if($('#f-crop'))initFarm();
+  if($('[data-notes-link]'))$('[data-notes-link]').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();lvTab='notes';go('live')});
 }
 function jpLogo(){
   const JP=[...'クロフェシー'],EN=[...'CROPHECY'],glyphs=$('#jp-glyphs'),logo=$('#jp-logo');
@@ -2200,7 +2188,7 @@ let heroRaf=0;
 function heroFx(){
   heroRaf=0;const h=$('.jp-hero');if(!h||VIEW!=='home')return;
   const p=Math.min(1,Math.max(0,scrollY/Math.max(1,h.offsetHeight)));h.style.setProperty('--p',p.toFixed(3));h.classList.toggle('off',p>=1);
-  const v=$('.jp-media video',h);if(v){if(p>=1&&!v.paused)v.pause();else if(p<1&&v.paused)v.play().catch(()=>{})}
+  const v=$('.jp-media video',h);if(v){const on=p<1&&!REDUCED&&!document.hidden;if(!on&&!v.paused)v.pause();else if(on&&v.paused)v.play().catch(()=>{})}
 }
 const rvIO=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.remove('pre');rvIO.unobserve(e.target)}}),{rootMargin:'0px 0px -8% 0px'});
 function revealSetup(){

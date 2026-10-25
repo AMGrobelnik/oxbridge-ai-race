@@ -323,6 +323,10 @@
     if (tx) tx.innerHTML = S.anchors.slice(0, 3).map((a) => `<li><b><a href="${escH(a.explorer_url || "#")}" target="_blank" rel="noopener">${escH(String(a.signature || a.memo || "").slice(0, 4))}…${escH(String(a.signature || "").slice(-4))}</a></b><span>${escH(a.kind)} · ${num(a.count || 0)} entries</span><span>${escH(a.status)}</span></li>`).join("");
     setText("[data-vol]", money(vol)); setText("[data-bets]", "0");
     renderFund(); paintLedger();
+    const best = [...AGENTS].filter((a) => a.b != null).sort((a, b) => a.b - b.b)[0];
+    const proof = q1("[data-proof]");
+    if (proof && best && mkt != null) proof.innerHTML = `On ${num(lb.n_holdout || 0)} sealed holdout questions the best agent, <b>${escH(best.n)}</b>, scores a Brier of <b>${best.b.toFixed(3)}</b> against the market’s <b>${mkt.toFixed(3)}</b>. Lower is better.`;
+    setText("[data-door-mk]", String(nOpen)); setText("[data-door-ag]", `${AGENTS.length} + ${num(S.agents || 0)}`);
   }
   // ---------------------------------------------------------------- /live: the agents at work (who bets now and why) and the latest debate
   function agentsSection() {
@@ -396,10 +400,12 @@
     const orig = { go, initHome, initLive, initMarkets, renderDetail, pickAgent, desHelp };
     go = function (route, opt = {}) {
       route = route || "home";
-      if (route === "leaderboard") { route = "home"; opt = { ...opt, anchor: "h-agents" }; }
-      if (EXTRA_VIEWS.includes(route)) { showExtra(route); return; }
-      orig.go(route, opt);
-      try { history.replaceState(null, "", pathFor(route, opt)); } catch (_) { /* sandboxed */ }
+      const board = route === "leaderboard";
+      if (board) { route = "home"; opt = { ...opt, anchor: "h-agents" }; }
+      if (EXTRA_VIEWS.includes(route)) showExtra(route);
+      else { orig.go(route, opt); try { history.replaceState(null, "", pathFor(route, opt)); } catch (_) { /* sandboxed */ } }
+      qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === (board ? "leaderboard" : route.startsWith("m-") ? "markets" : route)));
+      heroVideo();
     };
     initHome = function () { orig.initHome(); paintStatic(); };
     initLive = function () { orig.initLive(); paintLive(); };
@@ -448,6 +454,13 @@
       des("DES · NEWS", `<div class="tt-wrap"><table class="tt"><tbody>${(S.news || []).map((n) => `<tr><td style="white-space:normal"><a href="${escH(n.url)}" target="_blank" rel="noopener" style="color:var(--t-tx)">${escH(n.title)}</a><br><span style="color:var(--t-mu)">${escH(n.source)} · ${escH(String(n.published_at).slice(0, 16).replace("T", " "))}${n.direction ? ` · ${escH(n.direction.toUpperCase())}` : ""}</span></td></tr>`).join("") || "<tr><td>No headlines yet.</td></tr>"}</tbody></table></div>`);
     };
   }
+  function heroVideo() { // the hero loop decodes only while it is on screen, the tab is visible and motion is welcome
+    const v = q1(".jp-media video"); if (!v) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const on = VIEW === "home" && !document.hidden && !reduced && scrollY < (q1(".jp-hero") || { offsetHeight: 0 }).offsetHeight;
+    if (!on && !v.paused) v.pause(); else if (on && v.paused) v.play().catch(() => {});
+  }
+  document.addEventListener("visibilitychange", heroVideo);
   function pathFor(route, opt) {
     if (opt && opt.anchor === "h-agents") return "/leaderboard";
     if (route === "home") return "/";
@@ -604,8 +617,8 @@
 
   // ---------------------------------------------------------------- extra views: theory (BYO), farmer chat; Croppy everywhere
   function showExtra(name) {
-    VIEW = name;
-    let view = q1(`[data-view="${name}"]`);
+    VIEW = name; document.body.dataset.view = name;
+    let view = q1(`main[data-view="${name}"]`);
     if (!view) { view = document.createElement("main"); view.className = "view cr-x"; view.dataset.view = name; view.hidden = true; q1("main.view:last-of-type").after(view); (name === "theory" ? renderTheory : renderFarmer)(view); }
     qa(".view").forEach((v) => { v.hidden = v.dataset.view !== name; });
     qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === name));
@@ -640,13 +653,41 @@
       log.scrollTop = log.scrollHeight;
     });
   }
+  const WA = "https://wa.me/14155238886?text=" + encodeURIComponent("join globe-transportation");
+  const FARM_ASKS = ["I grow olives near Jaén. Will prices fall?", "Should I sell my wheat now or store it?", "Will drought hit maize in Hungary?", "Is it a bad year for rice in Spain?"];
+  function farmOdds() { // three live markets a grower would watch: one each for weather, grains and oils, the most traded first
+    const picks = [], byVol = [...MARKETS].sort((x, y) => (y.vol || 0) - (x.vol || 0));
+    for (const cat of ["Weather", "Grains", "Oils", "Softs"]) { const m = byVol.find((x) => x.cat === cat && !picks.includes(x)); if (m && picks.length < 3) picks.push(m); }
+    for (const m of byVol) if (picks.length < 3 && !picks.includes(m)) picks.push(m);
+    return picks.map((m) => `<a class="fm-card" href="#m-${escH(m.id)}"><span class="fm-cat mono">${escH(m.cat)} · ${escH(String(m.reg || "").split(",")[0])}</span><h3>${escH(m.q)}</h3><div class="fm-p"><b>${Math.round(m.last)}%</b><span>chance, says the market</span></div><div class="fm-bar"><i style="width:${Math.max(2, Math.min(100, m.last))}%"></i></div></a>`).join("");
+  }
   function renderFarmer(view) {
-    chatUI(view, { kicker: "For farmers", title: "Ask about <em class=\"s\">your crop</em>.", placeholder: "I grow olives near Jaén. Will prices fall?",
-      lede: "Tell us what you grow and where. The farmer assistant answers with the live market's probability, the agents' reasoning and how confident they are. The same assistant answers on WhatsApp.",
-      send: async (text) => {
+    view.innerHTML = `<div class="wrap fm"><header class="fm-head"><span class="kicker">For farmers</span><h1>Ask about <em>your crop.</em></h1><p>Tell us what you grow and where. You get the market’s live odds, what the agents think and how sure they are, in plain words. Free, no sign-up.</p></header>
+      <div class="fm-ask"><div class="cr-log fm-log" data-log aria-live="polite" hidden></div><form data-ask><input name="m" maxlength="400" placeholder="Ask about your crop…" aria-label="Ask about your crop" required><button class="btn dark lg" type="submit">Ask</button></form></div>
+      <div class="fm-chips" role="group" aria-label="Example questions">${FARM_ASKS.map((q) => `<button type="button" data-fq="${escH(q)}">${escH(q)}</button>`).join("")}</div>
+      <div class="fm-wa"><a class="btn wa lg" href="${WA}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Chat on WhatsApp</a><span>Opens WhatsApp with <b class="mono">join globe-transportation</b>. Send it, then ask in your own words.</span></div>
+      <section class="fm-odds"><header><span class="kicker">Odds that matter on a farm</span><a href="#markets">All markets →</a></header><div class="fm-cards" data-fm-odds>${farmOdds()}</div></section>
+      <details class="fm-more" data-fm-more><summary>More tools: pricing ladder, hedge calculator, toolkit</summary><div data-fm-tools></div></details></div>`;
+    const log = q1("[data-log]", view), f = q1("[data-ask]", view);
+    const ask = async (text) => {
+      log.hidden = false;
+      log.insertAdjacentHTML("beforeend", `<div class="cr-msg me">${escH(text)}</div>`);
+      const wait = document.createElement("div"); wait.className = "cr-msg fm-wait"; wait.textContent = "Reading the market…"; log.append(wait); log.scrollTop = log.scrollHeight;
+      try {
         const r = await call("/farmer/chat", { message: text });
-        return `${escH(r.reply).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
-      } });
+        wait.classList.remove("fm-wait");
+        wait.innerHTML = `${escH(r.reply).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
+      } catch (err) { wait.classList.remove("fm-wait"); wait.textContent = err.message; }
+      log.scrollTop = log.scrollHeight;
+    };
+    f.addEventListener("submit", (e) => { e.preventDefault(); const t = f.m.value.trim(); if (t) { f.m.value = ""; ask(t); } });
+    qa("[data-fq]", view).forEach((b) => b.addEventListener("click", () => ask(b.dataset.fq)));
+    q1("[data-fm-more]", view).addEventListener("toggle", (e) => {
+      const box = q1("[data-fm-tools]", view), tpl = document.getElementById("t-farm-tools");
+      if (!e.currentTarget.open || box.childElementCount || !tpl) return;
+      box.append(tpl.content.cloneNode(true));
+      try { initFarm(); } catch (err) { console.error("farm tools", err); }
+    });
   }
   const CROPPY_LINKS = { "/harvest": "/", "/harvest#models": "/leaderboard", "/harvest#markets": "/markets", "/harvest/play": "/markets", "/harvest/play#rank": "/leaderboard", "/harvest/board": "/live" };
   function croppy() {
@@ -683,7 +724,7 @@
       if (d) { e.stopPropagation(); const [ai, c] = d.dataset.crDesf.split(":"); follow(+ai, c === "1", q1("[data-des-b] [data-cr-fmsg]")); }
     }, true);
     const nav = q1(".topbar nav.links");
-    if (nav) nav.insertAdjacentHTML("beforeend", '<a href="#theory" data-nav="theory">Theory</a><a href="#farmer" data-nav="farmer" class="opt">Farm chat</a>');
+    void nav; // the nav is fixed in index.html: Markets · Agents · Leaderboard · Farmers; Theory lives under the leaderboard
   }
   function styles() {
     const css = `.cr-preview{position:sticky;top:0;z-index:80;background:#fff4d6;color:#5c4400;font:500 13px var(--f-body);padding:8px 16px;text-align:center}
@@ -709,7 +750,28 @@
 .cr-awhy{font:italic 400 17px/1.3 var(--f-serif);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cr-debate{gap:14px}.cr-debate:empty{display:none}.cr-dh h3{font:400 26px/1.1 var(--f-serif);margin-top:6px}.cr-post{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--line)}.cr-post p{font-size:14px;line-height:1.5;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 @media (max-width:900px){.cr-acards{grid-template-columns:1fr 1fr}}@media (max-width:600px){.cr-acards{grid-template-columns:1fr}}
-.cr-follow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.cr-bal{color:var(--muted);margin:4px 0 10px}`;
+.cr-follow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.cr-bal{color:var(--muted);margin:4px 0 10px}
+.fm{max-width:880px;padding-top:56px;padding-bottom:110px;display:grid;gap:22px}
+.fm-head{display:grid;gap:12px;text-align:center;justify-items:center}.fm-head h1{font:400 clamp(48px,7vw,92px)/.95 var(--f-display,var(--f-serif));letter-spacing:-.02em;color:var(--ink)}
+.fm-head h1 em{font-style:italic;color:var(--wheat-ink,#8a6517)}.fm-head p{max-width:52ch;color:var(--muted);font-size:17px;line-height:1.55}
+.fm-ask{background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);border-radius:var(--r-card,24px);box-shadow:var(--shadow-card);overflow:hidden}
+.fm-ask form{display:flex;gap:10px;padding:12px}.fm-ask input{flex:1;min-width:0;font:400 18px var(--f-body);padding:14px 16px;border:0;background:transparent;outline:none;color:var(--ink)}
+.fm-ask:focus-within{border-color:var(--wheat,#c99a3b);box-shadow:var(--shadow-card),0 0 0 4px var(--cream-soft,#f3ead4)}
+.fm-log{max-height:46vh;min-height:0;border-bottom:1px solid var(--hairline,#dfe3d7)}.fm-wait{color:var(--muted);animation:fmPulse 1.4s ease-in-out infinite}
+@keyframes fmPulse{50%{opacity:.45}}
+.fm-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}.fm-chips button{font:400 14px var(--f-body);color:var(--ink-2);background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);border-radius:999px;padding:8px 14px;cursor:pointer;transition:background .2s,border-color .2s}
+.fm-chips button:hover{background:var(--cream-soft,#f3ead4);border-color:var(--hairline-strong,#c9cebf)}
+.fm-wa{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:14px;text-align:center}
+.btn.wa{background:#1f8f4e;color:#fff}.btn.wa:hover{background:#18763f;box-shadow:0 10px 30px -12px #1f8f4e}
+.fm-odds{margin-top:26px;display:grid;gap:14px}.fm-odds header{display:flex;justify-content:space-between;align-items:baseline}.fm-odds header a{font-size:14px;color:var(--muted)}
+.fm-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.fm-card{display:grid;gap:10px;align-content:start;padding:20px;border-radius:var(--r-panel,16px);background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);text-decoration:none;color:var(--ink);transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s}
+.fm-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lift)}.fm-cat{font:500 10.5px var(--f-mono);letter-spacing:var(--label-track,.14em);text-transform:uppercase;color:var(--wheat-ink,#8a6517)}
+.fm-card h3{font:500 15px/1.4 var(--f-body)}.fm-p{display:flex;align-items:baseline;gap:8px;margin-top:auto}.fm-p b{font:400 40px/1 var(--f-display,var(--f-serif))}.fm-p span{font-size:13px;color:var(--muted)}
+.fm-bar{height:4px;border-radius:999px;background:var(--field,#e6eadf);overflow:hidden}.fm-bar i{display:block;height:100%;background:var(--leaf,#2e6b3c);border-radius:inherit}
+.fm-more{margin-top:10px;border-top:1px solid var(--hairline,#dfe3d7);padding-top:16px}.fm-more summary{cursor:pointer;color:var(--muted);font-size:14px;text-align:center;list-style:none}.fm-more summary::-webkit-details-marker{display:none}
+.fm-more summary::after{content:" ↓"}.fm-more[open] summary::after{content:" ↑"}.fm-more [data-fm-tools]{margin-top:18px}
+@media (max-width:760px){.fm{padding-top:32px}.fm-cards{grid-template-columns:1fr}.fm-ask form{flex-direction:column}.fm-ask .btn{width:100%}}`;
     const st = document.createElement("style"); st.textContent = css; document.head.append(st);
   }
 
