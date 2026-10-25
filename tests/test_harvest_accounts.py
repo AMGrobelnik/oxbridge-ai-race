@@ -136,6 +136,9 @@ def test_agent_view_shows_what_an_agent_sees(client):
     assert isinstance(v["news"], list) and v["forecasts"]
     for f in v["forecasts"]:
         assert set(f) >= {"username", "p_yes", "rationale", "model", "timestamp"} and 0 < f["p_yes"] < 1
+    personas = {p["id"]: p for p in market.live_book().personas}
+    assert all(f["model"] == (personas[f["agent"]].get("model") or f["model"]) for f in v["forecasts"])
+    assert all("," not in str(f["model"]) for f in v["forecasts"])  # one model per agent, never the replay's list
     assert client.get("/harvest/api/markets/nope/agent").status_code == 404
 
 

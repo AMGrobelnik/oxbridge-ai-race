@@ -379,6 +379,7 @@ def agent_view(book: LiveBook, qid: str, fixture: dict[str, Any] | None, result:
         raw = forecaster.visible_window(fixture, series, cutoff)  # type: ignore[arg-type]
         question = forecaster._masked_question(q, label, [tuple(p) for p in window], float(raw[0][1]) or 1.0)  # type: ignore[arg-type]
     names = {p["id"]: p.get("name", p["id"]) for p in book.personas}
+    models = {p["id"]: p.get("model") for p in book.personas}  # persona x model agents run on one registry model each
     latest: dict[str, dict[str, Any]] = {}
     for f in book.agent_forecasts.get(qid, []):
         old = latest.get(f["persona_id"])
@@ -386,7 +387,7 @@ def agent_view(book: LiveBook, qid: str, fixture: dict[str, Any] | None, result:
             latest[f["persona_id"]] = f
     model = (result or {}).get("model")
     forecasts = [{"agent": pid, "username": accounts.system_username(pid), "name": names.get(pid, f.get("name", pid)), "p_yes": f["p_yes"],
-                  "rationale": f.get("rationale", ""), "model": f.get("model") or model, "source": f.get("source"),
+                  "rationale": f.get("rationale", ""), "model": f.get("model") or models.get(pid) or model, "source": f.get("source"),
                   "timestamp": f.get("at") or (result or {}).get("generated_at")} for pid, f in latest.items()]
     forecasts.sort(key=lambda f: -float(f["p_yes"]))
     return {
