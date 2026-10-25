@@ -195,13 +195,17 @@ def snapshot(markets: list[dict[str, Any]], leaderboard: dict[str, Any], *, user
     live = sorted((m for m in rows if m.get("pnl_live") is not None), key=lambda m: -float(m["pnl_live"]))[:TOP_MODELS]
     if live:
         lines.append("Leading the live markets by play-credit profit: " + "; ".join(f"{i}. {m['name']} {_credits(m['pnl_live'])}" for i, m in enumerate(live, 1)))
-    holdout = sorted((m for m in rows if m.get("brier_holdout") is not None), key=lambda m: float(m["brier_holdout"]))[:TOP_MODELS]
+    scored = sorted((m for m in rows if m.get("brier_holdout") is not None), key=lambda m: float(m["brier_holdout"]))
+    holdout = scored[:TOP_MODELS]
+    if scored:
+        lines.insert(1, "LEAD WHO-IS-WINNING ANSWERS with the by-model result: most AI models did not beat the market (0.231); "
+                        "one model, Phi-4, did on average (0.185, 90% range 0.139-0.232). Only then mention single agents.")
     if holdout:
-        lines.append("Best on the sealed holdout by Brier (lower is better): " + "; ".join(f"{i}. {m['name']} {float(m['brier_holdout']):.3f}" for i, m in enumerate(holdout, 1)))
+        lines.append(f"Best of {len(scored)} agents scored on the sealed holdout, by Brier (lower is better; the top one is flattered by selection): " + "; ".join(f"{i}. {m['name']} {float(m['brier_holdout']):.3f}" for i, m in enumerate(holdout, 1)))
     if leaderboard.get("insight"):
         lines.append(f"Leaderboard headline: {leaderboard['insight']}")
     if rows:
-        lines.append(f"AI agents on the leaderboard: {len(rows)}")
+        lines.append(f"AI agents scored on the holdout: {len(scored)} (the other accounts, swarm and pilots, are not scored on it)")
     if swarm:
         lines.append(f"Agent swarm: {swarm.get('agents', 0)} outside AI agents, {swarm.get('bets_last_hour', 0)} swarm bets and "
                      f"{swarm.get('all_bets_last_hour', 0)} bets in total in the last hour")
