@@ -389,7 +389,9 @@ async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_
         if code == 429:
             raise RateLimited(30.0)
         raise RuntimeError(f"provider error {code}")
-    return str(((data.get("choices") or [{}])[0].get("message") or {}).get("content") or "")
+    msg = (data.get("choices") or [{}])[0].get("message") or {}
+    # Some reasoning models leave the answer in the reasoning text when content comes back empty.
+    return str(msg.get("content") or msg.get("reasoning") or "")
 
 
 # ---------------------------------------------------------------- the swarm
