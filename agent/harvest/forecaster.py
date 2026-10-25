@@ -277,3 +277,34 @@ async def forecast(persona: Persona, questions: list[QuestionInstance], fixture:
     for q in questions:
         out.append(by_q.get(q["qid"]) or fallback(persona, q, fixture, cutoff))
     return out
+
+
+# ---------------------------------------------------------------- live prompt (live markets only; the replay prompt above is unchanged)
+def build_live_prompt(persona: Persona, questions: list[QuestionInstance], *, windows: dict[str, list[tuple[str, float]]],
+                      prices_now: dict[str, float], climate_lines: list[str], today: str) -> str:
+    """Unmasked live re-forecast: real names and months, latest price windows, climate context and the market's
+    current prices. Questions are labelled Q1..Qn in `questions` order; parse the answer with `_parse(text, n)`."""
+    lines = [
+        f"You are the forecasting agent \"{persona['name']}\" in a live agricultural prediction market. Today is {today}.",
+        "Your world model (reason strictly from it):",
+        persona["world_model"],
+        "Your core beliefs:",
+        *[f"- {b}" for b in persona.get("beliefs", [])],
+        "",
+        "Monthly prices (World Bank Pink Sheet), oldest to latest:",
+    ]
+    for sid, win in windows.items():
+        name, unit = prices.SERIES.get(sid, (sid, ""))
+        lines.append(f"{name} ({unit}): " + ", ".join(f"{m}={v:.1f}" for m, v in win))
+    if climate_lines:
+        lines += ["", "Climate context (NOAA, monthly):", *climate_lines]
+    lines += ["", "Questions (the current market price is the crowd's probability of YES):"]
+    for i, q in enumerate(questions, start=1):
+        when = f", resolves {q['resolve_month']}" if q.get("resolve_month") else ""
+        lines.append(f"Q{i}: {q['title']} [{q.get('region', '')}, {q.get('crop', '')}{when}; market {prices_now.get(q['qid'], 0.5):.2f}]")
+    lines += [
+        "",
+        "For every question give your own probability that it resolves YES, as your world model sees it. Disagree with the market where your world model does.",
+        'Answer only with JSON: {"forecasts": [{"qid": "Q1", "p_yes": 0.0-1.0, "rationale": "<=200 chars, in your world model\'s voice"}]}',
+    ]
+    return "\n".join(lines)

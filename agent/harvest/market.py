@@ -20,6 +20,9 @@ from . import ledger, lmsr
 from .types import BetIntent, LedgerEntry, MarketState, Payout, Persona, QuestionInstance, Side, Trade
 
 DEFAULT_B = 100.0
+"""Replay liquidity (frozen): one 25-credit bet moves a 50% price about 11 points."""
+LIVE_B_DEFAULT = 400.0
+"""Live liquidity: one 25-credit bet moves a 50% price about 3 points, a 30% price about 4."""
 FEE_RATE = 0.02
 FUND_SHARE = 1.0
 STARTING_CREDITS = 1000.0
@@ -40,6 +43,15 @@ def _now() -> str:
 
 def clamp(x: float, lo: float, hi: float) -> float:
     return min(max(x, lo), hi)
+
+
+def live_b() -> float:
+    """LMSR b for the live book (LIVE_B env, default 400). The replay keeps DEFAULT_B."""
+    try:
+        b = float(os.environ.get("LIVE_B") or LIVE_B_DEFAULT)
+    except ValueError:
+        return LIVE_B_DEFAULT
+    return b if math.isfinite(b) and b > 0 else LIVE_B_DEFAULT
 
 
 def decide(persona: Persona, p_yes: float, price: float, bankroll: float) -> BetIntent | None:
@@ -234,8 +246,9 @@ class LiveBook(Book):
     """The live server's book: markets for the replay's live cutoff plus the soft questions,
     traders registered through the ledger, and the ledger replayed on start."""
 
-    def __init__(self, *, starting_credits: float = STARTING_CREDITS) -> None:
+    def __init__(self, *, starting_credits: float = STARTING_CREDITS, b: float | None = None) -> None:
         super().__init__(starting_credits=starting_credits)
+        self.b = live_b() if b is None else b
         self.lock = threading.RLock()
         self.meta: dict[str, QuestionInstance] = {}
         self.agent_forecasts: dict[str, list[dict[str, Any]]] = {}
@@ -246,6 +259,11 @@ class LiveBook(Book):
         self.ledger_head: tuple[int, str] = (0, ledger.GENESIS)
         self.version = 0
         self.replay_errors: list[str] = []
+        self.live_reforecast_at: dict[str, str] = {}
+
+    def open(self, qid: str, prior: float = 0.5, b: float | None = None) -> MarketState:
+        """Live markets open with the deeper live liquidity; the seeded price is the prior either way."""
+        return super().open(qid, prior=prior, b=self.b if b is None else b)
 
     # ---- setup
     def seed(self, result: dict[str, Any] | None, soft_specs: list[dict[str, Any]]) -> None:
@@ -276,7 +294,25 @@ class LiveBook(Book):
         persona = next((p for p in self.personas if p["id"] == f["persona_id"]), None)
         return {"persona_id": f["persona_id"], "name": persona["name"] if persona else f["persona_id"],
                 "color": persona["color"] if persona else "#888888", "p_yes": f["p_yes"],
-                "rationale": f.get("rationale", ""), "source": f.get("source", "")}
+                "rationale": f.get("rationale", ""), "source": f.get("source", ""), "at": f.get("at")}
+
+    def set_live_forecasts(self, persona_id: str, rows: list[tuple[str, float, str]], *, source: str = "live") -> int:
+        """Replace `persona_id`'s forecast on each open qid with a live re-forecast (p_yes, rationale), stamped now."""
+        at = _now()
+        n = 0
+        with self.lock:
+            for qid, p_yes, rationale in rows:
+                if qid not in self.markets or self.markets[qid]["status"] != "open":
+                    continue
+                view = self._forecast_view({"persona_id": persona_id, "qid": qid, "p_yes": round(clamp(float(p_yes), 0.01, 0.99), 4),
+                                            "rationale": str(rationale)[:200], "source": source, "at": at})
+                fs = [f for f in self.agent_forecasts.get(qid, []) if f["persona_id"] != persona_id]
+                self.agent_forecasts[qid] = [*fs, view]
+                n += 1
+            if n:
+                self.live_reforecast_at[persona_id] = at
+                self.version += 1
+        return n
 
     def replay_ledger(self) -> None:
         for e in ledger.all_entries():
@@ -301,7 +337,10 @@ class LiveBook(Book):
         elif e["kind"] == "forecast":
             self.forecasts[trader] = {**p, "at": e["at"]}
         elif e["kind"] == "bet" and replaying:
-            return self.buy(trader, p["qid"], p["side"], p["spend"], cutoff=p.get("cutoff"), at=e["at"])
+            trade = self.buy(trader, p["qid"], p["side"], p["spend"], cutoff=p.get("cutoff"), at=e["at"])
+            if p.get("rationale"):
+                trade["rationale"] = p["rationale"]  # type: ignore[typeddict-unknown-key]
+            return trade
         return None
 
     def record(self, *, kind: str, trader: str, payload: dict[str, Any]) -> LedgerEntry:
@@ -327,6 +366,8 @@ class LiveBook(Book):
                 self._undo_last(trade)
                 raise
             trade["at"] = entry["at"]
+            if rationale:
+                trade["rationale"] = rationale  # type: ignore[typeddict-unknown-key]
             self.ledger_head = (entry["seq"], entry["hash"])
             self.version += 1
             return trade, entry
@@ -348,6 +389,13 @@ class LiveBook(Book):
 
     # ---- house agents trade live markets on their replay forecasts
     def house_step(self, rng: random.Random | None = None) -> Trade | None:
+        """One house trade toward a persona's current belief. Also starts a due live re-forecast (background thread)."""
+        try:
+            from . import live_forecast
+
+            live_forecast.maybe_reforecast(self)
+        except Exception:  # noqa: BLE001 - re-forecasting is best effort; trading goes on with the old beliefs
+            logger.exception("harvest live re-forecast could not start")
         rng = rng or random.Random()
         options = [(qid, f) for qid, fs in self.agent_forecasts.items() if qid in self.markets and self.markets[qid]["status"] == "open" for f in fs]
         rng.shuffle(options)
