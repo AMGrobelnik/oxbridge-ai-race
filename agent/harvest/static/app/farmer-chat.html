@@ -25,6 +25,9 @@ header .s { font-size: 13px; opacity: .9; }
 form { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
 input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px; font: inherit; }
 form button { border: 0; background: var(--green); color: #fff; border-radius: 999px; padding: 0 18px; font: inherit; font-weight: 600; cursor: pointer; }
+.wa { padding: 12px 16px 0; }
+.wa a { display:inline-block; background:var(--green); color:#fff; font-weight:600; text-decoration:none; border-radius:999px; padding:8px 16px; }
+.wa p { margin:6px 0 0; font-size:13px; color:var(--muted); }
 .foot { font-size: 12px; color: var(--muted); text-align: center; padding: 0 16px 12px; }
 </style>
 </head>
@@ -35,6 +38,10 @@ form button { border: 0; background: var(--green); color: #fff; border-radius: 9
     <div><div class="t">Crophecy farm assistant</div><div class="s">In-app chat · same answers as on WhatsApp</div></div>
     <span class="badge">In-app assistant</span>
   </header>
+  <div class="wa">
+    <a href="https://wa.me/14155238886?text=join%20globe-transportation" target="_blank" rel="noopener">Chat on WhatsApp</a>
+    <p>First message: <b>join globe-transportation</b>, then ask e.g. "wheat France".</p>
+  </div>
   <div id="log" aria-live="polite"></div>
   <div class="chips" id="chips"></div>
   <form id="f"><input id="q" autocomplete="off" placeholder="Ask about a crop, e.g. maize Spain" aria-label="Your question" maxlength="400"><button>Send</button></form>

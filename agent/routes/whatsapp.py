@@ -2,7 +2,8 @@
 
 POST /harvest/api/farmer/chat {message} -> {reply, crop, region, probability, confidence, link}: the in-app chat.
 POST /harvest/api/whatsapp/twilio: Twilio WhatsApp webhook (form POST), answers with TwiML. When TWILIO_AUTH_TOKEN is
-  set, the X-Twilio-Signature header must match (URL from PUBLIC_BASE_URL or the forwarded host).
+  set, the X-Twilio-Signature header must match the public URL (TWILIO_WEBHOOK_URL, the forwarded scheme and host,
+  PUBLIC_BASE_URL or https://crophecy.bid), not the local one cloudflared forwards to.
 GET  /harvest/api/whatsapp/meta: Meta WhatsApp Cloud API verify handshake against WHATSAPP_VERIFY_TOKEN.
 POST /harvest/api/whatsapp/meta: Meta message webhook. Checks X-Hub-Signature-256 when WHATSAPP_APP_SECRET is set and
   sends the answers through the Graph API only when WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID are both set.
@@ -51,14 +52,22 @@ def twilio_signature(token: str, url: str, params: dict[str, str]) -> str:
     return base64.b64encode(hmac.new(token.encode(), payload.encode(), hashlib.sha1).digest()).decode()
 
 
+PUBLIC_HOSTS = ("https://crophecy.bid",)
+
+
 def _candidate_urls(request: Request) -> list[str]:
+    """Every URL Twilio may have signed: behind cloudflared the server sees http://127.0.0.1:3001, Twilio signed the public one."""
     path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
-    urls = [str(request.url)]
-    if base := os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/"):
-        urls.append(base + path)
-    if host := request.headers.get("x-forwarded-host") or request.headers.get("host"):
-        urls.append(f"{request.headers.get('x-forwarded-proto', 'https')}://{host}{path}")
-    return urls
+    h = request.headers
+    proto = (h.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
+    host = (h.get("x-forwarded-host") or h.get("host") or "").split(",")[0].strip()
+    urls = [u.strip() for u in os.environ.get("TWILIO_WEBHOOK_URL", "").split(",") if u.strip()]
+    if host:
+        urls.append(f"{proto}://{host}{path}")
+    bases = [*PUBLIC_HOSTS, os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")]
+    urls += [base + path for base in bases if base]
+    urls.append(str(request.url))
+    return list(dict.fromkeys(urls))
 
 
 def twilio_ok(request: Request, params: dict[str, str]) -> bool:

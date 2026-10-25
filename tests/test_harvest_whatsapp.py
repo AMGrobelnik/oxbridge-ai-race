@@ -37,7 +37,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("HARVEST_ANCHOR", "0")
     monkeypatch.setenv("HARVEST_HOUSE_TICK_S", "0")
     monkeypatch.setenv("HARVEST_OFFLINE", "1")
-    for var in ("TWILIO_AUTH_TOKEN", "PUBLIC_BASE_URL", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"):
+    for var in ("TWILIO_AUTH_TOKEN", "TWILIO_WEBHOOK_URL", "PUBLIC_BASE_URL", "WHATSAPP_VERIFY_TOKEN", "WHATSAPP_APP_SECRET", "WHATSAPP_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(market, "load_replay", _result)
     monkeypatch.setattr(market, "load_soft_specs", lambda: [])
@@ -113,6 +113,62 @@ def test_twilio_signature_checked_when_token_set(client, monkeypatch):
     sig = wa.twilio_signature("test-token", "https://farm.example/harvest/api/whatsapp/twilio", form)
     r = client.post("/harvest/api/whatsapp/twilio", content=urlencode(form), headers={"X-Twilio-Signature": sig, "Content-Type": "application/x-www-form-urlencoded"})
     assert r.status_code == 200 and "Ask me about a crop" in r.text
+
+
+def _signed_post(client, url: str, form: dict[str, str], *, token: str = "dummy-token", headers: dict[str, str] | None = None):
+    """POST the form to the local path, signed over `url` the way Twilio signs the public one."""
+    path = "/" + url.split("/", 3)[3]
+    sig = wa.twilio_signature(token, url, form)
+    return client.post(path, content=urlencode(form), headers={"X-Twilio-Signature": sig, "Content-Type": "application/x-www-form-urlencoded", **(headers or {})})
+
+
+def test_twilio_signature_over_public_url_behind_proxy(client, monkeypatch):
+    """The server sees http://testserver (cloudflared -> 127.0.0.1); Twilio signed https://crophecy.bid/..."""
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy-token")
+    form = _twilio_form("wheat France")
+    url = "https://crophecy.bid/harvest/api/whatsapp/twilio"
+    r = _signed_post(client, url, form)  # no forwarded headers at all: the crophecy.bid default
+    assert r.status_code == 200 and "Chance:" in r.text
+    r = _signed_post(client, url, form, headers={"Host": "crophecy.bid", "X-Forwarded-Proto": "https"})
+    assert r.status_code == 200 and "Chance:" in r.text
+
+
+def test_twilio_signature_from_forwarded_host_and_proto(client, monkeypatch):
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy-token")
+    form = _twilio_form("help")
+    r = _signed_post(client, "https://tunnel.example/harvest/api/whatsapp/twilio", form, headers={"X-Forwarded-Host": "tunnel.example", "X-Forwarded-Proto": "https"})
+    assert r.status_code == 200
+    r = _signed_post(client, "http://tunnel.example/harvest/api/whatsapp/twilio", form, headers={"X-Forwarded-Host": "tunnel.example", "X-Forwarded-Proto": "http"})
+    assert r.status_code == 200
+
+
+def test_twilio_signature_over_configured_urls(client, monkeypatch):
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy-token")
+    form = _twilio_form("help")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://farm.example")
+    assert _signed_post(client, "https://farm.example/harvest/api/whatsapp/twilio", form).status_code == 200
+    monkeypatch.setenv("TWILIO_WEBHOOK_URL", "https://hooks.example/harvest/api/whatsapp/twilio")
+    assert _signed_post(client, "https://hooks.example/harvest/api/whatsapp/twilio", form).status_code == 200
+
+
+def test_twilio_signature_rejects_wrong_token_url_and_params(client, monkeypatch):
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy-token")
+    form = _twilio_form("help")
+    url = "https://crophecy.bid/harvest/api/whatsapp/twilio"
+    assert _signed_post(client, url, form, token="other-token").status_code == 403
+    assert _signed_post(client, "https://evil.example/harvest/api/whatsapp/twilio", form).status_code == 403
+    sig = wa.twilio_signature("dummy-token", url, form)
+    tampered = {**form, "Body": "wheat Spain"}
+    r = client.post("/harvest/api/whatsapp/twilio", content=urlencode(tampered), headers={"X-Twilio-Signature": sig, "Content-Type": "application/x-www-form-urlencoded"})
+    assert r.status_code == 403
+    assert client.post("/harvest/api/whatsapp/twilio", data=form).status_code == 403  # unsigned
+
+
+def test_farmer_pages_have_whatsapp_button(client):
+    for path in ("/app/farmer", "/app/farmer/chat"):
+        html = client.get(path).text
+        assert 'href="https://wa.me/14155238886?text=join%20globe-transportation"' in html
+        assert "join globe-transportation" in html and "wheat France" in html
 
 
 def test_twilio_signature_matches_twilio_docs_example():
