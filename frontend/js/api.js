@@ -398,6 +398,7 @@
       origGoNow(route, opt);
       qa(".topbar nav.links a[data-anchor]").forEach((x) => x.removeAttribute("aria-current"));
       if (opt.anchor) { const a = q1(`.topbar nav.links a[data-anchor="${opt.anchor}"]`); if (a) { qa("[data-nav]").forEach((x) => x.toggleAttribute("aria-current", false)); a.setAttribute("aria-current", "page"); } }
+      if (opt.anchor === "h-agents") qa("[data-nav]").forEach((x) => { if (x.dataset.nav === "leaderboard") x.setAttribute("aria-current", "page"); else x.removeAttribute("aria-current"); });
     };
     const orig = { go, initHome, initLive, initMarkets, renderDetail, pickAgent, desHelp };
     go = function (route, opt = {}) {
@@ -406,7 +407,9 @@
       if (board) { route = "home"; opt = { ...opt, anchor: "h-agents" }; }
       if (EXTRA_VIEWS.includes(route)) showExtra(route);
       else { orig.go(route, opt); setPath(pathFor(route, opt)); }
-      qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === (board ? "leaderboard" : route.startsWith("m-") ? "markets" : route)));
+      const cur = board || route === "theory" ? "leaderboard" : route.startsWith("m-") ? "markets" : route;
+      const mark = () => qa("[data-nav]").forEach((a) => { if (a.dataset.nav === cur) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+      mark(); requestAnimationFrame(() => requestAnimationFrame(mark)); // the page's own go() may re-mark after its view transition
       heroVideo();
     };
     initHome = function () { orig.initHome(); paintStatic(); };
