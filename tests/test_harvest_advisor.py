@@ -213,7 +213,7 @@ def test_twilio_inline_when_fast(llm, monkeypatch):
         return True
 
     monkeypatch.setattr(wa, "twilio_send", fake_send)
-    llm["answers"]["gemini-2.5-flash"] = "Hold half, sell half."
+    llm["answers"]["gemini-2.5-flash-lite"] = "Hold half, sell half."
     with TestClient(app) as client:
         r = client.post("/harvest/api/whatsapp/twilio", data=_form("Should I sell my wheat?"))
     assert r.status_code == 200 and "Hold half, sell half." in r.text and sent == []
@@ -232,7 +232,7 @@ def test_twilio_async_when_slow_replies_to_sender_only(llm, monkeypatch):
 
     monkeypatch.setattr(wa, "twilio_send", fake_send)
     monkeypatch.setenv("WHATSAPP_INLINE_S", "0.1")
-    llm["answers"]["gemini-2.5-flash"] = slow
+    llm["answers"]["gemini-2.5-flash-lite"] = slow
     with TestClient(app) as client:
         r = client.post("/harvest/api/whatsapp/twilio", data=_form("Should I sell my wheat?", "whatsapp:+15559990000"))
         assert r.status_code == 200 and "Thinking" in r.text and "Slow but" not in r.text

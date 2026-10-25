@@ -11,6 +11,7 @@ A short per-sender memory (last 3 turns, 30-minute TTL, in process) makes follow
 """
 
 import json
+import logging
 import re
 import sqlite3
 import threading
@@ -21,12 +22,15 @@ from urllib.parse import urlencode
 
 from . import climate, farmer_chat, fast_llm, market, models, news, world
 
+logger = logging.getLogger("uvicorn.error.advisor")  # a uvicorn.error child, so it lands in the server log
+
 DEFAULT_BASE = "https://crophecy.bid"
 MAX_REPLY = 1200
 TURNS = 3
 MEMORY_TTL_S = 1800.0
 MEMORY_MAX_SENDERS = 2000
 MODELS = (("gemini-2.5-flash", 14.0), ("gemini-2.5-flash-lite", 7.0))  # (registry key, deadline in seconds)
+FAST_MODELS = (("gemini-2.5-flash-lite", 7.0),)  # WhatsApp: one thinking-off Flash-Lite call that fits Twilio's 15 s wait
 DISCLAIMER = "Not financial advice."
 
 INTENTS: list[tuple[str, re.Pattern[str]]] = [(name, re.compile(rx, re.I)) for name, rx in (
@@ -285,7 +289,8 @@ def ask_model(key: str, prompt: str, deadline_s: float) -> str:
     """One registry model's JSON text within `deadline_s`, through fast_llm's synchronous client (the shared async
     Gemini client is bound to the server's event loop). A call past the deadline is abandoned; the client's own HTTP
     timeout ends it."""
-    return _pool.submit(fast_llm.ask, prompt, model_id=models.get(key)["model_id"]).result(timeout=deadline_s)
+    thinking = 0 if key.endswith("flash-lite") else None  # Flash-Lite answers with thinking off: the fast path
+    return _pool.submit(fast_llm.ask, prompt, model_id=models.get(key)["model_id"], thinking_budget=thinking).result(timeout=deadline_s)
 
 
 def parse_reply(text: str) -> str | None:
@@ -299,15 +304,16 @@ def parse_reply(text: str) -> str | None:
     return out if out and not world.looping(out) else None
 
 
-def llm_answer(prompt: str) -> tuple[str, str] | None:
-    """(reply, model key) from the first model that answers in time, else None."""
+def llm_answer(prompt: str, chain: tuple[tuple[str, float], ...] = MODELS) -> tuple[str, str] | None:
+    """(reply, model key) from the first model in `chain` that answers in time, else None."""
     if not llm_available():
         return None
-    for key, deadline in MODELS:
+    for key, deadline in chain:
         try:
             if reply := parse_reply(ask_model(key, prompt, deadline)):
                 return reply, key
-        except Exception:  # noqa: BLE001 - any model failure (timeout, quota, bad JSON) moves to the next model
+        except Exception as exc:  # noqa: BLE001 - any model failure (timeout, quota, bad JSON) moves to the next model
+            logger.warning("farm advisor model %s failed: %s", key, type(exc).__name__)
             continue
     return None
 
@@ -409,8 +415,8 @@ def forget_all() -> None:
 
 
 # ---------------------------------------------------------------- entry point
-def advise(text: str, *, sender: str | None = None, base_url: str = DEFAULT_BASE, limit: int = MAX_REPLY) -> dict[str, Any]:
-    """{reply, intents, crop, region, probability, confidence, link, source, model, latency_ms}."""
+def advise(text: str, *, sender: str | None = None, base_url: str = DEFAULT_BASE, limit: int = MAX_REPLY, fast: bool = False) -> dict[str, Any]:
+    """{reply, intents, crop, region, probability, confidence, link, source, model, latency_ms}. `fast` asks only Flash-Lite."""
     started = time.monotonic()
     text = farmer_chat.clean_text(text)
     past = history(sender)
@@ -419,7 +425,7 @@ def advise(text: str, *, sender: str | None = None, base_url: str = DEFAULT_BASE
     answer, source, model = None, "fallback", None
     if ctx["intents"] == ["greeting"]:
         answer, source = HELP, "help"
-    elif got := llm_answer(build_prompt(text, ctx, past, limit=limit)):
+    elif got := llm_answer(build_prompt(text, ctx, past, limit=limit), FAST_MODELS if fast else MODELS):
         (answer, model), source = got, "llm"
         if english(text) and "advice" not in answer.lower():
             answer += f"\n\n{DISCLAIMER}"

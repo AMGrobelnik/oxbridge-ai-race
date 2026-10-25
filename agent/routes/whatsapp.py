@@ -4,8 +4,9 @@ Answers come from the grounded farm advisor (agent/harvest/advisor.py).
 POST /harvest/api/farmer/chat {message, session?} -> {reply, intents, crop, region, probability, confidence, link, source,
   model, latency_ms}: the in-app chat; `session` keys the short follow-up memory.
 POST /harvest/api/whatsapp/twilio: Twilio WhatsApp webhook (form POST), answers with TwiML when the answer is ready within
-  WHATSAPP_INLINE_S (default 8 s); otherwise it replies "Thinking..." at once and sends the full answer through the
-  Twilio REST API to the same sender (never anyone else). When TWILIO_AUTH_TOKEN is
+  WHATSAPP_INLINE_S (default 9 s; the advisor asks only thinking-off Flash-Lite here); otherwise it replies "Thinking..."
+  at once and sends the full answer through the Twilio REST API to the same sender (never anyone else), in a held task
+  with 3 attempts. If the advisor fails outright the farmer still gets the deterministic answer, never nothing. When TWILIO_AUTH_TOKEN is
   set, the X-Twilio-Signature header must match the public URL (TWILIO_WEBHOOK_URL, the forwarded scheme and host,
   PUBLIC_BASE_URL or https://crophecy.bid), not the local one cloudflared forwards to.
 GET  /harvest/api/whatsapp/meta: Meta WhatsApp Cloud API verify handshake against WHATSAPP_VERIFY_TOKEN.
@@ -40,7 +41,11 @@ TWILIO_MESSAGES_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages
 THINKING = "Thinking… (a few seconds)"
 MAX_FORM = 16_000
 NO_STORE = {"Cache-Control": "no-store"}
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("uvicorn.error.whatsapp")  # a uvicorn.error child, so INFO lines land in the server log
+SEND_ATTEMPTS = 3
+SEND_TIMEOUT_S = 20.0
+SORRY = "Sorry, I couldn't work that out just now. Please ask again in a minute."
+
 
 chat_limiter = RateLimiter(int(os.environ.get("FARMER_CHAT_PER_MIN") or 300))
 sender_limiter = RateLimiter(int(os.environ.get("WHATSAPP_PER_MIN") or 10))
@@ -116,17 +121,31 @@ async def meta_send(to: str, text: str) -> None:
 
 def inline_s() -> float:
     try:
-        return float(os.environ.get("WHATSAPP_INLINE_S") or 8)
+        return float(os.environ.get("WHATSAPP_INLINE_S") or 9)
     except ValueError:
-        return 8.0
+        return 9.0
 
 
 def _base() -> str:
     return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/") or advisor.DEFAULT_BASE
 
 
-def _answer(text: str, request: Request, sender: str | None = None) -> dict[str, Any]:
-    return advisor.advise(text, sender=sender, base_url=_base())
+def _answer(text: str, request: Request, sender: str | None = None, *, fast: bool = False) -> dict[str, Any]:
+    return advisor.advise(text, sender=sender, base_url=_base(), fast=fast)
+
+
+def _mask(sender: str) -> str:
+    return f"...{sender[-4:]}" if sender else "anon"
+
+
+def fallback_reply(text: str) -> str:
+    """The deterministic answer when the advisor itself failed; a fixed apology only if even that fails."""
+    try:
+        ctx = advisor.gather(farmer_chat.clean_text(text))
+        return advisor.fit(advisor.fallback(text, ctx), advisor.link_for(ctx, _base()))
+    except Exception:  # noqa: BLE001 - the last resort must not raise
+        logger.exception("WhatsApp deterministic fallback failed")
+        return SORRY
 
 
 async def twilio_send(to: str, text: str) -> bool:
@@ -136,31 +155,51 @@ async def twilio_send(to: str, text: str) -> bool:
         logger.warning("Twilio REST send skipped: credentials or a WhatsApp sender missing")
         return False
     from_ = from_ if from_.startswith("whatsapp:") else f"whatsapp:{from_}"
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(TWILIO_MESSAGES_URL.format(sid=sid), data={"From": from_, "To": to, "Body": text}, auth=(sid, token))
-    except httpx.HTTPError as exc:
-        logger.warning("Twilio REST send failed: %s", type(exc).__name__)
-        return False
-    if resp.status_code >= 400:
-        logger.warning("Twilio REST send failed with HTTP %s", resp.status_code)
-        return False
-    return True
+    for attempt in range(1, SEND_ATTEMPTS + 1):
+        try:
+            async with httpx.AsyncClient(timeout=SEND_TIMEOUT_S) as client:
+                resp = await client.post(TWILIO_MESSAGES_URL.format(sid=sid), data={"From": from_, "To": to, "Body": text}, auth=(sid, token))
+        except httpx.HTTPError as exc:
+            logger.warning("Twilio REST send to %s attempt %d/%d failed: %s", _mask(to), attempt, SEND_ATTEMPTS, type(exc).__name__)
+        else:
+            try:
+                body = resp.json()
+            except ValueError:
+                body = {}
+            if resp.status_code < 400:
+                logger.info("Twilio REST send to %s: HTTP %s sid=%s status=%s", _mask(to), resp.status_code, body.get("sid"), body.get("status"))
+                return True
+            logger.warning("Twilio REST send to %s attempt %d/%d failed: HTTP %s code=%s %s", _mask(to), attempt, SEND_ATTEMPTS,
+                           resp.status_code, body.get("code"), str(body.get("message") or "")[:200])
+            if resp.status_code < 500 and resp.status_code != 429:
+                return False  # a 4xx (bad number, sandbox not joined) will not succeed on retry
+        if attempt < SEND_ATTEMPTS:
+            await asyncio.sleep(attempt)
+    return False
 
 
-async def _send_when_ready(job: "asyncio.Future[dict[str, Any]]", to: str) -> None:
+async def _send_when_ready(job: "asyncio.Future[dict[str, Any]]", to: str, body: str) -> None:
     try:
         text = (await job)["reply"]
     except Exception:  # noqa: BLE001 - the advisor itself failed: still answer the farmer
         logger.exception("farm advisor failed for a WhatsApp message")
-        text = "Sorry, I couldn't work that out just now. Please ask again in a minute."
-    await twilio_send(to, text)
+        text = await asyncio.to_thread(fallback_reply, body)
+    ok = await twilio_send(to, text)
+    logger.info("WhatsApp async answer to %s %s", _mask(to), "sent" if ok else "NOT sent")
+
+
+def _done(task: "asyncio.Task[None]") -> None:
+    _background.discard(task)
+    if task.cancelled():
+        logger.warning("WhatsApp background task cancelled (server shutting down?)")
+    elif (exc := task.exception()) is not None:
+        logger.error("WhatsApp background task failed: %s", exc, exc_info=exc)
 
 
 def _spawn(coro: Any) -> None:
     task = asyncio.get_running_loop().create_task(coro)
-    _background.add(task)
-    task.add_done_callback(_background.discard)
+    _background.add(task)  # held until done, so the task cannot be garbage-collected mid-send
+    task.add_done_callback(_done)
 
 
 def register(app: FastAPI) -> None:
@@ -193,12 +232,20 @@ def register(app: FastAPI) -> None:
         sender = params.get("From") or ""
         if sender_limiter.hit(sender or "anon"):
             return Response(twiml("You're sending messages quickly; please wait a minute and ask again."), media_type="application/xml")
-        job = asyncio.ensure_future(asyncio.to_thread(_answer, params.get("Body", ""), request, sender or None))
+        body = params.get("Body", "")
+        logger.info("WhatsApp inbound from %s (%d chars)", _mask(sender), len(body))
+        job = asyncio.ensure_future(asyncio.to_thread(_answer, body, request, sender or None, fast=True))
         try:
-            text = (await asyncio.wait_for(asyncio.shield(job), inline_s()))["reply"]
+            out = await asyncio.wait_for(asyncio.shield(job), inline_s())
+            text = out["reply"]
+            logger.info("WhatsApp inline answer to %s: source=%s model=%s %s ms", _mask(sender), out.get("source"), out.get("model"), out.get("latency_ms"))
         except TimeoutError:
-            _spawn(_send_when_ready(job, sender))  # the full answer follows through the REST API, to this sender only
+            logger.info("WhatsApp answer to %s missed the %.0f s inline budget; sending Thinking and the answer via REST", _mask(sender), inline_s())
+            _spawn(_send_when_ready(job, sender, body))  # the full answer follows through the REST API, to this sender only
             text = THINKING
+        except Exception:  # noqa: BLE001 - the advisor itself failed: answer deterministically, never nothing
+            logger.exception("farm advisor failed for a WhatsApp message; using the deterministic answer")
+            text = await asyncio.to_thread(fallback_reply, body)
         return Response(twiml(text), media_type="application/xml")
 
     @app.get("/harvest/api/whatsapp/meta", response_model=None)
