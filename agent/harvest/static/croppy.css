@@ -1,0 +1,35 @@
+/* Croppy: floating guide button and chat panel. Uses the harvest.css tokens. */
+.croppy-fab { position: fixed; right: 16px; bottom: 16px; z-index: 1000; width: 60px; height: 60px; border-radius: 50%;
+  border: 1px solid var(--line2, #d3c8ae); background: var(--panel, #fffdf6); box-shadow: var(--shadow); cursor: pointer;
+  display: grid; place-items: center; padding: 0; }
+.croppy-fab:focus-visible, .croppy-panel button:focus-visible, .croppy-panel input:focus-visible { outline: 2px solid var(--accent, #b7791f); outline-offset: 2px; }
+.croppy-fab svg { width: 44px; height: 44px; }
+.croppy-mascot { animation: croppy-bob 2.6s ease-in-out infinite; transform-origin: 50% 90%; }
+.croppy-thinking .croppy-mascot { animation: croppy-wiggle .5s ease-in-out infinite; }
+@keyframes croppy-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes croppy-wiggle { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(7deg); } }
+@media (prefers-reduced-motion: reduce) { .croppy-mascot, .croppy-thinking .croppy-mascot { animation: none; } }
+
+.croppy-panel { position: fixed; right: 16px; bottom: 88px; z-index: 1000; width: min(360px, calc(100vw - 32px));
+  height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; background: var(--panel, #fffdf6);
+  color: var(--ink, #1c1a14); border: 1px solid var(--line2, #d3c8ae); border-radius: 14px; box-shadow: var(--shadow);
+  font: 14px/1.45 var(--sans, system-ui, sans-serif); overflow: hidden; }
+.croppy-panel[hidden] { display: none; }
+.croppy-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line, #e2d9c4); background: var(--panel2, #faf6ea); }
+.croppy-head svg { width: 32px; height: 32px; flex: none; }
+.croppy-head b { font-family: var(--display, inherit); font-size: 15px; }
+.croppy-head small { display: block; color: var(--muted, #6d6656); font-size: 11.5px; }
+.croppy-close { margin-left: auto; border: 0; background: none; color: var(--muted, #6d6656); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+.croppy-log { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.croppy-msg { max-width: 88%; padding: 8px 11px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.croppy-msg.bot { align-self: flex-start; background: var(--bg2, #ede6d3); border-bottom-left-radius: 4px; }
+.croppy-msg.user { align-self: flex-end; background: var(--accent, #b7791f); color: #fff; border-bottom-right-radius: 4px; }
+.croppy-msg.dots { color: var(--muted, #6d6656); }
+.croppy-acts, .croppy-sugg { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; }
+.croppy-acts a, .croppy-sugg button { font: inherit; font-size: 12.5px; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line2, #d3c8ae); background: var(--panel, #fffdf6); color: var(--link, #1864ab); text-decoration: none; }
+.croppy-form { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--line, #e2d9c4); }
+.croppy-form input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line2, #d3c8ae);
+  background: var(--bg, #f5f1e6); color: var(--ink, #1c1a14); }
+.croppy-form button { font: inherit; font-weight: 600; padding: 8px 12px; border-radius: 10px; border: 0; background: var(--accent, #b7791f); color: #fff; cursor: pointer; }
+.croppy-form button:disabled { opacity: .5; cursor: default; }
