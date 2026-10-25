@@ -28,10 +28,10 @@ CONTEXT_TTL_S = 15.0
 NO_STORE = {"Cache-Control": "no-store"}
 CHAT_EXTRA = {"temperature": 0.4, "max_tokens": 600}
 CHAIN: list[dict[str, Any]] = [
+    {"key": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "provider": "gemini", "env": "GEMINI_API_KEY", "model_id": "gemini-2.5-flash"},
     {"key": "deepseek-v4.1-flash", "label": "DeepSeek V4.1 Flash", "provider": "openrouter", "env": "OPENROUTER_API_KEY",
      "model_id": os.environ.get("CROPPY_MODEL") or "deepseek/deepseek-v4.1-flash-1017",
      "extra": {**CHAT_EXTRA, "reasoning": {"enabled": False}}},
-    {"key": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "provider": "gemini", "env": "GEMINI_API_KEY", "model_id": "gemini-2.5-flash"},
 ]
 
 MODEL_ERRORS = (httpx.HTTPError, genai_errors.APIError, gemini.MissingGeminiKeyError, TimeoutError, ValueError, KeyError, IndexError)

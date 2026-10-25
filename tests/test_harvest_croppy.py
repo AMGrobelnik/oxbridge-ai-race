@@ -72,22 +72,22 @@ def test_every_model_failing_falls_back(client, monkeypatch):
     body = client.post("/harvest/api/croppy", json={"message": "What's a world model?"}).json()
     assert body["fallback"] is True
     assert any(a["href"] == "/app/live" for a in body["actions"])
-    assert [p for p, _ in tried] == ["openrouter", "gemini"]
+    assert [p for p, _ in tried] == ["gemini", "openrouter"]
     assert tried[0][1] <= croppy_route.PRIMARY_TIMEOUT_S and tried[1][1] <= croppy_route.DEADLINE_S < 12
 
 
-def test_deepseek_first_then_gemini(client, monkeypatch):
+def test_gemini_first_then_deepseek(client, monkeypatch):
     monkeypatch.delenv("HARVEST_OFFLINE")
-    assert croppy_route.CHAIN[0]["model_id"].startswith("deepseek/") and croppy_route.CHAIN[1]["model_id"] == "gemini-2.5-flash"
+    assert croppy_route.CHAIN[0]["model_id"] == "gemini-2.5-flash" and croppy_route.CHAIN[1]["model_id"].startswith("deepseek/")
 
     async def flaky(m, prompt, *, timeout_s):
-        if m["provider"] == "openrouter":
+        if m["provider"] == "gemini":
             raise TimeoutError
-        return json.dumps({"reply": "Hi from Gemini", "actions": []})
+        return json.dumps({"reply": "Hi from DeepSeek", "actions": []})
 
     monkeypatch.setattr(croppy_route, "ask", flaky)
     body = client.post("/harvest/api/croppy", json={"message": "hi"}).json()
-    assert body == {"reply": "Hi from Gemini", "actions": [], "model": "Gemini 2.5 Flash"}
+    assert body == {"reply": "Hi from DeepSeek", "actions": [], "model": "DeepSeek V4.1 Flash"}
 
 
 def test_links_only_to_served_pages():
@@ -119,9 +119,9 @@ def test_prompt_includes_live_context_and_actions_are_filtered(client, monkeypat
     monkeypatch.setattr(croppy_route, "ask", fake)
     history = [{"role": "user", "text": f"q{i}"} for i in range(12)]
     body = client.post("/harvest/api/croppy", json={"message": "x" * 900, "history": history, "page": "/harvest/play"}).json()
-    assert body == {"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/app"}], "model": "DeepSeek V4.1 Flash"}
+    assert body == {"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/app"}], "model": "Gemini 2.5 Flash"}
     prompt = seen["prompt"]
-    assert seen["model"].startswith("deepseek/")
+    assert seen["model"] == "gemini-2.5-flash"
     assert "LIVE CONTEXT" in prompt and "Will Italy declare a national drought emergency in 2027?: 35% YES" in prompt
     assert "Will wheat be more than 10% higher by 2026-12?: 40% YES" in prompt
     assert "Spain rations irrigation water in Andalusia" in prompt
