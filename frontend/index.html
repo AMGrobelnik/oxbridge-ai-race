@@ -619,7 +619,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .calc span{color:var(--muted)}
 .calc b{font-weight:600;font-variant-numeric:tabular-nums}
 .ticket .go{height:50px;border-radius:12px;font-size:15px}
-.ticket .note{font-size:12px;color:var(--muted);text-align:center}
+.ticket .note{display:block;font-size:12px;color:var(--muted);text-align:center;animation:none}
 .ok{display:none;gap:4px;padding:12px;border-radius:12px;background:color-mix(in srgb,var(--yes) 9%,#fff);color:var(--yes);font-size:13px}
 .ok.on{display:grid}
 .ok b{font-weight:600}
@@ -827,6 +827,10 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .mk-title h1{margin:16px 0 14px;font:400 clamp(48px,5.4vw,72px)/.92 var(--f-display);letter-spacing:-.03em;color:var(--soil)}
 .mk-title h1 em.s{color:var(--wheat-ink)}
 .mk-title p{max-width:54ch;color:var(--stalk);font:16px/1.6 var(--f-body)}
+.mk-title p.mk-later{margin-top:12px;color:var(--chaff);font:12px/1.5 var(--f-mono)}
+.mk-later b{margin-right:8px;padding:2px 8px;border-radius:var(--r-pill);background:var(--cream);color:var(--wheat-deep);font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+.mk-buy span{cursor:pointer}.mk-buy span:focus-visible{outline:2px solid var(--wheat);outline-offset:2px}
+.mk-buy .y:hover{background:var(--up)!important;color:var(--paper)}.mk-buy .n:hover{background:var(--down)!important;color:var(--paper)}
 .mk-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--glass-edge);border-radius:var(--r-panel);box-shadow:var(--shadow-lift)}
 .mk-stats div{display:flex;flex-direction:column;padding:16px 22px;min-width:132px}
 .mk-stats dt{flex:1}
@@ -1144,6 +1148,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
         <span class="kicker"><i class="dot-live"></i>Live · play credits only</span>
         <h1>Markets <em class="s">on the harvest</em></h1>
         <p>Yes-or-no questions on Europe's crops, weather and farm policy. People trade them beside AI forecasters, and every price is the crowd's live chance of YES.</p>
+        <p class="mk-later"><b>Coming later</b>Propose your own markets · real stakes, where regulation allows. Today it is play credits only, no real money.</p>
       </div>
       <dl class="mk-stats">
         <div><dt>Open markets</dt><dd data-mk-open>–</dd></div>
@@ -1755,6 +1760,8 @@ function initMarkets(){
   $('#tm-q').addEventListener('input',()=>{TS.q=$('#tm-q').value.trim().toLowerCase();renderMon()});
   $('[data-cmd]').addEventListener('submit',e=>{e.preventDefault();TS.q=$('#tm-q').value.trim().toLowerCase();renderMon();if(TS.term)runCmd($('#tm-q').value)});
   $('[data-term]').addEventListener('click',e=>{TS.term=!TS.term;e.currentTarget.setAttribute('aria-pressed',TS.term);$('[data-termx]').hidden=!TS.term;if(TS.term){renderMatrix();$('[data-termx]').scrollIntoView({behavior:'smooth',block:'start'})}});
+  const buy=e=>{const b=e.target.closest('[data-buy]');if(!b)return;e.preventDefault();e.stopPropagation();window.CR_SIDE=b.dataset.buy;go('m-'+b.closest('[data-id]').dataset.id)};
+  $('[data-mon]').addEventListener('click',buy);$('[data-mon]').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')buy(e)});
   $('[data-mx]').addEventListener('click',e=>{const c=e.target.closest('[data-mxm]');if(c)desMarket(c.dataset.mxm);const a=e.target.closest('[data-mxa]');if(a)desAgent(+a.dataset.mxa)});
   $('[data-rgb]').addEventListener('click',e=>{const r=e.target.closest('[data-rk]');if(r)desRegion(+r.dataset.rk)});
   $('[data-ts]').addEventListener('click',e=>{const r=e.target.closest('[data-id]');if(r)go('m-'+r.dataset.id)});
@@ -1802,7 +1809,7 @@ function monCard(m,fl,i=0){
   <h3>${esc(m.q)}</h3>
   <div class="mk-odds"><div><b>${p}<small>%</small></b><span class="lab">chance of yes</span></div><div class="mk-chg"><span class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pts</span><small>24 h</small></div></div>
   ${sparkSVG(m.h,60,'mk-spark')}
-  <div class="mk-buy" aria-hidden="true"><span class="y">Yes <b>${p}¢</b></span><span class="n">No <b>${100-p}¢</b></span></div>
+  <div class="mk-buy"><span class="y" role="button" tabindex="0" data-buy="YES">Buy Yes <b>${p}¢</b></span><span class="n" role="button" tabindex="0" data-buy="NO">Buy No <b>${100-p}¢</b></span></div>
   <div class="mk-cons">${cons}</div>
   <div class="mk-foot"><span>${kfmt(m.vol||0)} traded</span><span class="go">Trade →</span></div></a>`;
 }
