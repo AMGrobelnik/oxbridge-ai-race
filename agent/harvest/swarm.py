@@ -334,6 +334,26 @@ def extract_json(text: str) -> str:
     return text[start:end + 1]
 
 
+_ROW = re.compile(r'"qid"\s*:\s*"(Q\d+)"[^{}]*?"p_yes"\s*:\s*"?([0-9]*\.?[0-9]+)(?:[^{}]*?"rationale"\s*:\s*"((?:[^"\\]|\\.)*))?', re.S)
+
+
+def parse_reply(text: str, n: int) -> dict[str, tuple[float, str]]:
+    """Forecasts from a reply: strict JSON first, else row by row (small models often break the JSON)."""
+    try:
+        parsed = forecaster._parse(extract_json(text), n)
+        if parsed:
+            return parsed
+    except (ValueError, TypeError, AttributeError, KeyError):
+        pass
+    out: dict[str, tuple[float, str]] = {}
+    for qid, p, why in _ROW.findall(text or ""):
+        if 1 <= int(qid[1:]) <= n and qid not in out:
+            out[qid] = (_clamp(float(p), 0.01, 0.99), (why or "")[:200])
+    if not out:
+        raise ValueError("no forecasts in the reply")
+    return out
+
+
 class RateLimited(Exception):
     def __init__(self, retry_after: float) -> None:
         super().__init__(f"429, retry after {retry_after:.0f}s")
@@ -520,9 +540,7 @@ class Swarm:
             now = time.time()
             try:
                 text = await chat(http, model, prompt)
-                parsed = forecaster._parse(extract_json(text), len(qs))
-                if not parsed:
-                    raise ValueError("no forecasts parsed")
+                parsed = parse_reply(text, len(qs))
             except RateLimited as err:
                 self.stats["llm_429"][model.label] = self.stats["llm_429"].get(model.label, 0) + 1
                 wait = min(max(err.retry_after, 20.0), 300.0)
@@ -670,7 +688,7 @@ async def probe(models: list[Model]) -> list[Model]:
         async def one(m: Model) -> tuple[Model, str]:
             t = time.time()
             try:
-                p = forecaster._parse(extract_json(await chat(http, m, prompt, timeout_s=60)), 1)
+                p = parse_reply(await chat(http, m, prompt, timeout_s=60), 1)
                 return m, f"ok {time.time() - t:.1f}s p={p.get('Q1', ('?',))[0]}"
             except Exception as err:  # noqa: BLE001 - probe reports every failure
                 return m, f"FAIL {type(err).__name__}: {str(err)[:140]}"

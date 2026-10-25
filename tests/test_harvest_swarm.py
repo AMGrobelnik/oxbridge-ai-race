@@ -105,3 +105,11 @@ def test_swarm_counter_counts_swarm_agents_and_last_hour_bets(book):
     assert view["recent"][0]["name"].startswith("\U0001f916")
     later = harvest_swarm.swarm_view(book, now=datetime.now(UTC) + timedelta(hours=2))
     assert later["bets_last_hour"] == 0
+
+
+def test_parse_reply_recovers_rows_from_broken_json():
+    text = '{"forecasts": [{"qid": "Q1", "p_yes": 0.62, "rationale": "heat "risk" high"}, {"qid": "Q2", "p_yes": 0.2, "rationale": "calm"}, {"qid": "Q9", "p_yes": 0.5}'
+    parsed = swarm.parse_reply(text, 2)
+    assert parsed["Q1"][0] == pytest.approx(0.62) and parsed["Q2"] == (pytest.approx(0.2), "calm") and "Q9" not in parsed
+    with pytest.raises(ValueError):
+        swarm.parse_reply("I cannot answer", 2)
