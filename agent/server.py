@@ -1,19 +1,20 @@
 """The agent's HTTP service (FastAPI). Run it with `python -m agent serve`.
 
-GET / lists every feature in this project (a page for browsers, JSON for code). Every file in agent/routes adds its own endpoints,
-so adding a feature never means editing this file.
+GET / is the Crophecy landing page for browsers and lists every feature in this project as JSON for code (the old module
+page is at /classic). Every file in agent/routes adds its own endpoints, so adding a feature never means editing this file.
 """
 
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException
 
 from . import routes
 from .config import load_env
 from .modules import modules
 from .plugins import load_plugins
+from .routes.landing import landing_response
 
 load_env()
 logger = logging.getLogger("agent")
@@ -23,9 +24,9 @@ app = FastAPI(title="Superteam agent")
 
 @app.get("/")
 async def home(request: Request) -> Response:
-    """Browsers go to the waitlist landing for now (temporary 307); code (curl, httpx, other agents) gets JSON."""
+    """Browsers get the Crophecy landing page (agent/routes/landing.py; the old module page is at /classic); code gets JSON."""
     if "text/html" in request.headers.get("accept", ""):
-        return RedirectResponse("/waitlist/", status_code=307)
+        return landing_response(request)
     return JSONResponse({"service": "superteam-agent", "modules": modules})
 
 
