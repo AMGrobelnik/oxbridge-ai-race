@@ -25,7 +25,7 @@ h2 { font-size:22px; margin:28px 0 10px; }
 .btn.yes { background:var(--green); border-color:var(--green); color:#fff; }
 .btn.no { background:var(--red); border-color:var(--red); color:#fff; }
 .btn.small { font-size:16px; padding:10px 14px; min-height:44px; }
-input[type=text], input[type=search], textarea { width:100%; font:inherit; padding:14px; border:2px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); }
+input[type=text], input[type=email], input[type=search], textarea { width:100%; font:inherit; padding:14px; border:2px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); }
 textarea { min-height:190px; resize:vertical; }
 input:focus, textarea:focus { outline:none; border-color:var(--green); }
 .chips { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px; }
@@ -66,6 +66,7 @@ svg.line { width:100%; height:48px; display:block; }
 .actions .btn { flex:1 1 200px; }
 .stats { font-weight:700; margin:18px 0 0; }
 textarea.note { min-height:80px; margin:10px 0 12px; }
+input.note { margin:10px 0 12px; }
 .good-msg { color:var(--green); font-weight:600; }
 .view-toggle { margin:4px 0 8px; }
 pre.json { background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }

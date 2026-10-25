@@ -214,7 +214,7 @@
   // ------------------------------------------------------------ pages
   function waitlistBox(stats) {
     const contact = h("input", { type: "email", maxlength: "254", placeholder: "Email, e.g. maria@example.org", "aria-label": "Email", autocomplete: "email" });
-    const note = h("input", { type: "text", maxlength: "60", placeholder: "Your role, e.g. farmer or trader (optional)", "aria-label": "Role" });
+    const note = h("input", { type: "text", class: "note", maxlength: "60", placeholder: "Your role (optional), e.g. farmer", "aria-label": "Role" });
     const msg = h("p");
     const go = h("button", { class: "btn primary", style: "width:100%", onclick: async () => {
       go.disabled = true;
