@@ -818,6 +818,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 @media (max-width:560px){.wl-link{display:none}}
 @media (max-width:900px){.story,.doors{grid-template-columns:1fr}.door{min-height:0;padding:28px 24px}}
 @media (min-width:1181px){main[data-view="live"] .wrap,main[data-view="market"] .wrap{padding-inline:max(20px,calc(84px + (1320px - 100vw) / 2))}} /* keep Croppy clear of Incoming bets */
+main[data-view="live"] .lv-seg{max-width:100%;overflow-x:auto;scrollbar-width:none}
 @media (max-width:860px){.jp-hero-in{padding-block:28px 132px;gap:16px}.jp-glyphs{font-size:clamp(26px,4.6vh,44px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* =============================== MARKETS (human view: the waitlist look; the terminal sits behind a toggle) =============================== */
@@ -883,8 +884,8 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .mk-when{display:flex;align-items:center;gap:8px;margin-top:-4px;color:var(--stalk);font:12px var(--f-body)}
 .mk-when b{font-weight:500;color:var(--soil)}
 .mk-when>span:last-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.st{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:var(--r-pill);font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
-.st::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+.st:is(.st-open,.st-wait,.st-done){display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:var(--r-pill);font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.st:is(.st-open,.st-wait,.st-done)::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
 .st-open{background:color-mix(in srgb,var(--up) 11%,transparent);color:var(--up)}
 .st-wait{background:var(--cream);color:var(--wheat-deep)}
 .st-done{background:var(--field);color:var(--stalk)}

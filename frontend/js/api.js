@@ -829,10 +829,12 @@
   async function boot(start) {
     styles();
     if (!window.CROPHECY_LIVE) { preview("This copy of the design changed on main and is not wired yet."); start(); return; }
-    let body;
-    try { body = await call("/site"); } catch (e) {
-      preview("The live market is unreachable right now."); start(); setInterval(tick, 1000); return;
+    let body = null;
+    for (let i = 0; i < 4 && !body; i++) { // ride out a brief edge or redeploy blip before falling back to the labelled preview
+      try { const b = await call("/site"); if (b && Array.isArray(b.markets)) body = b; } catch (_) { /* retry */ }
+      if (!body) await new Promise((r) => setTimeout(r, 700 * (i + 1)));
     }
+    if (!body) { preview("The live market is unreachable right now."); start(); setInterval(tick, 1000); return; }
     apply(body);
     install();
     wireGlobalClicks();
