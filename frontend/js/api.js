@@ -405,7 +405,7 @@
       const board = route === "leaderboard";
       if (board) { route = "home"; opt = { ...opt, anchor: "h-agents" }; }
       if (EXTRA_VIEWS.includes(route)) showExtra(route);
-      else { orig.go(route, opt); try { history.replaceState(null, "", pathFor(route, opt)); } catch (_) { /* sandboxed */ } }
+      else { orig.go(route, opt); setPath(pathFor(route, opt)); }
       qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === (board ? "leaderboard" : route.startsWith("m-") ? "markets" : route)));
       heroVideo();
     };
@@ -463,6 +463,12 @@
     if (!on && !v.paused) v.pause(); else if (on && v.paused) v.play().catch(() => {});
   }
   document.addEventListener("visibilitychange", heroVideo);
+  // each view change is a history entry, so Back returns to the previous view instead of leaving the site
+  let histReady = false, popping = false;
+  function setPath(path) {
+    try { if (histReady && !popping && location.pathname !== path) history.pushState(null, "", path); else history.replaceState(null, "", path); } catch (_) { /* sandboxed */ }
+  }
+  addEventListener("popstate", () => { popping = true; try { go(routeFromPath(), { keep: true }); } finally { popping = false; } });
   function pathFor(route, opt) {
     if (opt && opt.anchor === "h-agents") return "/leaderboard";
     if (route === "home") return "/";
@@ -658,7 +664,7 @@
     qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === name));
     qa(".topbar nav.links a[data-anchor]").forEach((x) => x.removeAttribute("aria-current"));
     scrollTo(0, 0);
-    try { history.replaceState(null, "", "/" + name); } catch (_) { /* sandboxed */ }
+    setPath("/" + name);
   }
   function renderTheory(view) {
     view.innerHTML = `<div class="wrap cr-page"><header class="sec-head"><span class="kicker">Write your theory</span><h2>Can your <em class="s">world model</em> beat the agents?</h2><p>Describe in a few sentences how climate, politics and money move food prices. We hash it, commit it to the ledger, then backtest it on the sealed holdout questions and rank it against the house world models.</p></header>
@@ -829,7 +835,7 @@
     wireGlobalClicks();
     paintChrome(); paintMe();
     if (!window.__croppyLoaded && !document.querySelector("script[src*=\"/harvest/static/croppy.js\"]")) croppy(); // the site-wide Croppy (/harvest/static/croppy.js, deferred) replaces this one
-    go(routeFromPath(), { keep: true });
+    go(routeFromPath(), { keep: true }); histReady = true;
     setTimeout(poll, POLL_MS);
   }
   window.crophecyBoot = (start) => {
