@@ -544,7 +544,7 @@
     const calc = () => {
       const p = Math.min(0.99, Math.max(0.01, m.last / 100)), pp = side() === "YES" ? p : 1 - p, a = Math.max(0, Math.min(500, +inp.value || 0)), net = a * 0.98, b = m.b || 100;
       const sh = b * Math.log((Math.exp(net / b) - 1 + pp) / pp), avg = sh > 0 ? net / sh : pp;
-      q1("[data-k=px]", tk).textContent = Math.round(avg * 100) + "¢"; q1("[data-k=sh]", tk).textContent = sh.toFixed(1);
+      q1("[data-k=px]", tk).textContent = Math.round(avg * 100) + "%"; q1("[data-k=sh]", tk).textContent = sh.toFixed(1);
       q1("[data-k=po]", tk).textContent = money(sh); q1("[data-k=pf]", tk).textContent = "+" + money(Math.max(0, sh - a));
     };
     inp.addEventListener("input", calc);

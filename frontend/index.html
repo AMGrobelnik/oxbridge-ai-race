@@ -817,7 +817,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .bar-cta:has(.cr-me) [data-start]{display:none}.wl-link{order:-1}
 @media (max-width:560px){.wl-link{display:none}}
 @media (max-width:900px){.story,.doors{grid-template-columns:1fr}.door{min-height:0;padding:28px 24px}}
-@media (min-width:1181px){main[data-view="live"] .wrap,main[data-view="markets"] .wrap,main[data-view="market"] .wrap{padding-inline:max(20px,calc(84px + (1320px - 100vw) / 2))}} /* keep Croppy clear of Incoming bets */
+@media (min-width:1181px){main[data-view="live"] .wrap,main[data-view="market"] .wrap{padding-inline:max(20px,calc(84px + (1320px - 100vw) / 2))}} /* keep Croppy clear of Incoming bets */
 @media (max-width:860px){.jp-hero-in{padding-block:28px 132px;gap:16px}.jp-glyphs{font-size:clamp(26px,4.6vh,44px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* =============================== MARKETS (human view: the waitlist look; the terminal sits behind a toggle) =============================== */
@@ -1049,7 +1049,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
       <div class="h-intro" data-intro><div class="wrap"><span class="kicker">Orbit · scroll to dive</span><h2>Live bets</h2></div></div>
       <div class="h-hud glass spot" data-hud style="opacity:0">
         <div class="swap">
-          <div class="top mono"><span data-h-n>01 / 06</span><span data-h-side class="side no">NO 55¢</span></div>
+          <div class="top mono"><span data-h-n>01 / 06</span><span data-h-side class="side no">NO 55%</span></div>
           <h3 data-h-m></h3>
           <div class="reg mono" data-h-r></div>
           <p data-h-p></p>
@@ -1562,7 +1562,7 @@ class Flow{
 
 /* =============================== SHARED BITS =============================== */
 const avatar=(a,cls='')=>`<span class="avatar ${cls}" style="background:${a.c}" title="${esc(a.n)}">${a.ab}</span>`;
-const sideHTML=(side,px)=>`<span class="side ${side==='YES'?'yes':'no'}">${side}${px!=null?' '+px+'¢':''}</span>`;
+const sideHTML=(side,px)=>`<span class="side ${side==='YES'?'yes':'no'}">${side}${px!=null?' '+px+'%':''}</span>`;
 const coord=t=>`${Math.abs(t.lat).toFixed(1)}°${t.lat>=0?'N':'S'} ${Math.abs(t.lon).toFixed(1)}°${t.lon>=0?'E':'W'}`;
 const chg=v=>`<span class="${v>=0?'up':'dn'}">${v>=0?'▲':'▼'} ${Math.abs(v).toFixed(1)}</span>`;
 function sparkSVG(h,n=40,cls='spark'){
@@ -1728,7 +1728,7 @@ function hedge(){
   const rev=ha*y*p,L=rev*loss,px=m.last/100,stake=L*px;
   $('[data-hedge]').innerHTML=`<div class="fsig" style="margin-top:0"><span class="kn" style="margin:0">守</span><span>Market <a href="#m-${m.id}">${m.code}</a> puts the chance that ${hz.ev} at <b>${Math.round(m.last)}%</b>.</span></div>
     <div class="rung"><span class="n">一</span><span><b>Revenue at risk</b><small>${fmt(ha)} ha × ${y} t/ha × €${fmt(p)}/t × ${Math.round(loss*100)}% lost</small></span><span class="v">€${fmt(L)}</span></div>
-    <div class="rung"><span class="n">二</span><span><b>Buy ${fmt(L)} YES shares</b><small>At ${Math.round(m.last)}¢ each. This is your premium, like an insurance payment.</small></span><span class="v">€${fmt(stake)}</span></div>
+    <div class="rung"><span class="n">二</span><span><b>Buy ${fmt(L)} YES shares</b><small>At ${Math.round(m.last)}% each. This is your premium, like an insurance payment.</small></span><span class="v">€${fmt(stake)}</span></div>
     <div class="rung"><span class="n">三</span><span><b>If it happens, you’re paid €${fmt(L)}</b><small>That offsets the lost revenue. If it doesn’t, you keep your normal harvest and lose only the €${fmt(stake)} premium.</small></span><span class="v" style="color:var(--leaf)">covered</span></div>`;
 }
 
@@ -1750,7 +1750,7 @@ function fillHud(i){
     set('[data-h-m]',m.q);set('[data-h-r]',`${m.reg} · ${coord(m)}`);set('[data-h-p]',t.why);set('[data-h-a]',t.a.n);set('[data-h-pct]',m.p+'%');
     $('[data-h-bar]',hud).style.width=m.p+'%';
     const av=$('[data-h-av]',hud);av.textContent=t.a.ab;av.style.background=t.a.c;
-    const sd=$('[data-h-side]',hud);sd.className='side '+(t.side==='YES'?'yes':'no');sd.textContent=`${t.a.ab} ${t.side} ${t.side==='YES'?m.p:100-m.p}¢`;
+    const sd=$('[data-h-side]',hud);sd.className='side '+(t.side==='YES'?'yes':'no');sd.textContent=`${t.a.ab} ${t.side} ${t.side==='YES'?m.p:100-m.p}%`;
     $('[data-h-link]',hud).setAttribute('href','#m-'+m.id);
     hud.classList.remove('chg');
   },REDUCED?0:170);
@@ -1848,7 +1848,7 @@ function monCard(m,fl,i=0){
   <div class="mk-when">${stChip(e)}<span>Closes <b>${e.closeL}</b> · ${e.cd.replace(' months',' mo')}</span></div>
   <div class="mk-odds"><div><b>${p}<small>%</small></b><span class="lab">chance of yes</span></div><div class="mk-chg"><span class="${d>=0?'up':'dn'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)} pts</span><small>24 h</small></div></div>
   ${sparkSVG(m.h,60,'mk-spark')}
-  <div class="mk-buy"><span class="y" role="button" tabindex="0" data-buy="YES">Buy Yes <b>${p}¢</b></span><span class="n" role="button" tabindex="0" data-buy="NO">Buy No <b>${100-p}¢</b></span></div>
+  <div class="mk-buy"><span class="y" role="button" tabindex="0" data-buy="YES">Buy Yes · <b>${p}%</b></span><span class="n" role="button" tabindex="0" data-buy="NO">Buy No · <b>${100-p}%</b></span></div>
   <div class="mk-cons">${cons}</div>
   <div class="mk-foot"><span>${kfmt(m.vol||0)} traded</span><span class="go">Trade →</span></div></a>`;
 }
@@ -1889,12 +1889,12 @@ function des(title,html){$('[data-des-t]').textContent=title;$('[data-des-b]').i
 function closeDes(){const d=$('[data-des]');if(d)d.hidden=true}
 function desMarket(id){const m=MK[id],pos=[...POS[id]].sort((a,b)=>b.stake-a.stake),t=pos[0];
   des(`DES · ${m.tk} · ${m.code}`,`<h3>${esc(m.q)}</h3>
-  <div class="kv"><div><span>LAST</span><b>${m.last.toFixed(1)}¢</b></div><div><span>CHG 24H</span><b>${tchg(m.last-m.prev)}</b></div><div><span>CHG 7D</span><b>${tchg(m.d7)}</b></div><div><span>VOLUME</span><b>${money(m.vol)}</b></div><div><span>REGION</span><b>${esc(m.reg.split(',')[0].toUpperCase())}</b></div><div><span>CATEGORY</span><b>${m.cat.toUpperCase()}</b></div><div><span>ENDS</span><b>${endLabel(m).toUpperCase()}</b></div><div><span>AGENT SPREAD</span><b>${spread(m).toFixed(1)} PTS</b></div></div>
+  <div class="kv"><div><span>LAST</span><b>${m.last.toFixed(1)}%</b></div><div><span>CHG 24H</span><b>${tchg(m.last-m.prev)}</b></div><div><span>CHG 7D</span><b>${tchg(m.d7)}</b></div><div><span>VOLUME</span><b>${money(m.vol)}</b></div><div><span>REGION</span><b>${esc(m.reg.split(',')[0].toUpperCase())}</b></div><div><span>CATEGORY</span><b>${m.cat.toUpperCase()}</b></div><div><span>ENDS</span><b>${endLabel(m).toUpperCase()}</b></div><div><span>AGENT SPREAD</span><b>${spread(m).toFixed(1)} PTS</b></div></div>
   <div><span class="lab">120D YES PX</span>${b40(m,120)}</div>
-  <div class="tt-wrap"><table class="tt"><thead><tr><th>AGENT</th><th>SIDE</th><th class="r">EST</th><th class="r">STAKE</th><th class="r">ENTRY</th><th class="r">P&amp;L</th></tr></thead><tbody>${pos.map(p=>`<tr data-act="agent:${p.ai}"><td style="color:var(--t-vi)">${CODES[p.ai]}</td><td class="${p.side==='YES'?'t-up':'t-dn'}">${p.side}</td><td class="r">${p.est}%</td><td class="r">${money(p.stake)}</td><td class="r">${p.entry}¢</td><td class="r ${p.pnl>=0?'t-up':'t-dn'}">${p.pnl>=0?'+':'−'}${money(Math.abs(p.pnl))}</td></tr>`).join('')}</tbody></table></div>
+  <div class="tt-wrap"><table class="tt"><thead><tr><th>AGENT</th><th>SIDE</th><th class="r">EST</th><th class="r">STAKE</th><th class="r">ENTRY</th><th class="r">P&amp;L</th></tr></thead><tbody>${pos.map(p=>`<tr data-act="agent:${p.ai}"><td style="color:var(--t-vi)">${CODES[p.ai]}</td><td class="${p.side==='YES'?'t-up':'t-dn'}">${p.side}</td><td class="r">${p.est}%</td><td class="r">${money(p.stake)}</td><td class="r">${p.entry}%</td><td class="r ${p.pnl>=0?'t-up':'t-dn'}">${p.pnl>=0?'+':'−'}${money(Math.abs(p.pnl))}</td></tr>`).join('')}</tbody></table></div>
   <div><span class="lab">LOUDEST LOGIC · ${CODES[t.ai]}</span><p>${esc(t.why)}</p></div>
   <div><span class="lab">RESOLUTION</span><p>${esc(m.res)}<br>Source: ${esc(m.src)}</p></div>
-  <div class="des-act"><button type="button" class="p" data-act="page:${m.id}">OPEN MARKET PAGE &lt;GO&gt;</button><button type="button" data-act="page:${m.id}">BET YES ${Math.round(m.last)}¢</button><button type="button" data-act="page:${m.id}">BET NO ${100-Math.round(m.last)}¢</button><button type="button" data-act="region:${m.ri}">REGION DES</button></div>`)}
+  <div class="des-act"><button type="button" class="p" data-act="page:${m.id}">OPEN MARKET PAGE &lt;GO&gt;</button><button type="button" data-act="page:${m.id}">BET YES ${Math.round(m.last)}%</button><button type="button" data-act="page:${m.id}">BET NO ${100-Math.round(m.last)}%</button><button type="button" data-act="region:${m.ri}">REGION DES</button></div>`)}
 function desAgent(ai){const a=AGENTS[ai],s=AGS[ai],ps=MARKETS.map(m=>({m,p:POS[m.id][ai]})).sort((x,y)=>y.p.stake-x.p.stake),ys=ps.filter(x=>x.p.side==='YES').reduce((t,x)=>t+x.p.stake,0),tot=ps.reduce((t,x)=>t+x.p.stake,0);
   des(`DES · ${CODES[ai]} · ${a.n}`,`<h3>${esc(a.n)}</h3><p>${esc(a.v)} ${esc(a.style)}</p>
   <div class="kv"><div><span>BRIER</span><b>${a.b.toFixed(3)}</b></div><div><span>RANK</span><b>${ai+1} / ${NA}</b></div><div><span>P&amp;L TODAY</span><b class="${s.pnl>=0?'t-up':'t-dn'}">${s.pnl>=0?'+':'−'}${money(Math.abs(s.pnl))}</b></div><div><span>BETS TODAY</span><b>${s.bets}</b></div><div><span>YES SHARE</span><b>${Math.round(ys/tot*100)}%</b></div><div><span>AVG STAKE</span><b>${money(tot/ps.length)}</b></div><div><span>VS MARKET</span><b class="${a.b<.192?'t-up':'t-dn'}">${a.b<.192?'BEATS':'TRAILS'} 0.192</b></div><div><span>BEST CATEGORY</span><b>${Object.entries(s.cat).sort((x,y)=>x[1]-y[1])[0][0].toUpperCase()}</b></div></div>
@@ -2010,7 +2010,7 @@ function renderDetail(id){
     <aside>
       <div class="ticket" data-ticket>
         <h2>Place a forecast</h2>
-        <div class="yn" role="group" aria-label="Side"><button type="button" data-s="YES" aria-pressed="true">Yes ${m.p}¢</button><button type="button" data-s="NO" aria-pressed="false">No ${100-m.p}¢</button></div>
+        <div class="yn" role="group" aria-label="Side"><button type="button" data-s="YES" aria-pressed="true">Yes · ${m.p}%</button><button type="button" data-s="NO" aria-pressed="false">No · ${100-m.p}%</button></div>
         <div class="amt"><label for="tk-amt">Amount</label><i>$</i><input id="tk-amt" type="number" inputmode="decimal" min="1" step="1" value="50"></div>
         <div class="quick"><button type="button" data-add="10">+10</button><button type="button" data-add="50">+50</button><button type="button" data-add="100">+100</button><button type="button" data-add="max">Max</button></div>
         <div class="calc"><div><span>Avg price</span><b data-k="px"></b></div><div><span>Shares</span><b data-k="sh"></b></div><div><span>Payout if right</span><b data-k="po"></b></div><div><span>Profit</span><b data-k="pf" class="up"></b></div></div>
@@ -2023,7 +2023,7 @@ function renderDetail(id){
   </div>`;
   // ticket
   const T={s:'YES'},tk=$('[data-ticket]'),inp=$('#tk-amt');
-  const calc=()=>{const px=T.s==='YES'?m.p:100-m.p,a=Math.max(0,+inp.value||0),sh=a/(px/100);$('[data-k=px]',tk).textContent=px+'¢';$('[data-k=sh]',tk).textContent=sh.toFixed(1);$('[data-k=po]',tk).textContent=money(sh);$('[data-k=pf]',tk).textContent='+'+money(sh-a)};
+  const calc=()=>{const px=T.s==='YES'?m.p:100-m.p,a=Math.max(0,+inp.value||0),sh=a/(px/100);$('[data-k=px]',tk).textContent=px+'%';$('[data-k=sh]',tk).textContent=sh.toFixed(1);$('[data-k=po]',tk).textContent=money(sh);$('[data-k=pf]',tk).textContent='+'+money(sh-a)};
   $$('.yn button',tk).forEach(b=>b.addEventListener('click',()=>{T.s=b.dataset.s;$$('.yn button',tk).forEach(x=>x.setAttribute('aria-pressed',x===b));calc()}));
   inp.addEventListener('input',calc);
   $$('.quick button',tk).forEach(b=>b.addEventListener('click',()=>{inp.value=b.dataset.add==='max'?1000:(+inp.value||0)+ +b.dataset.add;calc()}));
@@ -2098,7 +2098,7 @@ function initWin(m,pos){
   const S={f:'all',s:'pnl',open:-1},host=$('[data-plc]'),mx=Math.max(1,...pos.map(p=>Math.abs(p.pnl)));
   const draw=()=>{const list=pos.filter(p=>S.f==='all'||p.a.fam===S.f).sort((a,b)=>S.s==='pnl'?b.pnl-a.pnl:S.s==='stake'?b.stake-a.stake:Math.abs(b.est-m.p)-Math.abs(a.est-m.p));
     host.innerHTML=list.map(p=>{const w=Math.abs(p.pnl)/mx*50,left=p.pnl>=0?50:50-w,on=S.open===p.ai;return `<button type="button" class="pl-row" data-pr="${p.ai}" aria-expanded="${on}"><span class="who">${avatar(p.a,'sm')}<span>${p.a.n}</span></span><span class="pl-track"><i style="left:${left}%;width:${Math.max(.6,w)}%;background:${p.pnl>=0?'var(--yes)':'var(--no)'}"></i></span><span class="v ${p.pnl>=0?'up':'dn'}">${p.pnl>=0?'+':'−'}${money(Math.abs(p.pnl))}</span></button>
-      <div class="pl-detail ${on?'on':''}"><div><p><b>${p.a.n}</b> ${sideHTML(p.side)} · ${FAM[p.a.fam]}</p><p style="margin-top:6px">${esc(p.why)}</p><div class="meta"><span>Stake ${money(p.stake)}</span><span>In at ${p.entry}¢ on ${dayLabel(p.entryIdx)}</span><span>Return ${(p.pnl/p.stake*100).toFixed(1)}%</span>${p.a.watch?`<span>Watches ${esc(p.a.watch)}</span>`:''}</div></div>
+      <div class="pl-detail ${on?'on':''}"><div><p><b>${p.a.n}</b> ${sideHTML(p.side)} · ${FAM[p.a.fam]}</p><p style="margin-top:6px">${esc(p.why)}</p><div class="meta"><span>Stake ${money(p.stake)}</span><span>In at ${p.entry}% on ${dayLabel(p.entryIdx)}</span><span>Return ${(p.pnl/p.stake*100).toFixed(1)}%</span>${p.a.watch?`<span>Watches ${esc(p.a.watch)}</span>`:''}</div></div>
       <div class="mini-gauge"><div class="t"></div><div class="m" style="left:${m.p}%"></div><div class="a" style="left:${p.est}%;background:${p.a.c}"></div><span style="left:${p.est}%">thinks ${p.est}%</span><span style="left:${m.p}%;top:-2px">mkt ${m.p}%</span></div></div>`}).join('')};
   $$('[data-wf]').forEach(b=>b.addEventListener('click',()=>{S.f=b.dataset.wf;$$('[data-wf]').forEach(x=>x.setAttribute('aria-pressed',x===b));draw()}));
   $$('[data-ws]').forEach(b=>b.addEventListener('click',()=>{S.s=b.dataset.ws;$$('[data-ws]').forEach(x=>x.setAttribute('aria-pressed',x===b));draw()}));
@@ -2181,7 +2181,7 @@ function renderStream(){$('[data-stream]').innerHTML=EVENTS.filter(passes).slice
 function setCaption(ev){
   const cap=$('[data-cap]'),lbl=ev.kind==='ai'?'AI agent':ev.kind==='hum'?'Human':'External API';
   $('[data-cap-k]',cap).textContent=`${lbl} · ${ev.time} UTC → ${ev.m.reg.split(',')[0]}`;
-  $('[data-cap-s]',cap).innerHTML=`<b>${esc(ev.a.n)}</b> bets <span class="side ${ev.side==='YES'?'yes':'no'}">${ev.side} ${money(ev.stake)}</span> on <a href="#m-${ev.m.id}">${esc(ev.m.q)}</a> <span class="mono" style="color:var(--muted)">${ev.from}→${ev.to}¢</span>`;
+  $('[data-cap-s]',cap).innerHTML=`<b>${esc(ev.a.n)}</b> bets <span class="side ${ev.side==='YES'?'yes':'no'}">${ev.side} ${money(ev.stake)}</span> on <a href="#m-${ev.m.id}">${esc(ev.m.q)}</a> <span class="mono" style="color:var(--muted)">${ev.from}→${ev.to}%</span>`;
   $('[data-cap-q]',cap).textContent=`“${quoteFor(ev)}”`;
   cap.classList.remove('new');void cap.offsetWidth;cap.classList.add('new');
 }
@@ -2210,7 +2210,7 @@ function pickRegion(k){
     <h4>Markets here</h4>${ms.map(m=>`<a class="mini" href="#m-${m.id}"><span><b>${esc(m.q)}</b><small>${m.code} · ${kfmt(m.vol)} vol · ${chg(m.d7)} 7d</small></span><b>${Math.round(m.last)}%</b></a>`).join('')}
     <h4>How the agents bet here</h4>
     ${net.map(x=>{const yes=x.y>=x.n,v=yes?x.y:x.n;return `<div class="hbar"><span class="n">${x.a.n}</span><div class="t"><i style="left:0;width:${v/mx*100}%;background:${yes?'var(--yes)':'var(--no)'};opacity:.75"></i></div><span class="v">${yes?'YES':'NO'} ${kfmt(v)}</span></div>`}).join('')}
-    <h4>Latest bets</h4>${recent.length?recent.map(e=>`<div class="mini"><span><b>${esc(e.a.n)}</b><small>${e.side} ${e.px}¢ · ${e.time}</small></span><b>${money(e.stake)}</b></div>`).join(''):'<p class="lede">No bets here in the last few minutes.</p>'}`);
+    <h4>Latest bets</h4>${recent.length?recent.map(e=>`<div class="mini"><span><b>${esc(e.a.n)}</b><small>${e.side} ${e.px}% · ${e.time}</small></span><b>${money(e.stake)}</b></div>`).join(''):'<p class="lede">No bets here in the last few minutes.</p>'}`);
 }
 function pickAgent(ai){
   liveSel={t:'a',i:ai};const a=AGENTS[ai],s=AGS[ai];gLive.focusAgent=ai;gLive.set({lon:12,lat:44,zoom:1.25},-1);
@@ -2223,7 +2223,7 @@ function pickAgent(ai){
     <h4>Side bias, by stake</h4><div class="yesno"><i style="width:${ys/tot*100}%;background:var(--yes)"></i><i style="flex:1;background:var(--no)"></i></div><div class="yesno-l"><span class="up">YES ${Math.round(ys/tot*100)}%</span><span class="dn">NO ${Math.round(100-ys/tot*100)}%</span></div>
     <h4>Where it puts money</h4>${byCat.map(x=>`<div class="hbar"><span class="n">${x.c}</span><div class="t"><i style="left:0;width:${x.v/cm*100}%;background:${a.c}"></i></div><span class="v">${kfmt(x.v)}</span></div>`).join('')}
     <h4>Strongest views</h4>${top.map(x=>`<a class="mini" href="#m-${x.m.id}"><span><b>${esc(x.m.q)}</b><small>thinks ${x.p.est}% vs market ${Math.round(x.m.last)}%</small></span>${sideHTML(x.p.side)}</a>`).join('')}
-    <h4>Latest bets</h4>${recent.length?recent.map(e=>`<a class="mini" href="#m-${e.m.id}"><span><b>${esc(e.m.code)}</b><small>${e.side} ${e.px}¢ · ${e.time}</small></span><b>${money(e.stake)}</b></a>`).join(''):'<p class="lede">Waiting for its next trade. Its dashed lines show every open position on the globe.</p>'}`);
+    <h4>Latest bets</h4>${recent.length?recent.map(e=>`<a class="mini" href="#m-${e.m.id}"><span><b>${esc(e.m.code)}</b><small>${e.side} ${e.px}% · ${e.time}</small></span><b>${money(e.stake)}</b></a>`).join(''):'<p class="lede">Waiting for its next trade. Its dashed lines show every open position on the globe.</p>'}`);
 }
 
 
