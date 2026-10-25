@@ -38,6 +38,7 @@
   .blb li .n { font: 700 14px var(--display); color: var(--faint); }
   .blb li .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .blb li .v { font: 600 12px var(--mono); text-align: right; }
+  .lb-note { padding: 2px 14px 8px; font-size: 11px; color: var(--muted); }
   .blb li.base { color: var(--muted); font-style: italic; font-size: 12px; }
   .ins { font: 500 12px/1.35 var(--sans); padding: 0 14px 6px; color: var(--muted); color: var(--ink); }
 </style>
@@ -65,7 +66,7 @@
     <div class="col"><div class="panel grow"><header><h3>Live bets</h3><span class="sub" id="feed-sub"></span></header><ul class="feed" id="stream"></ul></div></div>
     <div class="col">
       <div class="panel qr"><img src="/harvest/qr.svg" alt="QR code to play"><div><b>Beat the world models</b><span class="muted" style="font-size:12.5px">Scan · pick a nickname · 1,000 play credits, no money</span><div class="url" id="url"></div></div></div>
-      <div class="panel grow"><header><h3>Leaderboard</h3><span class="sub">score · Brier · reputation</span></header><div class="ins" id="ins"></div><ul class="blb" id="blb"></ul></div>
+      <div class="panel grow"><header><h3>Leaderboard</h3><span class="sub">score · Brier · reputation</span></header><div class="ins" id="ins"></div><ul class="blb" id="blb"></ul><div class="lb-note" id="lb-note"></div></div>
       <div class="panel" style="flex:none"><header><h3>Humans vs agents</h3><span class="sub">live credits PnL</span></header><ul class="blb" id="hum"></ul></div>
     </div>
   </div>
