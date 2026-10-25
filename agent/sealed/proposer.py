@@ -3,6 +3,7 @@
 A proposer only ever receives a ProposerContext, which has no holdout field.
 """
 
+import asyncio
 import copy
 import json
 import re
@@ -71,6 +72,8 @@ class GeminiProposer:
     """One ask_gemini(prompt, json_output=True) call per iteration."""
 
     name = "gemini"
+    attempts = 3
+    retry_delay_s = 2.0
 
     def build_prompt(self, ctx: ProposerContext) -> str:
         report = ctx["champion_report"]
@@ -125,12 +128,17 @@ class GeminiProposer:
     async def propose(self, ctx: ProposerContext) -> Proposal:
         from agent.ai.gemini import MissingGeminiKeyError, ask_gemini
 
-        try:
-            text = await ask_gemini(self.build_prompt(ctx), json_output=True)
-        except MissingGeminiKeyError as exc:
-            raise ProposerError("GEMINI_API_KEY is not set") from exc
-        except Exception as exc:  # noqa: BLE001 - any SDK/network failure is one INVALID iteration
-            raise ProposerError(f"Gemini call failed: {type(exc).__name__}") from exc
+        prompt = self.build_prompt(ctx)
+        for attempt in range(1, self.attempts + 1):
+            try:
+                text = await ask_gemini(prompt, json_output=True)
+                break
+            except MissingGeminiKeyError as exc:
+                raise ProposerError("GEMINI_API_KEY is not set") from exc
+            except Exception as exc:  # noqa: BLE001 - any SDK/network failure is one INVALID iteration
+                if attempt == self.attempts:
+                    raise ProposerError(f"Gemini call failed: {type(exc).__name__}") from exc
+                await asyncio.sleep(self.retry_delay_s * attempt)  # transient connect errors are common
         return parse_proposal(text)
 
 

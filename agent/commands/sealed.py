@@ -29,7 +29,7 @@ def _receipt_line(label: str, receipt: dict | None) -> str:
         return f"{label}: none"
     if receipt.get("status") == "confirmed" and receipt.get("explorer_url"):
         return f"{label}: on-chain {receipt['explorer_url']}"
-    reason = receipt.get("error") or "not anchored"
+    reason = str(receipt.get("error") or "not anchored").removeprefix("pending on-chain: ")
     return f"{label}: pending on-chain ({reason})"
 
 

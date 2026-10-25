@@ -33,7 +33,7 @@ def _validate(c: dict[str, Any]) -> list[str]:
 
 def _evaluate(c: dict[str, Any], *, seeds: list[int], shift: dict[str, Any]) -> dict[str, Any]:
     if c.get("x") == 7:
-        time.sleep(0.5)  # exercises the eval timeout
+        time.sleep(1.5)  # exercises the eval timeout
     penalty = shift["params"].get("penalty", 0.0)
     score = 10 + c["x"] + c["y"] - penalty * c["y"] ** 2
     return {"score": float(score), "per_seed": [float(score)] * len(seeds), "breakdown": {"x": c["x"], "y": c["y"]}, "seeds": list(seeds), "shift_id": shift["id"]}
@@ -170,7 +170,7 @@ def test_raising_proposer_gives_invalid_not_crash(toy_env: Environment, tmp_path
 
 
 def test_eval_timeout_is_invalid(toy_env: Environment, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(harness, "EVAL_TIMEOUT_S", 0.1)
+    monkeypatch.setattr(harness, "EVAL_TIMEOUT_S", 0.5)
 
     class Slow:
         name = "scripted"

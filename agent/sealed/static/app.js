@@ -190,7 +190,7 @@
     let delta = null;
     if (score !== null && it.decision !== "BASELINE" && typeof prevChampion === "number") {
       const d = score - prevChampion;
-      delta = h("small", { class: d > 0 ? "delta-up" : "delta-down" }, `${d > 0 ? "+" : ""}${fmt(d)} vs champion`);
+      delta = h("small", { class: d > 0 ? "delta-up" : "delta-down" }, `${d > 0 ? "+" : ""}${fmt(d, Math.abs(d) < 0.1 ? 2 : 1)} vs champion`);
     } else if (it.decision === "BASELINE") delta = h("small", {}, "starting point");
     else if (score === null) delta = h("small", {}, "not scored");
     const decLabel = { KEEP: "KEEP", REVERT: "REVERT", INVALID: "INVALID", BASELINE: "BASELINE" }[it.decision] || it.decision;
@@ -332,18 +332,31 @@
     const hyp = (i) => { const it = iters(rec).find((q) => q.index === i); return it ? it.hypothesis : ""; };
 
     const cards = [];
-    if (champ) {
-      const bad = champ.verdict === "OVERFIT";
-      cards.push(h("div", { class: `verdict ${bad ? "bad" : "ok"}` },
-        h("div", { class: "tag" }, bad ? "OVERFIT - rejected" : "GENERALISES - kept"),
-        h("div", { class: "who" }, `Dev champion #${champ.iteration}: “${hyp(champ.iteration)}”`),
-        h("div", { class: "nums" }, `Visible score ${fmt(champ.dev_score)} → sealed score ${fmt(champ.holdout_mean)} (${pct(champ.relative_gap)} drop)`),
-        champ.reasons && champ.reasons.length ? h("ul", {}, champ.reasons.map((r) => h("li", {}, r))) : null));
+    const rejected = rv.results.filter((r) => r.verdict === "OVERFIT");
+    const kept = rv.results.filter((r) => r.iteration !== 0).length;
+    // The red card: the dev champion when it overfits, else the best-looking candidate that did.
+    const redCard = champ && champ.verdict === "OVERFIT" ? champ
+      : rejected.slice().sort((a, b) => b.dev_score - a.dev_score)[0];
+    if (redCard) {
+      const who = redCard === champ ? `Dev champion #${redCard.iteration}` : `#${redCard.iteration}`;
+      const others = rejected.length - 1;
+      cards.push(h("div", { class: "verdict bad" },
+        h("div", { class: "tag" }, "OVERFIT - rejected"),
+        h("div", { class: "who" }, `${who}: “${hyp(redCard.iteration)}”`),
+        h("div", { class: "nums" }, `Visible score ${fmt(redCard.dev_score)} → sealed score ${fmt(redCard.holdout_mean)} (${pct(redCard.relative_gap)} drop)`),
+        redCard.reasons && redCard.reasons.length ? h("ul", {}, redCard.reasons.map((r) => h("li", {}, r))) : null,
+        h("div", { class: "also" }, `${rejected.length} of ${kept} kept candidate${kept === 1 ? "" : "s"} rejected on the sealed holdout${others > 0 ? "; every rejection is listed in the table" : ""}.`)));
     }
-    if (sel && (!champ || sel.iteration !== champ.iteration)) {
+    if (champ && champ.verdict !== "OVERFIT" && (!sel || sel.iteration !== champ.iteration)) {
+      cards.push(h("div", { class: "verdict ok" },
+        h("div", { class: "tag" }, "GENERALISES - kept"),
+        h("div", { class: "who" }, `Dev champion #${champ.iteration}: “${hyp(champ.iteration)}”`),
+        h("div", { class: "nums" }, `Visible score ${fmt(champ.dev_score)} → sealed score ${fmt(champ.holdout_mean)} (${pct(champ.relative_gap)} drop)`)));
+    }
+    if (sel) {
       cards.push(h("div", { class: "verdict ok" },
         h("div", { class: "tag" }, "GENERALISES - selected"),
-        h("div", { class: "who" }, `#${sel.iteration}: “${hyp(sel.iteration)}”`),
+        h("div", { class: "who" }, `${champ && sel.iteration === champ.iteration ? "Dev champion " : ""}#${sel.iteration}: “${hyp(sel.iteration)}”`),
         h("div", { class: "nums" }, `Visible score ${fmt(sel.dev_score)} → sealed score ${fmt(sel.holdout_mean)}; worst shift ${fmt(sel.worst_score)} (${sel.shift_labels[sel.worst_shift_id] || sel.worst_shift_id})`),
         h("ul", {}, h("li", {}, "Holds up on every sealed shift; no scenario falls below the naive baseline."))));
     } else if (!sel) {
@@ -369,7 +382,7 @@
         }),
         h("td", { class: "mean" }, fmt(r.holdout_mean)),
         h("td", {}, pct(r.relative_gap)),
-        h("td", { class: "vcell" }, h("span", { class: `vtag ${bad ? "bad" : "ok"}` }, bad ? (isChamp ? "OVERFIT - rejected" : "OVERFIT") : isSel ? "GENERALISES - selected" : "GENERALISES")));
+        h("td", { class: "vcell" }, h("span", { class: `vtag ${bad ? "bad" : "ok"}` }, bad ? "OVERFIT - rejected" : isSel ? "GENERALISES - selected" : "GENERALISES")));
     });
 
     body.replaceChildren(h("div", { class: "reveal-wrap" },

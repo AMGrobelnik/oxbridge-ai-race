@@ -57,7 +57,8 @@ def _human_error(err: BaseException) -> str:
         return "pending on-chain: blocked by the agent's spending limits"
     if "not confirmed in time" in low:
         return "pending on-chain: devnet did not confirm in time"
-    if isinstance(err, OSError) or type(err).__module__.startswith(("httpx", "httpcore")):
+    transport = ("connecttimeout", "connecterror", "readtimeout", "networkerror", "solanarpcexception")
+    if isinstance(err, OSError) or type(err).__module__.startswith(("httpx", "httpcore")) or any(m in low or m == type(err).__name__.lower() for m in transport):
         return "pending on-chain: devnet RPC unreachable"
     first = (detail.splitlines() or [type(err).__name__])[0].strip() or type(err).__name__
     return f"pending on-chain: {first[:160]}"

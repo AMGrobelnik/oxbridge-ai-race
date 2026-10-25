@@ -6,11 +6,16 @@ from typing import Any
 
 
 def round_floats(value: Any, ndigits: int = 6) -> Any:
-    """Returns a copy with every float rounded, so hashes do not depend on float repr noise."""
+    """Returns a copy with every float rounded, so hashes do not depend on float repr noise.
+
+    A whole-number float becomes an int, so 33.0 and 33 hash the same: a bundle re-serialised by
+    JavaScript (or any tool that drops the ".0") still verifies.
+    """
     if isinstance(value, bool) or value is None:
         return value
     if isinstance(value, float):
-        return round(value, ndigits)
+        rounded = round(value, ndigits)
+        return int(rounded) if rounded.is_integer() else rounded
     if isinstance(value, dict):
         return {str(k): round_floats(v, ndigits) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
