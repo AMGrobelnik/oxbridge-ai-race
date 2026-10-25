@@ -148,6 +148,11 @@ def register(app: FastAPI) -> None:
         query = request.url.query
         return RedirectResponse("/waitlist/" + (f"?{query}" if query else ""), status_code=308)
 
+    @app.get("/waitlist/index.html", include_in_schema=False)
+    async def waitlist_index_redirect(request: Request) -> RedirectResponse:  # old links
+        query = request.url.query
+        return RedirectResponse("/waitlist/" + (f"?{query}" if query else ""), status_code=308)
+
     @app.get("/waitlist/", response_class=HTMLResponse)
     async def waitlist_page() -> HTMLResponse:
         return HTMLResponse(waitlist_html(), headers={"Cache-Control": "no-cache"})

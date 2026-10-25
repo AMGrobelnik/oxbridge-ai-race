@@ -27,7 +27,7 @@ def test_root_serves_the_frontend_site_to_browsers(client):
     assert r.status_code == 200
     page = r.text
     assert "/frontend/js/api.js" in page and 'class="brand"' in page  # frontend/, wired to the live market
-    assert 'class="jp-seal"' not in page and 'href="/waitlist"' in page and 'href="waitlist/index.html"' not in page
+    assert 'class="jp-seal"' not in page and 'href="/waitlist/"' in page and 'href="waitlist/index.html"' not in page
 
 
 def test_landing_alt_serves_the_landing_page(client):
