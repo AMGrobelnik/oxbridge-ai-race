@@ -178,6 +178,12 @@ def extract_json(text: str) -> str:
     return text[start:end + 1] if 0 <= start < end else text
 
 
+async def ask_once(m: dict[str, Any], prompt: str, *, timeout_s: float) -> str:
+    """One attempt on model row `m` (a registry row or any row with the same keys, e.g. a live-chat model that is not in
+    the backtest registry), bounded by `timeout_s`, no retries: for interactive callers that fall back themselves."""
+    return extract_json(await asyncio.wait_for(_once(m, prompt, timeout_s), timeout_s))
+
+
 async def ask(model_key: str, prompt: str, *, timeout_s: float = 60.0) -> str:
     """The model's text answer (JSON requested). Retries 429/5xx/timeouts with backoff under a per-provider cap."""
     m = get(model_key)

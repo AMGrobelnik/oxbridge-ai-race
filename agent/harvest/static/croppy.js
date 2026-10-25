@@ -1,36 +1,30 @@
-// Croppy: a floating guide on the /harvest pages. Loads its own stylesheet; talks to POST /harvest/api/croppy.
+// Croppy: the floating guide on every page of the site. Loads its own stylesheet; talks to POST /harvest/api/croppy.
 (() => {
   "use strict";
+  if (window.__croppyLoaded) return; // some pages load it twice (a script tag plus app.js)
+  window.__croppyLoaded = true;
   const API = "/harvest/api/croppy";
   const TABS = ["mk", "tm", "th", "rank"];
-  const SUGGEST = ["How do I bet?", "What's a world model?", "Write my theory"];
-  const GREETING = "Hi, I'm Croppy! I can show you around The Crophecy, where AI world models and people forecast Europe's harvest with free play credits. What would you like to know?";
-  const MASCOT = `<svg viewBox="0 0 48 48" aria-hidden="true"><g class="croppy-mascot">
-    <path d="M24 46V26" stroke="#5c940d" stroke-width="3" stroke-linecap="round"/>
-    <path d="M24 36c-6-1-10-5-11-10 6 0 10 4 11 10zM24 32c5-1 9-4 10-9-5 0-9 3-10 9z" fill="#82c91e"/>
-    <ellipse cx="24" cy="17" rx="9" ry="13" fill="#f2c94c" stroke="#c58b11" stroke-width="1.5"/>
-    <path d="M18 9l-3-6M30 9l3-6M24 4V0" stroke="#c58b11" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="20.5" cy="16" r="2.2" fill="#1c1a14"/><circle cx="27.5" cy="16" r="2.2" fill="#1c1a14"/>
-    <circle cx="21.2" cy="15.3" r=".7" fill="#fff"/><circle cx="28.2" cy="15.3" r=".7" fill="#fff"/>
-    <path d="M21 21.5q3 2.5 6 0" stroke="#1c1a14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-    <circle cx="17.5" cy="20" r="1.6" fill="#f08c8c" opacity=".7"/><circle cx="30.5" cy="20" r="1.6" fill="#f08c8c" opacity=".7"/>
-  </g></svg>`;
+  const SUGGEST = ["What is this site?", "Which AI is winning right now?", "How do I play?"];
+  const GREETING = "Hi, I'm Croppy! I show people around The Crophecy, where AI agents and people forecast Europe's harvest with free play credits. Ask me anything, like who's winning right now.";
+  const IMG = "/harvest/static/croppy-face.png";
+  const AVATAR = "/harvest/static/croppy-256.webp";
 
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "/harvest/static/croppy.css";
+  css.href = "/harvest/static/croppy.css?v=3";
   document.head.appendChild(css);
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
   const fab = el("button", "croppy-fab");
   fab.type = "button";
   fab.setAttribute("aria-label", "Ask Croppy, your guide");
-  fab.innerHTML = MASCOT;
+  fab.innerHTML = `<img src="${IMG}" alt="" width="60" height="60" decoding="async">`;
   const panel = el("div", "croppy-panel");
   panel.setAttribute("role", "dialog");
   panel.hidden = true;
   panel.setAttribute("aria-label", "Croppy chat");
-  panel.innerHTML = `<div class="croppy-head">${MASCOT}<div><b>Croppy</b><small>Your guide · play credits only, never advice</small></div>
+  panel.innerHTML = `<div class="croppy-head"><img class="croppy-avatar" src="${AVATAR}" alt="Croppy" width="44" height="44"><div><b>Croppy</b><small>Your guide to The Crophecy · play credits only, never advice</small></div>
     <button class="croppy-close" type="button" aria-label="Close">×</button></div>
     <div class="croppy-log" aria-live="polite"></div>
     <form class="croppy-form"><input maxlength="500" placeholder="Ask Croppy anything…" aria-label="Your question" autocomplete="off"><button type="submit">Ask</button></form>`;
@@ -49,7 +43,7 @@
     if (!list || !list.length) return;
     const row = el("div", "croppy-acts");
     for (const a of list) {
-      if (!a.href || !a.href.startsWith("/harvest")) continue;
+      if (!a.href || !a.href.startsWith("/") || a.href.startsWith("//")) continue;
       const link = el("a", null, a.label);
       link.href = a.href;
       link.addEventListener("click", () => setTimeout(() => openTab(), 0));
@@ -119,6 +113,28 @@
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) toggle(false); });
   form.addEventListener("submit", (e) => { e.preventDefault(); const t = input.value; input.value = ""; ask(t); });
   window.addEventListener("hashchange", () => openTab());
+
+  // Stay clear of the page's own fixed bars at the bottom (phone tab bars, cookie or bet bars): lift above any fixed or
+  // sticky element that would sit under the button.
+  function place() {
+    const zone = { left: innerWidth - fab.offsetWidth - 22, top: innerHeight - fab.offsetHeight - 22 }; // the button at rest, plus a margin
+    let lift = 0;
+    for (const n of document.body.querySelectorAll("body *")) {
+      if (n === fab || panel.contains(n) || n === fab.firstChild) continue;
+      const pos = getComputedStyle(n).position;
+      if (pos !== "fixed" && pos !== "sticky") continue;
+      const r = n.getBoundingClientRect();
+      if (!r.width || !r.height || r.height > innerHeight / 3 || r.right < zone.left || r.bottom < zone.top || r.top > innerHeight) continue;
+      lift = Math.max(lift, innerHeight - r.top);
+    }
+    document.documentElement.style.setProperty("--croppy-lift", `${Math.round(lift)}px`);
+  }
+  let placeTimer = 0;
+  const schedulePlace = () => { clearTimeout(placeTimer); placeTimer = setTimeout(place, 250); };
+  window.addEventListener("resize", schedulePlace);
+  window.addEventListener("load", schedulePlace);
+  setTimeout(place, 1500);
+  setTimeout(place, 5000); // bars that slide in late
   openTab();
   window.Croppy = { open: () => toggle(true), ask };
 })();

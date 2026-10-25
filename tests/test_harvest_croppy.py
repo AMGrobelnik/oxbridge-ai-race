@@ -1,4 +1,4 @@
-"""Croppy, the guide agent (agent/harvest/croppy.py, agent/routes/croppy.py). Offline: Gemini is stubbed."""
+"""Croppy, the guide agent (agent/harvest/croppy.py, agent/routes/croppy.py). Offline: the chat models are stubbed."""
 
 import json
 
@@ -28,6 +28,7 @@ def _result():
 
 @pytest.fixture(autouse=True)
 def isolated(tmp_path, monkeypatch):
+    croppy_route._context.clear()
     monkeypatch.setenv("HARVEST_DB", str(tmp_path / "harvest.sqlite3"))
     monkeypatch.setenv("HARVEST_ANCHOR", "0")
     monkeypatch.setenv("HARVEST_HOUSE_TICK_S", "0")
@@ -48,7 +49,7 @@ def client():
 
 def test_offline_returns_friendly_fallback_with_actions(client, monkeypatch):
     async def boom(*args, **kwargs):
-        pytest.fail("Gemini called while HARVEST_OFFLINE=1")
+        pytest.fail("a model was called while HARVEST_OFFLINE=1")
 
     monkeypatch.setattr(croppy_route, "ask", boom)
     res = client.post("/harvest/api/croppy", json={"message": "How do I bet?"})
@@ -56,19 +57,53 @@ def test_offline_returns_friendly_fallback_with_actions(client, monkeypatch):
     body = res.json()
     assert body["fallback"] is True
     assert "1,000" in body["reply"]
-    assert body["actions"][0]["href"] == "/harvest/play"
+    assert body["actions"][0]["href"] == "/app"
 
 
-def test_gemini_failure_falls_back(client, monkeypatch):
+def test_every_model_failing_falls_back(client, monkeypatch):
     monkeypatch.delenv("HARVEST_OFFLINE")
+    tried = []
 
-    async def down(*args, **kwargs):
+    async def down(m, prompt, *, timeout_s):
+        tried.append((m["provider"], timeout_s))
         raise croppy_route.gemini.GeminiUnavailableError("down")
 
     monkeypatch.setattr(croppy_route, "ask", down)
     body = client.post("/harvest/api/croppy", json={"message": "What's a world model?"}).json()
     assert body["fallback"] is True
-    assert any(a["href"] == "/harvest#models" for a in body["actions"])
+    assert any(a["href"] == "/app/live" for a in body["actions"])
+    assert [p for p, _ in tried] == ["openrouter", "gemini"]
+    assert tried[0][1] <= croppy_route.PRIMARY_TIMEOUT_S and tried[1][1] <= croppy_route.DEADLINE_S < 12
+
+
+def test_deepseek_first_then_gemini(client, monkeypatch):
+    monkeypatch.delenv("HARVEST_OFFLINE")
+    assert croppy_route.CHAIN[0]["model_id"].startswith("deepseek/") and croppy_route.CHAIN[1]["model_id"] == "gemini-2.5-flash"
+
+    async def flaky(m, prompt, *, timeout_s):
+        if m["provider"] == "openrouter":
+            raise TimeoutError
+        return json.dumps({"reply": "Hi from Gemini", "actions": []})
+
+    monkeypatch.setattr(croppy_route, "ask", flaky)
+    body = client.post("/harvest/api/croppy", json={"message": "hi"}).json()
+    assert body == {"reply": "Hi from Gemini", "actions": [], "model": "Gemini 2.5 Flash"}
+
+
+def test_links_only_to_served_pages():
+    links = croppy.links_for(["/", "/app", "/harvest"])
+    assert set(links) == {"/", "/app", "/harvest#holdout"}
+    assert croppy.clean_actions([{"label": "x", "href": "/markets"}, {"label": "y", "href": "/app"}], links) == [{"label": "y", "href": "/app"}]
+    assert croppy.clean_page("/app/markets") == "/app/markets" and croppy.clean_page("https://evil.example") == ""
+
+
+def test_snapshot_cites_leaders_and_swarm():
+    board = {"world_models": [{"rank": 1, "name": "Climate Pessimist · Phi-4", "brier_holdout": 0.16, "pnl_live": -30.0},
+                              {"rank": 2, "name": "Macro / Dollar · Gemini", "brier_holdout": 0.2, "pnl_live": 51.4}]}
+    text = croppy.snapshot([], board, swarm={"agents": 264, "bets_last_hour": 4621, "all_bets_last_hour": 5367}, trades=12345)
+    assert "1. Macro / Dollar · Gemini +51 credits" in text
+    assert "1. Climate Pessimist · Phi-4 0.160" in text
+    assert "264 outside AI agents" in text and "5367 bets in total" in text and "12,345" in text
 
 
 def test_prompt_includes_live_context_and_actions_are_filtered(client, monkeypatch):
@@ -76,21 +111,21 @@ def test_prompt_includes_live_context_and_actions_are_filtered(client, monkeypat
     monkeypatch.setattr(croppy, "news_headlines", lambda limit=4: ["Spain rations irrigation water in Andalusia"])
     seen = {}
 
-    async def fake(prompt, *, json_output=False, timeout_s=None):
-        seen["prompt"], seen["json"] = prompt, json_output
-        return json.dumps({"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/harvest/play"},
+    async def fake(m, prompt, *, timeout_s):
+        seen["prompt"], seen["model"] = prompt, m["model_id"]
+        return json.dumps({"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/app"},
                                                                   {"label": "Evil", "href": "https://evil.example"}]})
 
     monkeypatch.setattr(croppy_route, "ask", fake)
     history = [{"role": "user", "text": f"q{i}"} for i in range(12)]
     body = client.post("/harvest/api/croppy", json={"message": "x" * 900, "history": history, "page": "/harvest/play"}).json()
-    assert body == {"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/harvest/play"}]}
+    assert body == {"reply": "Hop into Play!", "actions": [{"label": "Play", "href": "/app"}], "model": "DeepSeek V4.1 Flash"}
     prompt = seen["prompt"]
-    assert seen["json"] is True
+    assert seen["model"].startswith("deepseek/")
     assert "LIVE CONTEXT" in prompt and "Will Italy declare a national drought emergency in 2027?: 35% YES" in prompt
     assert "Will wheat be more than 10% higher by 2026-12?: 40% YES" in prompt
     assert "Spain rations irrigation water in Andalusia" in prompt
-    assert "play credits" in prompt.lower() and "/harvest/api/agents/register" in prompt
+    assert "play credits" in prompt.lower() and "  /app/markets: " in prompt and "leakage guard" in prompt
     assert "Visitor: q4" in prompt and "Visitor: q3" not in prompt  # last 8 turns only
     assert "x" * 500 in prompt and "x" * 501 not in prompt  # message capped at 500
     assert "The visitor is on page /harvest/play." in prompt
@@ -113,4 +148,4 @@ def test_public_mode_allows_croppy(client, monkeypatch):
     assert public_mode.is_public("POST", "/harvest/api/croppy")
     res = client.post("/harvest/api/croppy", json={"message": "Write my theory"})
     assert res.status_code == 200
-    assert res.json()["actions"][0]["href"] == "/harvest/play#th"
+    assert res.json()["actions"][0]["href"] == "/app/theory"

@@ -1,11 +1,15 @@
-"""POST /harvest/api/croppy {message, history?, page?} -> {reply, actions?}: Croppy, the guide to The Crophecy.
+"""POST /harvest/api/croppy {message, history?, page?} -> {reply, actions?, model?}: Croppy, the guide to The Crophecy.
 
-Gemini answers with the live context of the in-process book; a friendly canned reply stands in when Gemini
-is unavailable or HARVEST_OFFLINE=1. Rate-limited per IP (CROPPY_PER_MIN, default 10) and public in PUBLIC_MODE.
+Live chat, not the scored backtest, so the chat models are not in the backtest registry (training cutoffs do not matter
+here). The newest DeepSeek on OpenRouter answers first, Gemini 2.5 Flash next, all within DEADLINE_S, with the live context
+of the in-process book; a friendly canned reply stands in when neither answers or HARVEST_OFFLINE=1. CROPPY_MODEL overrides
+the OpenRouter model id. Rate-limited per IP (CROPPY_PER_MIN) and public in PUBLIC_MODE.
 """
 
 import asyncio
 import os
+import time
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, Request
@@ -14,36 +18,62 @@ from google.genai import errors as genai_errors
 
 from agent.ai import gemini
 from agent.challenge.ratelimit import RateLimiter
-from agent.harvest import croppy, forecaster, market
+from agent.harvest import croppy, forecaster, market, models
 from agent.routes import harvest as api
+from agent.routes.harvest_swarm import swarm_view
 
-GEMINI_TIMEOUT_S = 12.0
-TOTAL_TIMEOUT_S = 28.0
+DEADLINE_S = 11.0  # the whole answer, every model in CHAIN included
+PRIMARY_TIMEOUT_S = 7.0  # the first model's share, so the fallback still has time
+CONTEXT_TTL_S = 15.0
 NO_STORE = {"Cache-Control": "no-store"}
+CHAT_EXTRA = {"temperature": 0.4, "max_tokens": 600}
+CHAIN: list[dict[str, Any]] = [
+    {"key": "deepseek-v4.1-flash", "label": "DeepSeek V4.1 Flash", "provider": "openrouter", "env": "OPENROUTER_API_KEY",
+     "model_id": os.environ.get("CROPPY_MODEL") or "deepseek/deepseek-v4.1-flash-1017",
+     "extra": {**CHAT_EXTRA, "reasoning": {"enabled": False}}},
+    {"key": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "provider": "gemini", "env": "GEMINI_API_KEY", "model_id": "gemini-2.5-flash"},
+]
 
+MODEL_ERRORS = (httpx.HTTPError, genai_errors.APIError, gemini.MissingGeminiKeyError, TimeoutError, ValueError, KeyError, IndexError)
 croppy_limiter = RateLimiter(int(os.environ.get("CROPPY_PER_MIN") or 300))
-ask = gemini.ask_gemini  # module attribute so tests can stub the model
+ask = models.ask_once  # module attribute so tests can stub the model
+_context: dict[str, Any] = {}
 
 
 def live_context() -> str:
+    """The live snapshot, rebuilt at most every CONTEXT_TTL_S (the full leaderboard is the expensive part)."""
+    if _context.get("text") and time.monotonic() - _context["at"] < CONTEXT_TTL_S:
+        return str(_context["text"])
     book = market.live_book()
     with book.lock:
         markets = [book.market_view(q) for q in book.markets]
         leaderboard = api.leaderboard_view(book)
-        users = book.users()
-    return croppy.snapshot(markets, leaderboard, users=users, news=croppy.news_headlines())
+        users, trades = book.users(), len(book.trades)
+    text = croppy.snapshot(markets, leaderboard, users=users, news=croppy.news_headlines(), swarm=swarm_view(book), trades=trades)
+    _context.update(text=text, at=time.monotonic())
+    return text
 
 
-async def answer(message: str, history: list[dict[str, str]], page: str) -> dict[str, object]:
+async def answer(message: str, history: list[dict[str, str]], page: str, links: dict[str, str] | None = None) -> dict[str, object]:
     if forecaster.offline_env():
         return croppy.fallback(message)
+    end = time.monotonic() + DEADLINE_S
     try:
-        context = await asyncio.to_thread(live_context)
-        prompt = croppy.build_prompt(message, history=history, page=page, context=context)
-        text = await asyncio.wait_for(ask(prompt, json_output=True, timeout_s=GEMINI_TIMEOUT_S), TOTAL_TIMEOUT_S)
-    except (gemini.MissingGeminiKeyError, httpx.HTTPError, genai_errors.APIError, TimeoutError, ValueError):
+        context = await asyncio.wait_for(asyncio.to_thread(live_context), DEADLINE_S / 2)
+    except (TimeoutError, KeyError, ValueError):
         return croppy.fallback(message)
-    return croppy.parse_reply(text) or croppy.fallback(message)
+    prompt = croppy.build_prompt(message, history=history, page=page, context=context, links=links)
+    for i, m in enumerate(CHAIN):
+        left = end - time.monotonic()
+        if left < 1.0:
+            break
+        try:
+            text = await ask(m, prompt, timeout_s=min(left, PRIMARY_TIMEOUT_S) if i == 0 else left)
+        except MODEL_ERRORS:  # any provider failure moves on to the next model
+            continue
+        if (parsed := croppy.parse_reply(text, links)) is not None:
+            return parsed | {"model": m["label"]}
+    return croppy.fallback(message)
 
 
 def register(app: FastAPI) -> None:
@@ -57,5 +87,6 @@ def register(app: FastAPI) -> None:
         message = croppy.clean_message(data.get("message"))
         if not message:
             return api._error("message is required", 422)
-        body = await answer(message, croppy.clean_history(data.get("history")), croppy.clean_page(data.get("page")))
+        links = croppy.links_for(getattr(r, "path", "") for r in request.app.routes)
+        body = await answer(message, croppy.clean_history(data.get("history")), croppy.clean_page(data.get("page")), links)
         return JSONResponse(body, headers=NO_STORE)
