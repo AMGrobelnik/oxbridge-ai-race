@@ -1,4 +1,4 @@
-"""Gemini forecaster with masked prompts, cache and deterministic fallback (SPEC.md section 5, addendum R2). Owner: agents-replay."""
+"""LLM forecaster (default Gemini, or a pinned registry model per agent) with masked prompts, cache and deterministic fallback (SPEC.md section 5, addendum R2). Owner: agents-replay."""
 
 import asyncio
 import json
@@ -221,7 +221,11 @@ def _save_cache() -> None:
 
 
 def cache_key(persona: Persona, cutoff: str, prompt: str) -> str:
-    return sha256_json({"persona": persona["id"], "cutoff": cutoff, "prompt_sha": sha256_hex(prompt.encode("utf-8"))})
+    """Keyed by persona, cutoff, prompt and (for a persona x model agent) the registry model, so models never share answers."""
+    key: dict[str, Any] = {"persona": persona["id"], "cutoff": cutoff, "prompt_sha": sha256_hex(prompt.encode("utf-8"))}
+    if persona.get("model"):
+        key["model"] = persona["model"]
+    return sha256_json(key)
 
 
 def _sem() -> asyncio.Semaphore:
@@ -244,7 +248,12 @@ def _parse(text: str, n: int) -> dict[str, tuple[float, str]]:
     return out
 
 
-async def _ask(prompt: str) -> str:
+async def _ask(prompt: str, model: str | None = None) -> str:
+    """A pinned registry model (agent.harvest.models, with its own per-provider caps), else the default Gemini."""
+    if model:
+        from . import models
+
+        return await models.ask(model, prompt, timeout_s=CALL_TIMEOUT_S)
     from agent.ai.gemini import ask_gemini
 
     async with _sem():
@@ -263,12 +272,12 @@ async def forecast(persona: Persona, questions: list[QuestionInstance], fixture:
         source = "cache"
         if rows is None and not offline:
             try:
-                parsed = _parse(await _ask(prompt), len(hard))
+                parsed = _parse(await _ask(prompt, persona.get("model")), len(hard))
                 rows = [{"qid": q["qid"], "p_yes": parsed[f"Q{i}"][0], "rationale": unmask(parsed[f"Q{i}"][1], mask)} for i, q in enumerate(hard, start=1) if f"Q{i}" in parsed]
                 if rows:
                     cache[key] = rows
                     _save_cache()
-                source = "gemini"
+                source = "llm" if persona.get("model") else "gemini"
             except Exception:  # noqa: BLE001 - any LLM failure falls back to the deterministic heuristic
                 rows = None
         for r in rows or []:

@@ -228,6 +228,22 @@ def load_personas(result: dict[str, Any] | None) -> list[Persona]:
         return []
 
 
+def live_roster(personas: list[Persona], result: dict[str, Any] | None) -> list[Persona]:
+    """Agents that trade the live markets. A persona x model replay would put every persona on every model into
+    each market, so live trading uses one model only: the one that scored best on the sealed holdout."""
+    keys = [str(p["model"]) for p in personas if p.get("model")]
+    if not keys:
+        return personas
+    try:
+        from . import scoring
+
+        ranked = scoring.group_table(result or {}, "model")
+    except (ImportError, KeyError, TypeError, ValueError):
+        ranked = []
+    best = str(ranked[0]["key"]) if ranked else keys[0]
+    return [p for p in personas if p.get("model") == best]
+
+
 def load_soft_specs() -> list[dict[str, Any]]:
     try:
         from . import questions
@@ -267,7 +283,8 @@ class LiveBook(Book):
 
     # ---- setup
     def seed(self, result: dict[str, Any] | None, soft_specs: list[dict[str, Any]]) -> None:
-        self.personas = load_personas(result)
+        self.personas = live_roster(load_personas(result), result)
+        roster = {p["id"] for p in self.personas}
         cut = live_cutoff(result)
         if cut:
             prices = cut.get("final_prices") or {}
@@ -275,6 +292,8 @@ class LiveBook(Book):
                 self.meta[q["qid"]] = q
                 self.open(q["qid"], prior=prices.get(q["qid"], q.get("prior", 0.5)))
             for f in cut.get("forecasts", []):
+                if f["persona_id"] not in roster:
+                    continue
                 self.agent_forecasts.setdefault(f["qid"], []).append(self._forecast_view(f))
         for spec in soft_specs:
             q = _soft_instance(spec)

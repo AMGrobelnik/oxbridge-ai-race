@@ -1,0 +1,13 @@
+{
+  "holdout_from": "2025-09",
+  "holdout_note": "Every scored cutoff is at or after holdout_from: the first quarterly cutoff at least one month after every model's documented knowledge cutoff and after the latest statement any narrative persona is built from.",
+  "byo_model": "gpt-4o-mini",
+  "models": [
+    {"key": "llama-3.3-70b", "label": "Llama 3.3 70B", "family": "Meta", "provider": "openrouter", "model_id": "meta-llama/llama-3.3-70b-instruct", "env": "OPENROUTER_API_KEY", "knowledge_cutoff": "2023-12", "source": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_3/MODEL_CARD.md"},
+    {"key": "phi-4", "label": "Phi-4", "family": "Microsoft", "provider": "openrouter", "model_id": "microsoft/phi-4", "env": "OPENROUTER_API_KEY", "knowledge_cutoff": "2024-06", "source": "https://huggingface.co/microsoft/phi-4"},
+    {"key": "gemma-3-27b", "label": "Gemma 3 27B", "family": "Google", "provider": "openrouter", "model_id": "google/gemma-3-27b-it", "env": "OPENROUTER_API_KEY", "knowledge_cutoff": "2024-08", "source": "https://ai.google.dev/gemma/docs/core/model_card_3"},
+    {"key": "gpt-4o-mini", "label": "GPT-4o mini", "family": "OpenAI", "provider": "openai", "model_id": "gpt-4o-mini", "env": "OPENAI_API_KEY", "knowledge_cutoff": "2023-10", "source": "https://developers.openai.com/api/docs/models/gpt-4o-mini"},
+    {"key": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash-Lite", "family": "Google", "provider": "gemini", "model_id": "gemini-2.5-flash-lite", "env": "GEMINI_API_KEY", "knowledge_cutoff": "2025-01", "source": "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-lite"},
+    {"key": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "family": "Google", "provider": "gemini", "model_id": "gemini-2.5-flash", "env": "GEMINI_API_KEY", "knowledge_cutoff": "2025-01", "source": "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash"}
+  ]
+}

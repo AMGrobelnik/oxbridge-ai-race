@@ -43,16 +43,17 @@ def _get_client() -> genai.Client:
     return _client
 
 
-async def ask_gemini(prompt: str, *, json_output: bool = False, timeout_s: float | None = None) -> str:
+async def ask_gemini(prompt: str, *, json_output: bool = False, timeout_s: float | None = None, model: str | None = None) -> str:
     """Returns the model's text. With json_output=True the model is constrained to answer with JSON.
 
     Each attempt is cut off after timeout_s (default GEMINI_TIMEOUT_S, else 30). A timeout or transient
-    connection/5xx error is retried once, then GeminiUnavailableError is raised.
+    connection/5xx error is retried once, then GeminiUnavailableError is raised. `model` pins a concrete model id
+    (else GEMINI_MODEL, else the default).
     """
     limit = _timeout_s(timeout_s)
     config = types.GenerateContentConfig(response_mime_type="application/json") if json_output else None
     client = _get_client()
-    model = os.environ.get("GEMINI_MODEL") or DEFAULT_MODEL
+    model = model or os.environ.get("GEMINI_MODEL") or DEFAULT_MODEL
     last: Exception | None = None
     for attempt in range(2):
         try:

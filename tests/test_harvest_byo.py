@@ -65,7 +65,8 @@ def test_byo_end_to_end_ranks_and_lands_on_leaderboard(client, demo, calls):
     assert all(qids == [q["qid"] for q in c["questions"]] and mask == demo["mask"] for (_, _, qids, mask), c in zip(calls, hold, strict=True))
     assert body["model_id"].startswith("byo-") and body["origin"] == "human-model" and body["owner"] == "ada"
     assert body["world_model_sha256"] == byo.world_model_sha(THEORY)
-    assert body["of"] == 10 and 1 <= body["rank"] <= 10  # 8 house models + market + you
+    same = [p for p in demo["personas"] if p.get("model") == byo.model_key()] or demo["personas"]
+    assert body["of"] == len(same) + 2 and 1 <= body["rank"] <= body["of"]  # house agents on the pinned model + market + you
     outcomes = scoring.holdout_outcomes(demo)
     assert {q for q, _, _ in body["per_question"]} == set(outcomes)
     assert all(o == outcomes[q] and 0 < p < 1 for q, p, o in body["per_question"])
@@ -81,7 +82,7 @@ def test_byo_end_to_end_ranks_and_lands_on_leaderboard(client, demo, calls):
     assert mine["origin"] == "human-model" and mine["brier_holdout"] == body["brier_holdout"] and mine["name"] == "Heat first"
     assert mine["brier_holdout_lo"] <= mine["brier_holdout"] <= mine["brier_holdout_hi"] and mine["n_ci"] == body["n"]
     assert "per_question" not in mine
-    assert sum(1 for m in rows.values() if m["origin"] == "house") == 8
+    assert sum(1 for m in rows.values() if m["origin"] in ("house", "narrative")) == len(demo["personas"])
     kinds = [e["kind"] for e in ledger.all_entries() if e["trader"] == body["model_id"]]
     assert kinds == ["agent", "forecast"]  # committed before it was scored
     assert client.get("/harvest/api/state").json()["agents"] == 0

@@ -161,7 +161,8 @@ def _external_scores(book: LiveBook) -> list[dict[str, Any]]:
             "persona_id": tid, "name": info.get("name", tid), "owner": info.get("owner"), "world_model_sha256": info.get("world_model_sha256"),
             "brier_holdout": fc.get("brier"), "n": int(fc.get("n") or 0), "pnl_live": book.equity(tid) - STARTING_CREDITS,
             "trades": sum(1 for t in book.trades if t["trader"] == tid),
-            **({"world_model": info.get("world_model"), "color": byo.COLOR, "per_question": fc.get("per_question")} if byo.is_byo(tid) else {}),
+            **({"world_model": info.get("world_model"), "color": byo.COLOR, "per_question": fc.get("per_question"),
+                "model": fc.get("model"), "model_label": fc.get("model_label") or "Gemini (legacy, before clean models)"} if byo.is_byo(tid) else {}),
         })
     return out
 
@@ -186,7 +187,7 @@ def leaderboard_view(book: LiveBook) -> dict[str, Any]:
     for m in lb["world_models"]:
         if byo.is_byo(m["persona_id"]):
             m["origin"] = byo.ORIGIN  # type: ignore[typeddict-item]
-        if m["origin"] == "house":
+        if m["origin"] in scoring.HOUSE_ORIGINS:
             m["pnl_live"] = book.equity(f"agent:{m['persona_id']}") - STARTING_CREDITS  # type: ignore[typeddict-unknown-key]
     return {**lb, "insight": scoring.insight(lb)}
 
@@ -318,7 +319,7 @@ def _byo_view(book: LiveBook, model_id: str, *, cached: bool) -> dict[str, Any] 
     info, fc = book.traders.get(model_id), book.forecasts.get(model_id)
     if info is None or not fc or fc.get("origin") != byo.ORIGIN:
         return None
-    keep = ("brier_holdout", "n", "rank", "of", "field", "per_question", "rationales", "source", "cutoffs")
+    keep = ("brier_holdout", "n", "rank", "of", "field", "per_question", "rationales", "source", "cutoffs", "model", "model_label")
     return {"model_id": model_id, "name": info.get("name"), "owner": info.get("owner"), "origin": byo.ORIGIN, "world_model": info.get("world_model"),
             "world_model_sha256": info.get("world_model_sha256"), **{k: fc.get(k) for k in keep}, "scored_at": fc.get("at"), "cached": cached}
 

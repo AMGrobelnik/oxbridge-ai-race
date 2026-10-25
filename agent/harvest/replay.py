@@ -13,12 +13,13 @@ from typing import Any
 from agent.sealed import chain
 from agent.sealed.hashing import sha256_json
 
-from . import forecaster, market, prices, questions
+from . import forecaster, market, models, personas as personas_mod, prices, questions
 from .types import Commitment, CutoffResult, Forecast, Mask, Persona, PriceFixture, QuestionInstance, QuestionSpec, ReplayResult, Split
 
 DEMO = Path(__file__).resolve().parent / "data" / "demo_replay.json"
 FIRST_CUTOFF = "2022-03"
-HOLDOUT_FROM = "2025-09"
+HOLDOUT_FROM = models.check_holdout(start=models.holdout_from(), personas=personas_mod.load_personas())  # type: ignore[arg-type]
+"""From the model registry; import fails (LeakageError) if any model or narrative source could have seen the holdout."""
 MASK_SEED = int(os.environ.get("HARVEST_MASK_SEED") or 2026)
 ROUNDS = 2
 """Round-robin passes over the personas per cutoff."""
@@ -148,9 +149,16 @@ def score(result: dict[str, Any]) -> dict[str, Any]:
         return _local_leaderboard(result)
 
 
-async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: list[Persona], offline: bool = False, anchor: bool = False) -> ReplayResult:
+async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: list[Persona], offline: bool = False, anchor: bool = False,
+              model_keys: list[str] | None = None, llm_splits: tuple[Split, ...] = ("dev", "holdout", "live")) -> ReplayResult:
+    """With `model_keys`, every persona runs on every listed registry model (agent = persona x model) after the
+    leakage guard passes. Cutoffs whose split is not in `llm_splits` use the deterministic heuristic only."""
     offline = offline or forecaster.offline_env()
     mask: Mask = forecaster.make_mask(list(fixture["series"]), MASK_SEED)
+    used = [models.get(k) for k in model_keys] if model_keys else []
+    if used:
+        models.check_holdout(used, HOLDOUT_FROM, personas=personas)  # type: ignore[arg-type]
+        personas = models.expand(personas, model_keys)  # type: ignore[arg-type,assignment]
     personas = [dict(p) for p in personas]  # type: ignore[misc]
     # 1. Proof of conviction: the world models are committed before any cutoff.
     commitments: list[Commitment] = [await _commit("models", sha256_json(personas), "personas", anchor)]
@@ -161,7 +169,7 @@ async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: lis
     for c in cuts:
         qs = _instances(c, fixture, specs)
         plan.append((c, split(c, fixture, specs), qs, _windows(c, fixture, qs)))
-    jobs = [forecaster.forecast(p, qs, fixture, c, mask, offline=offline) for c, _, qs, _ in plan for p in personas]
+    jobs = [forecaster.forecast(p, qs, fixture, c, mask, offline=offline or sp not in llm_splits) for c, sp, qs, _ in plan for p in personas]
     flat = await asyncio.gather(*jobs)
     per_cut = [[f for fs in flat[i * len(personas):(i + 1) * len(personas)] for f in fs] for i in range(len(plan))]
 
@@ -186,7 +194,11 @@ async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: lis
 
     result: ReplayResult = {
         "v": 1, "generated_at": _now(),
-        "model": "offline (llm cache, else heuristic fallback)" if offline else (os.environ.get("GEMINI_MODEL") or "gemini-flash-latest"),
+        "model": "offline (llm cache, else heuristic fallback)" if offline else (
+            ", ".join(m["model_id"] for m in used) if used else (os.environ.get("GEMINI_MODEL") or "gemini-flash-latest")),
+        "models": models.public_rows(used) if used else [], "holdout_from": HOLDOUT_FROM,
+        "cutoff_line": models.cutoff_line(used) if used else "",
+        "llm_splits": list(llm_splits),
         "mask": mask, "personas": personas, "cutoffs": results, "commitments": commitments,
         "scores": {"world_models": [], "baselines": {}, "humans": []},
     }

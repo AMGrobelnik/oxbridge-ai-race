@@ -34,7 +34,7 @@
       }
       n += 1;
       const li = el("li");
-      li.append(el("span", "n", n), H.avatar(m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, 22), el("span", "nm", m.name), el("span", "v", b3(m.brier_holdout) + (m.brier_holdout_lo != null ? ` ±${((m.brier_holdout_hi - m.brier_holdout_lo) / 2).toFixed(2)}` : "")));
+      li.append(el("span", "n", n), H.avatar(m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, 22), el("span", "nm", m.name), el("span", "v", b3(m.brier_holdout) + (m.brier_holdout_lo != null ? ` ±${((m.brier_holdout_hi - m.brier_holdout_lo) / 2).toFixed(2)}` : "")));
       if (m.beats_market_ci) li.classList.add("beats");
       ul.append(li);
     }
@@ -43,7 +43,7 @@
     if (note) note.textContent = lb.interval ? lb.interval.note : "";
     const hum = document.getElementById("hum");
     hum.innerHTML = "";
-    const rows = lb.world_models.filter((m) => m.pnl_live != null && m.origin !== "human-model").map((m) => ({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))
+    const rows = lb.world_models.filter((m) => m.pnl_live != null && m.origin !== "human-model").map((m) => ({ id: m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))
       .concat(lb.humans.map((h) => ({ id: h.user_id, name: h.nickname, v: h.pnl || 0, human: true })));
     rows.sort((a, b) => b.v - a.v);
     const humans = rows.filter((r) => r.human);

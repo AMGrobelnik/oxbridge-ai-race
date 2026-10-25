@@ -298,6 +298,7 @@
         out.replaceChildren(h("div", { class: "card good" },
           h("h2", { style: "margin-top:0" }, `Your theory ranked ${ordinal(r.rank)} of ${r.of}`),
           h("p", {}, `Score (Brier) ${b3(r.brier_holdout)}` + (market ? ` vs the market's ${b3(market.brier)}` : "") + ". Lower is better; 0.25 is a coin flip."),
+          r.model_label ? h("p", { class: "muted small" }, `Your theory ran on ${r.model_label}, an AI whose training data ends before every scored question resolves; you are ranked against the agents on the same AI.`) : null,
           r.cached ? h("p", { class: "muted small" }, "This exact theory was tested before, so this is the saved result.") : null,
           h("a", { class: "btn", href: "/app/leaderboard" }, "See the leaderboard")));
         if ((r.field || []).length) out.append(h("h2", {}, "How everyone scored"), ...r.field.map((f, i) => h("div", { class: "rank" },
@@ -315,7 +316,7 @@
     show(h("h1", {}, "Leaderboard"), spinner("Loading…"));
     let s;
     try { s = await api("/state"); } catch (e) { show(h("h1", {}, "Leaderboard"), failure(e)); return; }
-    const lb = s.leaderboard, models = [...lb.world_models].sort((a, b) => a.brier_holdout - b.brier_holdout);
+    const lb = s.leaderboard, models = [...lb.world_models].sort((a, b) => (a.brier_holdout ?? 9) - (b.brier_holdout ?? 9));
     const verifyOut = h("div");
     const mk = (label, cls, tamper) => h("button", { class: "btn " + cls, onclick: async (ev) => {
       ev.target.disabled = true;
@@ -323,13 +324,33 @@
       try { verifyOut.replaceChildren(explain(tamper ? await api("/verify", { tamper: true }) : await api("/verify"), tamper)); } catch (e) { verifyOut.replaceChildren(failure(e)); }
       ev.target.disabled = false;
     } }, label);
+    const range = (r) => h("small", {}, `${b3(r.brier_holdout_lo)} to ${b3(r.brier_holdout_hi)}`);
+    const tagFor = (m) => m.origin === "narrative" ? "narrative" : m.origin && m.origin !== "house" ? (m.origin.includes("human") ? "player" : m.origin) : null;
+    const sources = (m) => m.origin === "narrative" ? h("details", { class: "small muted" }, h("summary", {}, `${m.disclaimer || "Based on public statements; not endorsed."} Sources`),
+      (m.sources || []).map((src) => h("div", {}, h("a", { href: src.url, target: "_blank", rel: "noopener" }, src.note || src.url), ` (${src.date})`))) : null;
+    const group = (rows, sub) => rows.map((g) => h("div", { class: "rank" }, h("span", { class: "n" }, g.rank),
+      h("span", { class: "nm" }, g.label, g.origin === "narrative" ? h("span", { class: "tag", style: "margin-left:8px" }, "narrative") : null,
+        sub(g) ? h("div", { class: "muted small" }, sub(g)) : null),
+      h("span", { class: "sc" }, b3(g.brier_holdout), range(g))));
+    const cutoff = (m) => { if (!m) return ""; const [y, mo] = m.split("-"); return new Date(+y, +mo - 1, 1).toLocaleString("en-GB", { month: "short", year: "numeric" }); };
     show(h("h1", {}, "Leaderboard"),
+      lb.cutoff_line ? h("p", { class: "card good" }, lb.cutoff_line) : null,
       h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden. Lower score is better. The grey range shows how sure we are: when ranges overlap, it is too close to call.`),
+      (lb.by_model || []).length ? [h("h2", {}, "Which AI reads farming best"),
+        h("p", { class: "muted small" }, "Each AI runs every persona; its score is the average over them."),
+        h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),
+        ...group(lb.by_model, (g) => `${g.family || ""} · trained on data to ${cutoff(g.knowledge_cutoff)}`)] : null,
+      (lb.by_persona || []).length ? [h("h2", {}, "Which world view reads farming best"),
+        h("p", { class: "muted small" }, "Each persona is averaged over every AI. Narrative personas follow what real organisations said in public before the sealed questions; they are based on public statements and not endorsed."),
+        ...group(lb.by_persona, () => null)] : null,
+      h("h2", {}, (lb.by_model || []).length ? "Every agent (persona × AI)" : "Every agent"),
       h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),
       models.map((m, i) => h("div", { class: "rank" }, h("span", { class: "n" }, i + 1),
-        h("span", { class: "nm" }, m.name, m.origin && m.origin !== "house" ? h("span", { class: "tag", style: "margin-left:8px" }, m.origin.includes("human") ? "player" : m.origin) : null),
-        h("span", { class: "sc" }, b3(m.brier_holdout), h("small", {}, `${b3(m.brier_holdout_lo)} to ${b3(m.brier_holdout_hi)}`)))),
+        h("span", { class: "nm" }, m.name, tagFor(m) ? h("span", { class: "tag", style: "margin-left:8px" }, tagFor(m)) : null,
+          m.origin === "human-model" && m.model_label ? h("div", { class: "muted small" }, `ran on ${m.model_label}`) : null, sources(m)),
+        h("span", { class: "sc" }, b3(m.brier_holdout), range(m)))),
       lb.insight ? h("p", { class: "card" }, lb.insight) : null,
+      lb.dev_note ? h("p", { class: "muted small" }, lb.dev_note) : null,
       h("h2", {}, "Can we trust it?"),
       h("p", { class: "muted" }, "Every forecast was locked into a public chain of fingerprints before the answers were known."),
       h("div", { class: "actions" }, mk("Verify", "primary", false), mk("Try to tamper", "", true)),

@@ -7,6 +7,9 @@ from typing import Any, cast
 from .types import Leaderboard, ModelScore
 
 COIN_BRIER = 0.25
+HOUSE_ORIGINS = ("house", "narrative")
+"""Agents the replay runs itself: the house world models and the narrative ones (following real organisations)."""
+NARRATIVE_LABEL = "based on public statements; not endorsed"
 CI_LEVEL = 0.90
 CI_RESAMPLES = 2000
 CI_SEED = 20261025
@@ -93,7 +96,7 @@ def _holdout_question_briers(result_like: dict[str, Any]) -> tuple[dict[str, dic
     return per, market
 
 
-@lru_cache(maxsize=256)
+@lru_cache(maxsize=4096)
 def _bootstrap(values: tuple[float, ...]) -> tuple[float, float]:
     """Percentile CI (CI_LEVEL) of the mean of `values`; fixed seed so it is reproducible."""
     n = len(values)
@@ -127,6 +130,53 @@ def _interval_row(byq: dict[str, float], market: dict[str, float]) -> dict[str, 
     return row
 
 
+def group_table(result_like: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    """Holdout summary per `key` ("model" or "persona") over persona x model agents.
+
+    Per sealed question, the group's Brier is the mean over its agents; the group's score is the mean over
+    questions, with a bootstrap interval over questions and the paired difference to the market."""
+    agents = [p for p in result_like.get("personas", []) if p.get("model")]
+    if not agents:
+        return []
+    per, market = _holdout_question_briers(result_like)
+    labels = {"model": ("model", "model_label"), "persona": ("persona", "persona_name")}[key]
+    groups: dict[str, dict[str, Any]] = {}
+    for p in agents:
+        g = groups.setdefault(str(p.get(labels[0])), {"key": p.get(labels[0]), "label": p.get(labels[1]), "agents": [],
+                                                       "origin": p.get("origin", "house") if key == "persona" else None})
+        g["agents"].append(p["id"])
+    meta = {m["key"]: m for m in result_like.get("models") or []}
+    out = []
+    for g in groups.values():
+        byq: dict[str, float] = {}
+        for q in sorted({q for a in g["agents"] for q in per.get(a, {})}):
+            vals = [per[a][q] for a in g["agents"] if q in per.get(a, {})]
+            byq[q] = sum(vals) / len(vals)
+        if not byq:
+            continue
+        row = {"key": g["key"], "label": g["label"], "n_agents": len(g["agents"]), "brier_holdout": sum(byq.values()) / len(byq),
+               **_interval_row(byq, market)}
+        if key == "model":
+            m = meta.get(str(g["key"]), {})
+            row.update(family=m.get("family"), knowledge_cutoff=m.get("knowledge_cutoff"), model_id=m.get("model_id"), source=m.get("source"))
+        else:
+            row["origin"] = g["origin"]
+        out.append(row)
+    out.sort(key=lambda r: r["brier_holdout"])
+    for i, r in enumerate(out, start=1):
+        r["rank"] = i
+    return out
+
+
+def dev_note(result_like: dict[str, Any]) -> str:
+    """Dev cutoffs resolve inside the models' training windows, so dev Brier is never a headline."""
+    if not result_like.get("models"):
+        return ""
+    if "dev" not in (result_like.get("llm_splits") or ["dev"]):
+        return "Dev (2022 to mid-2025) is legacy and unscored: it ran on the deterministic heuristic, not the LLMs."
+    return "Dev (2022 to mid-2025) resolves inside the models' training windows: shown for reference, never ranked."
+
+
 def _rank_key(s: dict[str, Any]) -> tuple[bool, float, float]:
     b = s.get("brier_holdout")
     return (b is None, b if b is not None else 0.0, -float(s.get("pnl_holdout") or 0.0))
@@ -139,7 +189,11 @@ def leaderboard(result_like: dict[str, Any], *, external: list[dict[str, Any]] |
     for p in result_like.get("personas", []):
         pid = p["id"]
         rows.append({
-            "persona_id": pid, "name": p.get("name", pid), "color": p.get("color"), "origin": "house",
+            "persona_id": pid, "name": p.get("name", pid), "color": p.get("color"), "origin": p.get("origin", "house"),
+            "persona": p.get("persona", pid), "persona_name": p.get("persona_name", p.get("name", pid)),
+            "model": p.get("model"), "model_label": p.get("model_label"),
+            **({"stance": p.get("stance"), "disclaimer": p.get("disclaimer"), "sources": p.get("sources", []), "label": NARRATIVE_LABEL}
+               if p.get("origin") == "narrative" else {}),
             "brier_dev": mean_brier(dev_pairs.get(pid, [])), "brier_holdout": mean_brier(ho_pairs.get(pid, [])),
             "pnl_dev": dev_pnl.get(pid, 0.0), "pnl_holdout": ho_pnl.get(pid, 0.0),
             "n": len(dev_pairs.get(pid, [])) + len(ho_pairs.get(pid, [])), "rank": 0,
@@ -150,7 +204,7 @@ def leaderboard(result_like: dict[str, Any], *, external: list[dict[str, Any]] |
     market_by_q = _holdout_question_briers(result_like)[1]
     for r in rows:
         per_question = r.pop("per_question", None)
-        if r["persona_id"] in intervals and r["origin"] == "house":
+        if r["persona_id"] in intervals and r["origin"] in HOUSE_ORIGINS:
             r.update(intervals[r["persona_id"]])
         elif per_question:  # an external model that sent per-question holdout forecasts: [[qid, p_yes, outcome], ...]
             r.update(_interval_row({str(q): brier(float(pq), int(o)) for q, pq, o in per_question}, market_by_q))
@@ -166,6 +220,10 @@ def leaderboard(result_like: dict[str, Any], *, external: list[dict[str, Any]] |
     n_questions = len(_holdout_question_briers(result_like)[1]) if split == "holdout" else 0
     return cast(Leaderboard, {
         "world_models": cast(list[ModelScore], rows),
+        "by_model": group_table(result_like, "model"), "by_persona": group_table(result_like, "persona"),
+        "models": list(result_like.get("models") or []), "holdout_from": result_like.get("holdout_from"),
+        "cutoff_line": result_like.get("cutoff_line") or "",
+        "dev_note": dev_note(result_like),
         "baselines": {"coin": COIN_BRIER, "market": market, "climatology": clim},
         "humans": humans_sorted,
         "interval": {"level": CI_LEVEL, "resamples": CI_RESAMPLES, "n_questions": n_questions,

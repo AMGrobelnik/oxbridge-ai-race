@@ -88,6 +88,17 @@ class Persona(TypedDict):
     soft_lean: float
     risk: float
     edge: float
+    origin: NotRequired[Literal["house", "narrative"]]
+    stance: NotRequired[str]
+    disclaimer: NotRequired[str]
+    knowledge_cutoff: NotRequired[str]
+    """Narrative personas: the latest date of any statement the world model is built from (YYYY-MM-DD)."""
+    sources: NotRequired[list[dict[str, str]]]
+    persona: NotRequired[str]
+    """Agents (persona x model): the base persona id; `model` is the registry key the agent runs on."""
+    persona_name: NotRequired[str]
+    model: NotRequired[str]
+    model_label: NotRequired[str]
 
 
 class Forecast(TypedDict):
@@ -95,7 +106,7 @@ class Forecast(TypedDict):
     qid: str
     p_yes: float
     rationale: str
-    source: Literal["gemini", "fallback", "cache"]
+    source: Literal["gemini", "llm", "fallback", "cache"]
 
 
 class BetIntent(TypedDict):
@@ -170,7 +181,7 @@ class CutoffResult(TypedDict):
 class ModelScore(TypedDict):
     persona_id: str
     name: str
-    origin: Literal["house", "external"]
+    origin: Literal["house", "narrative", "external", "human-model"]
     brier_dev: float | None
     brier_holdout: float | None
     pnl_dev: float
@@ -183,6 +194,12 @@ class Leaderboard(TypedDict):
     world_models: list[ModelScore]
     baselines: dict[str, float | None]
     humans: list[dict[str, Any]]
+    by_model: NotRequired[list[dict[str, Any]]]
+    by_persona: NotRequired[list[dict[str, Any]]]
+    models: NotRequired[list[dict[str, Any]]]
+    holdout_from: NotRequired[str | None]
+    cutoff_line: NotRequired[str]
+    dev_note: NotRequired[str]
 
 
 class Mask(TypedDict):
@@ -199,6 +216,10 @@ class ReplayResult(TypedDict):
     cutoffs: list[CutoffResult]
     commitments: list[Commitment]
     scores: Leaderboard
+    models: NotRequired[list[dict[str, Any]]]
+    holdout_from: NotRequired[str]
+    cutoff_line: NotRequired[str]
+    llm_splits: NotRequired[list[str]]
 
 
 class Allocation(TypedDict):

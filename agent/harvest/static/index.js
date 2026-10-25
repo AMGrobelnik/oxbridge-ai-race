@@ -183,14 +183,21 @@
       tr.append(el("td", "rank", m.rank));
       const td = el("td");
       const nm = el("div", "nm");
-      nm.append(H.avatar(m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, 30));
+      nm.append(H.avatar(m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, 30));
       const txt = el("div");
       const title = el("b", null, m.name);
       txt.append(title);
       if (m.origin === "external") txt.append(document.createTextNode(" "), el("span", "pill", "outside agent"));
       if (m.origin === "human-model") txt.append(document.createTextNode(" "), el("span", "pill", "human-written theory"));
+      if (m.origin === "narrative") txt.append(document.createTextNode(" "), el("span", "pill", "narrative · based on public statements; not endorsed"));
+      if (m.model_label) txt.append(document.createTextNode(" "), el("span", "pill", m.model_label));
       const p = pmap.get(m.persona_id);
       txt.append(el("div", "conv", p ? p.world_model : (m.owner ? `by ${m.owner}` : "world model committed on the ledger")));
+      if (m.origin === "narrative" && (m.sources || []).length) {
+        const src = el("div", "conv", `${m.disclaimer || ""} Sources: `);
+        m.sources.forEach((x, k) => { const a = el("a", null, `${x.note || x.url} (${x.date})`); a.href = x.url; a.target = "_blank"; a.rel = "noopener"; src.append(k ? "; " : "", a); });
+        txt.append(src);
+      }
       nm.append(txt);
       td.append(nm);
       tr.append(td);
@@ -224,10 +231,37 @@
       lbTable.append(tr);
     }
     while (baseQueue.length) lbTable.append(mkBase(baseQueue.shift()));
+    renderGroups(lb);
     const note = document.getElementById("lb-note");
     if (note && lb.interval) note.textContent = `Whiskers and ± show the ${lb.interval.note}; if the whisker spans the market tick, the model is within noise of the market.`;
     const ins = lb.insight || state.insight;
     if (ins) { document.getElementById("insight").hidden = false; document.getElementById("insight-text").textContent = ins; }
+  }
+
+  function renderGroups(lb) {
+    let box = document.getElementById("lb-groups");
+    if (!box) { box = el("div"); box.id = "lb-groups"; lbTable.parentNode.insertBefore(box, lbTable); }
+    box.innerHTML = "";
+    if (lb.cutoff_line) box.append(el("p", "lb-note", lb.cutoff_line));
+    const table = (title, rows, label) => {
+      if (!(rows || []).length) return;
+      box.append(el("h3", null, title));
+      const t = el("table", "lb");
+      const hd = el("tr");
+      for (const x of ["#", "", "Brier holdout (90% interval)", "Gap to market (90% interval)"]) hd.append(el("th", x.startsWith("Brier") || x.startsWith("Gap") ? "num" : "", x));
+      t.append(hd);
+      for (const g of rows) {
+        const tr = el("tr", "row");
+        tr.append(el("td", "rank", g.rank), el("td", null, label(g)),
+          el("td", "num", `${b3(g.brier_holdout)} (${b3(g.brier_holdout_lo)} to ${b3(g.brier_holdout_hi)})`),
+          el("td", "num", g.diff_vs_market == null ? "–" : `${g.diff_vs_market >= 0 ? "+" : ""}${g.diff_vs_market.toFixed(3)} (${g.diff_vs_market_lo.toFixed(3)} to ${g.diff_vs_market_hi.toFixed(3)})`));
+        t.append(tr);
+      }
+      box.append(t);
+    };
+    table("Which AI reads farming best (each averaged over every persona)", lb.by_model, (g) => `${g.label} · ${g.family || ""}, data to ${g.knowledge_cutoff || "?"}`);
+    table("Which world view reads farming best (each averaged over every AI)", lb.by_persona, (g) => `${g.label}${g.origin === "narrative" ? " · based on public statements; not endorsed" : ""}`);
+    if ((lb.by_model || []).length) box.append(el("h3", null, "Every agent (persona × AI)"));
   }
 
   // ---------------------------------------------------------------- PnL race

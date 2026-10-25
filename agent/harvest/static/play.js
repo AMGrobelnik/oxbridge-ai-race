@@ -282,7 +282,7 @@
       w.append(line, el("div", "r", `“${x.rationale}”`));
       c.append(w);
     }
-    const text = `My world model "${r.name}" scored ${b3(r.brier_holdout)} Brier on The Crophecy's sealed holdout: rank ${r.rank} of ${r.of} against 8 AI world models and the market. Beat it: ${location.origin}/harvest/play`;
+    const text = `My world model "${r.name}" scored ${b3(r.brier_holdout)} Brier on The Crophecy's sealed holdout: rank ${r.rank} of ${r.of} against the AI world models and the market. Beat it: ${location.origin}/harvest/play`;
     const share = el("div", "share");
     const code = el("code", null, text);
     const copy = el("button", "btn", "Copy");
@@ -304,7 +304,7 @@
     mc.innerHTML = "";
     mc.append(el("div", "kicker", me.nickname), el("div", "big", `${signed(me.pnl, 1)} cr`), el("div", "muted", "live credits PnL (marked at market prices)"));
     const rows = [];
-    for (const m of s.world_models) if (m.origin !== "human-model" && (m.pnl_live != null || m.origin === "external")) rows.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" ? "world model" : "outside agent", v: m.pnl_live || 0 });
+    for (const m of s.world_models) if (m.origin !== "human-model" && (m.pnl_live != null || m.origin === "external")) rows.push({ id: m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: m.origin === "house" || m.origin === "narrative" ? "world model" : "outside agent", v: m.pnl_live || 0 });
     for (const h of s.humans) rows.push({ id: h.user_id, name: h.nickname, sub: "human", v: h.pnl || 0, me: h.user_id === me.user_id });
     rows.sort((a, b) => b.v - a.v);
     const live = document.getElementById("rank-live");
@@ -315,8 +315,8 @@
     const tm = document.getElementById("rank-tm");
     tm.innerHTML = "";
     const t2 = [];
-    const sub = { house: "world model · full holdout", "human-model": "human-written theory · full holdout" };
-    for (const m of s.world_models) if (m.brier_holdout != null) t2.push({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: sub[m.origin] || "outside agent", v: m.brier_holdout, me: me.theory && m.persona_id === me.theory });
+    const sub = { house: "world model · full holdout", narrative: "narrative world model · not endorsed", "human-model": "human-written theory · full holdout" };
+    for (const m of s.world_models) if (m.brier_holdout != null) t2.push({ id: m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, sub: sub[m.origin] || "outside agent", v: m.brier_holdout, me: me.theory && m.persona_id === me.theory });
     for (const h of s.humans) if (h.brier != null) t2.push({ id: h.user_id, name: h.nickname, sub: `human · ${h.n} questions`, v: h.brier, me: h.user_id === me.user_id });
     t2.sort((a, b) => a.v - b.v);
     t2.slice(0, 20).forEach((r, i) => tm.append(rankRow(i + 1, r, b3(r.v))));

@@ -42,7 +42,7 @@ def _run(fx: PriceFixture):
 
 
 def test_eight_personas_with_masked_text() -> None:
-    ps = personas.load_personas()
+    ps = [p for p in personas.load_personas() if p.get("origin", "house") == "house"]
     assert [p["id"] for p in ps] == ["climate-pessimist", "efficient-market-skeptic", "geopolitics-hawk", "adaptation-optimist", "macro-dollar", "land-grab-realist", "agronomist", "crowd-follower"]
     assert len({p["color"] for p in ps}) == 8
     for p in ps:
@@ -101,7 +101,7 @@ def test_replay_splits_and_scores() -> None:
     assert any(c["trades"] for c in res["cutoffs"])
     assert [c["kind"] for c in res["commitments"]] == ["models", "holdout"]
     assert all(c["receipt"]["status"] == "pending" for c in res["commitments"])
-    assert len(res["scores"]["world_models"]) == 8
+    assert len(res["scores"]["world_models"]) == len(personas.load_personas()) == 16
     assert all(m["brier_holdout"] is not None for m in res["scores"]["world_models"])
 
 
@@ -144,3 +144,14 @@ def test_freeze_round_trip(tmp_path) -> None:
     res = _run(_fixture())
     path = replay.freeze(res, tmp_path / "demo.json")
     assert replay.load_demo(path)["commitments"][1]["sha256"] == res["commitments"][1]["sha256"]
+
+
+def test_narrative_personas_are_sourced_before_the_holdout() -> None:
+    narr = [p for p in personas.load_personas() if p.get("origin") == "narrative"]
+    assert len(narr) == 8
+    for p in narr:
+        assert "not endorsed" in p["disclaimer"] and p["knowledge_cutoff"] <= "2025-07-31"
+        assert p["sources"] and all(s["url"].startswith("http") and s["date"][:7] <= p["knowledge_cutoff"][:7] for s in p["sources"])
+        assert prices.add_months(p["knowledge_cutoff"][:7], 1) <= replay.HOLDOUT_FROM
+        text = p["world_model"] + " ".join(p["beliefs"])
+        assert not re.search(r"20\d\d", text) and not NAME_RE.search(text)
