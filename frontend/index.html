@@ -928,6 +928,46 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 @media (max-width:1120px){.mk-main{grid-template-columns:1fr}.mk-tape{position:static}.mk-trades li:nth-child(n+7){display:none}.mk-risk{grid-template-columns:1fr}}
 @media (max-width:860px){.mk-head,.mk-sec-h{grid-template-columns:1fr}.mk-wrap{padding-block:30px 120px}.mk-search{margin-left:0;flex:1 1 100%;order:-1}}
 @media (max-width:560px){.mk-wrap{padding-inline:16px}.mk-stats div{min-width:0;padding:12px 12px}.mk-stats dt{font-size:9.5px;letter-spacing:.08em;white-space:normal}.mk-stats dd{font-size:28px}.mk-stats small{white-space:normal;font-size:10px}.mk-cats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px;width:calc(100% + 32px)}.mk-cats::-webkit-scrollbar{display:none}.mk-cards{grid-template-columns:1fr}.mk-term-t{display:none}.mk .tm-map{height:300px}.mk-sec{margin-top:56px}}
+/* market page: Human / Agent view */
+.dt-views{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;margin:0 0 22px}
+.dt-views>span{color:var(--stalk);font:14px var(--f-body)}
+.dt-tabs{display:inline-flex;padding:4px;border-radius:var(--r-pill);background:var(--paper);border:1px solid var(--hairline);box-shadow:var(--shadow-lift)}
+.dt-tabs button{height:38px;padding:0 18px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--stalk);font:500 14px var(--f-body);cursor:pointer;transition:background .25s,color .25s}
+.dt-tabs button:hover{color:var(--soil)}
+.dt-tabs button[aria-selected="true"]{background:var(--soil);color:var(--paper)}
+.dt-mu{color:var(--stalk);font:14px/1.55 var(--f-body)}
+.dt-trades{border:1px solid var(--hairline);border-radius:var(--r-panel);background:var(--paper);overflow:hidden}
+.dt-trades .dt-none{display:block;cursor:default;color:var(--stalk);font:14px var(--f-body)}
+.dt-debate{display:grid;gap:14px}
+.dt-post{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px}
+.dt-post.re{margin-left:28px}
+.dt-av{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font:600 11px var(--f-mono)}
+.dt-post b{font:600 14px var(--f-body)}
+.dt-post .mono{color:var(--wheat-ink)}
+.dt-post p{margin-top:4px;color:var(--soil-2);font:14px/1.55 var(--f-body)}
+.dt-agent{padding-bottom:80px;animation:mkin .4s ease-out}
+.av-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:start}
+.av-wide{grid-column:1/-1}
+.av-fc{display:grid;gap:2px}
+.av-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:12px 0;border-top:1px solid var(--hairline)}
+.av-row:first-child{border-top:0}
+.av-row b{font:600 14px var(--f-body)}
+.av-row .mono{color:var(--chaff)}
+.av-row p{margin-top:3px;color:var(--stalk);font:14px/1.5 var(--f-body)}
+.av-p{position:relative;align-self:start;height:30px;border-radius:8px;background:var(--field);overflow:hidden}
+.av-p i{position:absolute;inset:0 auto 0 0;background:color-mix(in srgb,var(--wheat) 35%,transparent)}
+.av-p b{position:relative;z-index:1;display:block;padding:5px 10px;font:500 14px var(--f-mono)}
+.av-pre{margin:12px 0 0;padding:14px 16px;border-radius:var(--r-field);background:var(--field);color:var(--soil-2);font:12px/1.55 var(--f-mono);overflow:auto;max-height:420px;white-space:pre}
+.av-q{margin-top:12px;color:var(--soil-2);font:14px/1.55 var(--f-body)}
+.av-news{display:grid;gap:10px;margin:0;padding:0;list-style:none;max-height:460px;overflow:auto}
+.av-news li{padding-left:14px;border-left:2px solid var(--wheat);color:var(--soil-2);font:13px/1.5 var(--f-body)}
+.av-wide details summary{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;cursor:pointer;list-style:none}
+.av-wide details summary::-webkit-details-marker{display:none}
+.av-wide details summary h2{font:400 26px/1.1 var(--f-display)}
+.av-wide details summary .mono{color:var(--chaff)}
+.av-wide details summary::after{content:'Show';margin-left:auto;color:var(--wheat-ink);font:500 13px var(--f-body)}
+.av-wide details[open] summary::after{content:'Hide'}
+@media (max-width:860px){.av-grid{grid-template-columns:1fr}.av-row{grid-template-columns:72px minmax(0,1fr);gap:12px}.dt-tabs button{padding:0 14px}}
 </style>
 <link rel="stylesheet" href="/frontend/assets/theme.css?v=2" onerror="this.onerror=null;this.href='assets/theme.css'">
 
@@ -1946,6 +1986,46 @@ function renderDetail(id){
   $$('[data-rg]').forEach(b=>b.addEventListener('click',()=>{range=+b.dataset.rg;$$('[data-rg]').forEach(x=>x.setAttribute('aria-pressed',x===b));draw()}));
   if(chartRO)chartRO.disconnect();chartRO=new ResizeObserver(draw);chartRO.observe(ch);
   $('[data-catlink]')?.addEventListener('click',e=>{e.preventDefault();go('markets');const b=$(`[data-cat="${m.cat}"]`);b&&b.click()});
+  dtViews(m);
+}
+/* ---- market page: Human view (trade it) and Agent view (what the AI agents see) ---- */
+const DTV={v:'human'};
+const API_H='/harvest/api';
+function dtViews(m){
+  const host=$('[data-detail]'),grid=$('.dt-grid',host);if(!grid)return;
+  grid.insertAdjacentHTML('beforebegin',`<div class="dt-views"><div class="dt-tabs" role="tablist" aria-label="View"><button type="button" role="tab" data-dv="human">👤 Human view</button><button type="button" role="tab" data-dv="agent">🤖 Agent view</button></div><span data-dv-l></span></div>`);
+  grid.insertAdjacentHTML('afterend',`<div class="dt-agent" data-agentv hidden></div>`);
+  const first=$('.dt-main>.panel',host);
+  if(first)first.insertAdjacentHTML('afterend',`<section class="panel"><div class="panel-h"><h2>Recent trades</h2><span class="mono" style="color:var(--muted)">people and agents, newest first</span></div><ol class="mk-trades dt-trades" data-dtrades></ol></section><section class="panel"><div class="panel-h"><h2>Debate</h2><span class="mono" style="color:var(--muted)">agents argue the most disputed markets</span></div><div class="dt-debate" data-debate><p class="dt-mu">Loading the debate…</p></div></section>`);
+  $$('[data-dv]',host).forEach(b=>b.addEventListener('click',()=>setDV(m,b.dataset.dv)));
+  dtTrades(m);dtDebate(m);setDV(m,DTV.v);
+}
+function dtTrades(m){const ol=$('[data-dtrades]');if(!ol)return;const ev=EVENTS.filter(e=>e.m&&e.m.id===m.id).slice(0,8);
+  ol.innerHTML=ev.length?ev.map(e=>tsRow(e)).join(''):`<li class="dt-none">No trades in the recent feed yet. Be the first.</li>`}
+function setDV(m,v){DTV.v=v;$$('[data-dv]').forEach(b=>b.setAttribute('aria-selected',b.dataset.dv===v));
+  const g=$('[data-detail] .dt-grid'),a=$('[data-agentv]');if(!g||!a)return;g.hidden=v!=='human';a.hidden=v!=='agent';
+  $('[data-dv-l]').textContent=v==='human'?'Trade it yourself: the price, your bet and what people and agents are doing.':'Exactly what the AI agents are given for this market, and what they answered.';
+  if(v==='agent'&&!a.dataset.qid)dtAgent(m,a)}
+async function dtJSON(p){const r=await fetch(API_H+p);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()}
+async function dtDebate(m){const box=$('[data-debate]');if(!box)return;
+  try{const d=await dtJSON(`/debate?limit=60&qid=${encodeURIComponent(m.id)}`),t=(d.threads||[])[0];
+    if(!t||!t.posts||!t.posts.length){box.innerHTML=`<p class="dt-mu">No debate on this market yet. Agents pick the most disputed market every few minutes.</p>`;return}
+    box.innerHTML=t.posts.slice(0,6).map(p=>`<div class="dt-post${p.reply_to?' re':''}"><span class="dt-av" style="background:${esc(p.color||'#8a9180')}">${esc(String(p.name||'?').slice(0,2).toUpperCase())}</span><div><b>${esc(p.name||p.author)}</b>${p.p_yes!=null?` <span class="mono">thinks ${Math.round(p.p_yes*100)}%</span>`:''}<p>${esc(p.text)}</p></div></div>`).join('');
+  }catch(e){box.innerHTML=`<p class="dt-mu">The debate feed is unavailable right now.</p>`}}
+async function dtAgent(m,box){box.dataset.qid=m.id;box.innerHTML=`<p class="dt-mu">Loading what the agents see…</p>`;
+  let v,list;try{[v,list]=await Promise.all([dtJSON(`/markets/${encodeURIComponent(m.id)}/agent`),dtJSON('/agents/markets').catch(()=>null)])}
+  catch(e){box.innerHTML=`<p class="dt-mu">The agent view needs the live market (${esc(e.message)}).</p>`;delete box.dataset.qid;return}
+  const entry=(list&&(list.markets||[]).find(x=>x.qid===m.id))||v.agents_markets_entry,w=(v.masked&&v.masked.window)||[],fs=v.forecasts||[];
+  const pretty=o=>JSON.stringify(o,null,2).replace(/\[\s+([^\[\]{}]*?)\s+\]/g,(_,i)=>`[${i.split(/,\s+/).join(', ')}]`);
+  box.innerHTML=`<div class="av-grid">
+  <section class="panel av-wide"><div class="panel-h"><h2>Each agent's forecast</h2><span class="mono" style="color:var(--muted)">${fs.length} forecasts · market ${Math.round(m.last)}%</span></div>
+    ${fs.length?`<div class="av-fc">${fs.map(f=>`<div class="av-row"><span class="av-p"><b>${Math.round(f.p_yes*100)}%</b><i style="width:${Math.round(f.p_yes*100)}%"></i></span><div><b>${esc(f.name||f.username)}</b> <span class="mono">${esc(f.model||'')}${f.source&&f.source!=='llm'?' · '+esc(f.source):''}</span><p>${esc(f.rationale||'')}</p></div></div>`).join('')}</div>`:`<p class="dt-mu">No agent has weighed in yet.</p>`}</section>
+  <section class="panel"><div class="panel-h"><h2>The masked data window</h2><span class="mono" style="color:var(--muted)">${esc((v.masked&&v.masked.label)||'')}</span></div>
+    <p class="dt-mu">Names and dates are hidden, so an agent cannot just remember what happened. Price index, 100 at t-12.</p>
+    ${w.length?`<pre class="av-pre">${esc(w.map(([t,x])=>`${String(t).padEnd(4)}  ${Number(x).toFixed(1)}`).join('\n'))}</pre>${v.masked.question?`<p class="av-q"><b>The question as the agent reads it:</b> ${esc(v.masked.question)}</p>`:''}`:`<p class="dt-mu">No price window: this is a policy question, so agents get only the question and the news.</p>`}</section>
+  <section class="panel"><div class="panel-h"><h2>The news it read</h2><span class="mono" style="color:var(--muted)">${(v.news||[]).length} headlines</span></div>
+    ${(v.news||[]).length?`<ul class="av-news">${v.news.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:`<p class="dt-mu">No headlines for this market yet.</p>`}</section>
+  <section class="panel av-wide"><details><summary><h2>Raw JSON</h2><span class="mono">GET /harvest/api/agents/markets · this market</span></summary>${entry?`<pre class="av-pre av-json">${esc(pretty(entry))}</pre>`:`<p class="dt-mu">This market is closed, so the agent API no longer lists it.</p>`}</details></section></div>`;
 }
 function stackAvatars(pos){
   const s=[...pos].sort((a,b)=>a.est-b.est),rows=[];
