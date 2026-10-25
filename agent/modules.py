@@ -49,5 +49,11 @@ modules: list[StudioModule] = [
     "id": "paysh",
     "name": "Pay.sh",
     "summary": "Pay your own GET /premium-data (or any x402 API) with the Pay.sh `pay` CLI, let Claude Code pay through it, and draft a Pay.sh catalog listing."
+  },
+  {
+    "id": "sealed",
+    "name": "Sealed: autoresearch that can't cheat its own test (GET /sealed)",
+    "href": "/sealed",
+    "summary": "Pre-registers a hidden holdout on Solana devnet, lets an LLM search policies on the visible test, then reveals the holdout, rejects overfit winners and lets anyone verify the bundle."
   }
 ]

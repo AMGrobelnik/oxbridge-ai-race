@@ -3,12 +3,134 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Sealed</title>
 <link rel="stylesheet" href="/sealed/static/style.css">
 </head>
 <body>
-<!-- Placeholder. Owner: W4 (SPEC.md section 10). Data: GET /sealed/api/demo returns a RunRecord. -->
-<main><h1>Sealed: autoresearch that can't cheat its own test</h1><p>Demo page under construction.</p></main>
+<a class="skip" href="#search">Skip to the search</a>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow"><span class="lock-glyph" aria-hidden="true"></span> Sealed · pre-registered autoresearch on Solana devnet</p>
+    <h1>Sealed: autoresearch that can't cheat its own test</h1>
+    <p class="lede">Before the agent runs a single experiment, its test, including held-out scenarios it never sees, is hashed and anchored on chain. Then it searches, then the seal is broken and every result is re-scored on the hidden test.</p>
+    <div class="goal" id="goal" hidden>
+      <span class="goal-label">Goal</span>
+      <p id="goal-text"></p>
+      <p class="goal-meta" id="goal-meta"></p>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar" id="toolbar">
+  <div class="wrap toolbar-inner">
+    <ol class="stepper" aria-label="Progress">
+      <li data-step="seal"><span class="n">1</span>Seal</li>
+      <li data-step="search"><span class="n">2</span>Search</li>
+      <li data-step="reveal"><span class="n">3</span>Reveal</li>
+      <li data-step="verify"><span class="n">4</span>Verify</li>
+    </ol>
+    <div class="controls" id="replay-controls">
+      <button type="button" class="btn" id="btn-replay">Replay</button>
+      <button type="button" class="btn" id="btn-skip">Skip to reveal</button>
+      <div class="seg" role="group" aria-label="Replay speed">
+        <button type="button" data-speed="1" aria-pressed="true">1x</button>
+        <button type="button" data-speed="2" aria-pressed="false">2x</button>
+        <button type="button" data-speed="4" aria-pressed="false">4x</button>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btn-live" aria-expanded="false" aria-controls="live-form">Run live</button>
+    </div>
+  </div>
+  <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+  <form class="wrap live-form" id="live-form" hidden>
+    <label>Proposer
+      <select name="proposer"><option value="scripted">scripted (no network)</option><option value="gemini">gemini</option></select>
+    </label>
+    <label>Iterations <input name="iterations" type="number" min="1" max="12" value="8"></label>
+    <label class="check"><input name="anchor" type="checkbox" checked> Anchor on devnet</label>
+    <button type="submit" class="btn btn-primary">Start live run</button>
+    <span class="live-msg" id="live-msg" role="status"></span>
+  </form>
+</div>
+
+<main class="wrap" id="main">
+  <p class="banner" id="banner" role="status" hidden></p>
+
+  <section class="section" id="seal" aria-labelledby="seal-h">
+    <div class="section-head">
+      <span class="step-n">1</span>
+      <div>
+        <h2 id="seal-h">The test is sealed before iteration 1</h2>
+        <p class="sub">Evaluation code, dev seeds and a salted commitment to the hidden holdout, hashed together and written to Solana as a memo.</p>
+      </div>
+    </div>
+    <div id="seal-body"><div class="placeholder">Loading the run…</div></div>
+  </section>
+
+  <section class="section" id="search" aria-labelledby="search-h">
+    <div class="section-head">
+      <span class="step-n">2</span>
+      <div>
+        <h2 id="search-h">The agent searches on the visible test only</h2>
+        <p class="sub">An LLM proposes a policy each round; it is scored on the dev seeds and kept only if it beats the champion.</p>
+      </div>
+    </div>
+    <div class="search-grid">
+      <div class="chart-col">
+        <figure class="card chart-card">
+          <figcaption>
+            <span class="chart-title">Score frontier</span>
+            <span class="chart-metric" id="chart-metric"></span>
+          </figcaption>
+          <div class="legend" id="chart-legend">
+            <span class="lg lg-visible">visible score (dev seeds)</span>
+            <span class="lg lg-sealed" id="lg-sealed" hidden>sealed score (holdout mean)</span>
+          </div>
+          <div id="chart" class="chart" role="img" aria-label="Champion dev score per iteration"></div>
+        </figure>
+      </div>
+      <ol class="stream" id="stream" aria-live="polite"></ol>
+    </div>
+  </section>
+
+  <section class="section" id="reveal" aria-labelledby="reveal-h">
+    <div class="section-head">
+      <span class="step-n">3</span>
+      <div>
+        <h2 id="reveal-h">The seal is broken: every finalist meets the hidden test</h2>
+        <p class="sub">Unseen seeds under the base scenario and every sealed shift, judged by a gate that was itself part of the seal.</p>
+      </div>
+    </div>
+    <div id="reveal-body"><div class="placeholder"><span class="lock-glyph" aria-hidden="true"></span> The holdout stays sealed until the search ends.</div></div>
+  </section>
+
+  <section class="section" id="verify" aria-labelledby="verify-h">
+    <div class="section-head">
+      <span class="step-n">4</span>
+      <div>
+        <h2 id="verify-h">Anyone can check it</h2>
+        <p class="sub">Re-hash the downloadable bundle and compare it with the sealed record and the on-chain memos. Change one number and it breaks.</p>
+      </div>
+    </div>
+    <div class="card verify-card">
+      <div class="verify-actions">
+        <button type="button" class="btn btn-primary" id="btn-verify">Verify against chain</button>
+        <button type="button" class="btn btn-danger" id="btn-tamper">Tamper one number</button>
+        <button type="button" class="btn btn-ghost" id="btn-restore" hidden>Restore original</button>
+        <a class="btn btn-ghost" id="dl-bundle" href="#" download>Download bundle</a>
+      </div>
+      <div id="tamper-note"></div>
+      <div id="verify-result" aria-live="polite"><div class="placeholder small">Press <strong>Verify against chain</strong> to re-hash this run.</div></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p><strong>Simulation evidence, not policy advice.</strong> Scores come from an age-structured SEIRV simulator, not from real-world outcomes.</p>
+    <p class="muted">API: <a href="/sealed/api/demo">/sealed/api/demo</a> · <a href="/sealed/api/runs">/sealed/api/runs</a> · <a href="/sealed/api/envs">/sealed/api/envs</a></p>
+  </div>
+</footer>
 <script src="/sealed/static/app.js"></script>
 </body>
 </html>
