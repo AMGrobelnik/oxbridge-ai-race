@@ -25,8 +25,9 @@ from agent.routes.challenge import _qr_svg, public_base_url
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "harvest" / "static"
 PAGES = {"/harvest": "index.html", "/harvest/play": "play.html", "/harvest/board": "board.html", "/harvest/terms": "terms.html", "/harvest/news": "news.html"}
-APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app/market/{qid:path}": "app/market.html", "/app/live": "app/live.html",
+APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app/live": "app/live.html",
              "/app/theory": "app/theory.html", "/app/leaderboard": "app/leaderboard.html"}
+# /app/market/{qid} and /app/agent/{id} are served by harvest_growth.py, which adds Open Graph tags
 PRICES_FROM = "2021-01"
 WAITLIST_DIR = Path(__file__).resolve().parents[2] / "waitlist"
 WAITLIST_ASSETS = {"hero-loop.mp4": "video/mp4", "hero.jpg": "image/jpeg"}
