@@ -324,7 +324,7 @@ def status_for(book: "LiveBook", qid: str, *, resolved: dict[str, dict[str, Any]
                        "text": f"Evidence agent proposes {p['verdict']} ({p['confidence']:.0%} confident); waiting for admin confirmation."}
     if p and p["status"] == "info":
         return base | {"state": "open", "proposal": p, "text": f"Evidence agent: not yet resolved (checked {p['at'][:10]}, {len(p['evidence'])} headlines cited)."}
-    return base | {"state": "open", "text": f"Resolved by an admin from news evidence; deadline {q.get('resolve_month') or 'open'}."}
+    return base | {"state": "open", "text": f"Not resolved yet: the evidence agent watches the news and an admin confirms; deadline {q.get('resolve_month') or 'open'}."}
 
 
 def view(book: "LiveBook") -> dict[str, Any]:
