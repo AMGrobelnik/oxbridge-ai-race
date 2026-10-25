@@ -66,10 +66,15 @@ class RaceAdapterTest(unittest.TestCase):
             h.HANDLERS["extract"] = original
 
     def test_unbuilt_task_types_say_so(self) -> None:
-        status, body = asyncio.run(handle_task(AUTH, request({"type": "converse", "input": "hi", "sessionId": "s"}), ENV))
-        self.assertEqual(status, 500)
-        self.assertIn('doesn\'t handle "converse" tasks yet', body["error"]["message"])
-        self.assertFalse(h.is_built("converse"))
+        original = h.HANDLERS["converse"]
+        h.HANDLERS["converse"] = h.not_yet("converse")
+        try:
+            status, body = asyncio.run(handle_task(AUTH, request({"type": "converse", "input": "hi", "sessionId": "s"}), ENV))
+            self.assertEqual(status, 500)
+            self.assertIn('doesn\'t handle "converse" tasks yet', body["error"]["message"])
+            self.assertFalse(h.is_built("converse"))
+        finally:
+            h.HANDLERS["converse"] = original
 
 
 if __name__ == "__main__":
