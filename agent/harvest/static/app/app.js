@@ -67,9 +67,9 @@
     }
     return [...by.values()].sort((a, b) => b.p_yes - a.p_yes);
   }
-  function who(trader, names) {
+  function who(trader, names, ext) {
     if (trader.startsWith("agent:")) return names.get(trader.slice(6)) || trader.slice(6);
-    if (trader.startsWith("ext:")) return "An outside agent";
+    if (trader.startsWith("ext:")) return (ext && ext.get(trader)) || "An outside agent";
     return "A player";
   }
   function sparkline(history, current) {
@@ -257,8 +257,10 @@
         const s = await api("/state");
         const names = new Map(s.personas.map((p) => [p.id, p.name]));
         const titles = new Map(s.markets.map((m) => [m.qid, m.title]));
+        const ext = new Map();
+        try { for (const b of (await api("/swarm")).recent || []) if (b.agent_id && b.name) ext.set(b.agent_id, b.name); } catch (e) { /* names are optional */ }
         feed.replaceChildren(...[...s.recent_trades].reverse().slice(0, 40).map((t) => h("div", { class: "feed-item" },
-          h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, who(t.trader, names)), ` bet ${Math.round(t.spend)} credits `,
+          h("span", { class: "tag " + t.side.toLowerCase() }, t.side), h("b", {}, who(t.trader, names, ext)), ` bet ${Math.round(t.spend)} credits `,
           h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, titles.get(t.qid) || t.qid), h("span", { class: "muted small" }, ` · ${ago(t.at)}`),
           t.rationale ? h("div", { class: "muted", style: "font-size:15px;margin-top:4px" }, t.rationale) : null)));
       } catch (e) { feed.replaceChildren(failure(e)); }
