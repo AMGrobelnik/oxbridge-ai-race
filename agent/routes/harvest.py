@@ -12,6 +12,7 @@ GET  /harvest/api/agents              self-description of the external agent API
 POST /harvest/api/agents/register     GET /harvest/api/agents/markets
 POST /harvest/api/agents/bet          GET /harvest/api/agents/{agent_id}
 POST /harvest/api/byo {name, world_model, token?, nickname?}   GET /harvest/api/byo/{model_id}
+GET  /harvest/api/news?since=<id>&commodity=&qid=&limit=   live agri news, tagged with commodities, regions and market qids
 """
 
 import asyncio
@@ -28,7 +29,7 @@ from fastapi.responses import JSONResponse
 
 from agent.challenge import game
 from agent.challenge.ratelimit import RateLimiter, client_ip
-from agent.harvest import byo, forecaster, ledger, market, scoring
+from agent.harvest import byo, forecaster, ledger, market, news, scoring
 from agent.harvest import fund as fund_mod
 from agent.harvest.market import STARTING_CREDITS, LiveBook, MarketError, clamp
 from agent.sealed.hashing import sha256_json
@@ -119,7 +120,8 @@ def _schedule_anchor() -> None:
 
 
 def _ensure_house_agents() -> None:
-    """Starts the background loop where house world models trade live markets on their forecasts."""
+    """Starts the background loop where house world models trade live markets on their forecasts, and the news poller."""
+    news.ensure_poller()
     interval = market.house_tick_s()
     if interval <= 0:
         return
@@ -289,6 +291,10 @@ AGENT_API_DOC: dict[str, Any] = {
         {"method": "POST", "path": "/harvest/api/byo", "body": {"name": "Heat first", "world_model": "<your theory, at most 1200 characters>"},
          "returns": "model_id, world_model_sha256, brier_holdout, rank vs the 8 house models and the market, per_question, rationales",
          "rate_limit": "6/min per IP", "note": "backtests your paragraph on the sealed holdout with the house forecaster; the same paragraph is never re-run"},
+        {"method": "GET", "path": "/harvest/api/news?since=<id>&commodity=<name>&qid=<qid>&limit=50",
+         "returns": "items (newest first): id, title, source, url, published_at, commodities, regions, qids (open markets it bears on), "
+                    "summary and direction (up/down/neutral, LLM hint, may be null); latest_id. Poll with since=<latest_id> for new items.",
+         "commodities": list(news.COMMODITIES), "note": "keyless RSS (Google News searches and agri trade feeds), refreshed every ~10 min"},
     ],
 }
 
@@ -548,6 +554,21 @@ def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
         _schedule_anchor()
         return JSONResponse({"agent_id": agent_id, "token": token, "credits": book.balance(agent_id), "credits_have_no_value": True, "world_model_sha256": wm_sha,
                              "entry": {"seq": entry["seq"], "hash": entry["hash"]}, "next": "GET /harvest/api/agents/markets, then POST /harvest/api/agents/bet"})
+
+    @app.get("/harvest/api/news")
+    async def news_route(since: int | None = None, commodity: str = "", qid: str = "", limit: int = 50) -> JSONResponse:
+        _ensure_house_agents()
+        book = await asyncio.to_thread(_book)
+        with book.lock:
+            by_spec: dict[str, list[str]] = {}
+            for q, m in book.markets.items():
+                if m["status"] == "open":
+                    by_spec.setdefault(str((book.meta.get(q) or {}).get("spec_id") or q.split("@")[0]), []).append(q)
+            spec = str((book.meta.get(qid) or {}).get("spec_id") or qid.split("@")[0]) if qid else ""
+        rows, latest = await asyncio.to_thread(news.query, since=since, commodity=commodity or None, spec=spec or None, limit=limit)
+        items = [{k: r[k] for k in ("id", "title", "source", "url", "published_at", "commodities", "regions", "summary", "direction")}
+                 | {"qids": [q for s in r["specs"] for q in by_spec.get(s, [])]} for r in rows]
+        return JSONResponse({"items": items, "latest_id": latest, "poller": news.status()}, headers=NO_STORE)
 
     @app.get("/harvest/api/agents/markets")
     async def agents_markets() -> JSONResponse:

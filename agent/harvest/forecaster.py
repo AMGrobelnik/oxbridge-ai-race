@@ -281,9 +281,12 @@ async def forecast(persona: Persona, questions: list[QuestionInstance], fixture:
 
 # ---------------------------------------------------------------- live prompt (live markets only; the replay prompt above is unchanged)
 def build_live_prompt(persona: Persona, questions: list[QuestionInstance], *, windows: dict[str, list[tuple[str, float]]],
-                      prices_now: dict[str, float], climate_lines: list[str], today: str) -> str:
-    """Unmasked live re-forecast: real names and months, latest price windows, climate context and the market's
-    current prices. Questions are labelled Q1..Qn in `questions` order; parse the answer with `_parse(text, n)`."""
+                      prices_now: dict[str, float], climate_lines: list[str], today: str,
+                      news: dict[str, list[str]] | None = None) -> str:
+    """Unmasked live re-forecast: real names and months, latest price windows, climate context, the market's
+    current prices and, per question, the latest relevant news headlines (`news`: qid -> lines; live only, the
+    sealed replay prompt never sees news). Questions are labelled Q1..Qn in `questions` order; parse the answer
+    with `_parse(text, n)`."""
     lines = [
         f"You are the forecasting agent \"{persona['name']}\" in a live agricultural prediction market. Today is {today}.",
         "Your world model (reason strictly from it):",
@@ -302,9 +305,14 @@ def build_live_prompt(persona: Persona, questions: list[QuestionInstance], *, wi
     for i, q in enumerate(questions, start=1):
         when = f", resolves {q['resolve_month']}" if q.get("resolve_month") else ""
         lines.append(f"Q{i}: {q['title']} [{q.get('region', '')}, {q.get('crop', '')}{when}; market {prices_now.get(q['qid'], 0.5):.2f}]")
+        headlines = (news or {}).get(q["qid"]) or []
+        if headlines:
+            lines.append("  Recent news, newest first:")
+            lines += [f"  - {h}" for h in headlines]
     lines += [
         "",
-        "For every question give your own probability that it resolves YES, as your world model sees it. Disagree with the market where your world model does.",
+        "For every question give your own probability that it resolves YES, as your world model sees it. Disagree with the market where your world model does."
+        + (" Weigh the recent news through your world model." if news else ""),
         'Answer only with JSON: {"forecasts": [{"qid": "Q1", "p_yes": 0.0-1.0, "rationale": "<=200 chars, in your world model\'s voice"}]}',
     ]
     return "\n".join(lines)

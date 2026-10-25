@@ -3,13 +3,14 @@
 Every LIVE_REFORECAST_S seconds (default 240) `maybe_reforecast`, called from `LiveBook.house_step`
 (which already runs off the event loop), starts one daemon thread that asks the next persona
 (round-robin) to re-forecast every open live market (hard and soft) in one batched Gemini call.
-The persona sees its world model, the latest price windows, the NOAA climate context and the
-current market prices. The answers replace that persona's forecasts in `book.agent_forecasts`,
-so `house_step` trades toward the new beliefs. Any failure keeps the old forecasts.
+The persona sees its world model, the latest price windows, the NOAA climate context, the
+current market prices and the latest relevant news headlines per market (agent/harvest/news.py).
+The answers replace that persona's forecasts in `book.agent_forecasts`, so `house_step` trades
+toward the new beliefs. Any failure keeps the old forecasts.
 
 HARVEST_OFFLINE=1, LIVE_REFORECAST_S=0 or a spent call budget (LIVE_REFORECAST_MAX_CALLS,
-default 120 per process) disables the LLM. Climate context is used here only; the sealed replay
-stays prices-only.
+default 120 per process) disables the LLM. Climate context and news are used here only; the
+sealed replay stays prices-only.
 """
 
 import logging
@@ -20,7 +21,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from . import climate, forecaster, prices
+from . import climate, forecaster, news, prices
 from .types import Persona, QuestionInstance
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
 TIMEOUT_S = 60.0
 FIRST_DELAY_S = 30.0
 WINDOW_MONTHS = 13
+NEWS_PER_MARKET = 6
 
 logger = logging.getLogger("agent")
 
@@ -94,8 +96,10 @@ def build(book: "LiveBook", persona: Persona) -> tuple[str, list[QuestionInstanc
             windows[sid] = prices.window(fixture, sid, pts[-1][0], WINDOW_MONTHS) if pts else []
     with book.lock:
         prices_now = {q["qid"]: book.price(q["qid"]) for q in questions}
-    prompt = forecaster.build_live_prompt(persona, questions, windows=windows, prices_now=prices_now,
-                                          climate_lines=_climate_lines(), today=datetime.now(UTC).strftime("%Y-%m-%d"))
+    by_spec = news.headlines_for([str(q.get("spec_id") or q["qid"]) for q in questions], per_spec=NEWS_PER_MARKET)
+    headlines = {q["qid"]: by_spec[s] for q in questions if (s := str(q.get("spec_id") or q["qid"])) in by_spec}
+    prompt = forecaster.build_live_prompt(persona, questions, windows=windows, prices_now=prices_now, climate_lines=_climate_lines(),
+                                          today=datetime.now(UTC).strftime("%Y-%m-%d"), news=headlines)
     return prompt, questions
 
 

@@ -8,7 +8,7 @@ Without an admin token a request may only reach:
   - the Sealed Verify map: POST /map/api/onboard|reverify (rate-limited per IP there);
   - POST /sealed/api/verify (read-only bundle check; capped here at PUBLIC_VERIFY_PER_MIN, default 12);
   - the AI Race verifier routes /agent-studio/v1/* (they check their own bearer token).
-  - Harvest: GET /harvest and everything under it; POST /harvest/api/join|bet|forecast|verify|byo|
+  - Harvest: GET /harvest and everything under it (incl. the /harvest/api/news feed); POST /harvest/api/join|bet|forecast|verify|byo|
     agents/register|agents/bet (each rate-limited per IP there).
 Everything else (starting Sealed runs, anchoring, co-sign approve/reject and
 listings, payments and buys, paid routes, API docs) needs `X-Admin-Token: <ADMIN_TOKEN>`:

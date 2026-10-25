@@ -179,3 +179,21 @@ def test_replay_prompt_stays_prices_only():
 
     assert "climate" not in inspect.getsource(forecaster.build_prompt).lower()
     assert "climate" not in inspect.getsource(replay).lower().replace("climate-pessimist", "")
+
+
+def test_live_prompt_has_news_headlines_and_replay_prompt_has_none():
+    from agent.harvest import news
+
+    news.store([{"title": "Italy declares drought emergency as durum fields wither", "url": "https://example.com/it",
+                 "source": "Grain wire", "published_at": "2026-10-22T12:00:00Z"},
+                {"title": "Cocoa prices slide as Ivory Coast crop improves", "url": "https://example.com/cocoa",
+                 "source": "Wire", "published_at": "2026-10-23T12:00:00Z"}])
+    prompt, qs = live_forecast.build(market.live_book(), PERSONA)
+    q2 = prompt.split("Q2: ", 1)[1]
+    assert "Recent news, newest first:" in q2 and "2026-10-22, Grain wire: Italy declares drought emergency" in q2
+    assert "Cocoa prices slide" not in prompt  # not relevant to these markets
+    assert "Weigh the recent news" in prompt
+    import inspect
+
+    assert "news" not in inspect.getsource(forecaster.build_prompt).lower()
+    assert "news" not in inspect.getsource(replay).lower()

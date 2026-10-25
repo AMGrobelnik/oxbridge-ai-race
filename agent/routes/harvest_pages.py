@@ -1,4 +1,4 @@
-"""The Crophecy pages /harvest, /harvest/play, /harvest/board, /harvest/terms, /harvest/qr.svg (SPEC.md section 12, addendum R3). Owner: UI.
+"""The Crophecy pages /harvest, /harvest/play, /harvest/board, /harvest/terms, /harvest/news, /harvest/qr.svg (SPEC.md section 12, addendum R3). Owner: UI.
 
 GET /harvest/api/story is a compact digest of the frozen replay for the pages (the full replay is ~2 MB of trades):
 per-quarter Brier and PnL per world model, the commodity price paths, the sealed holdout with its commitment, and the
@@ -18,7 +18,7 @@ from agent.routes import harvest as api
 from agent.routes.challenge import _qr_svg, public_base_url
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "harvest" / "static"
-PAGES = {"/harvest": "index.html", "/harvest/play": "play.html", "/harvest/board": "board.html", "/harvest/terms": "terms.html"}
+PAGES = {"/harvest": "index.html", "/harvest/play": "play.html", "/harvest/board": "board.html", "/harvest/terms": "terms.html", "/harvest/news": "news.html"}
 PRICES_FROM = "2021-01"
 _story_cache: dict[str, Any] = {}
 

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Crophecy News</title>
+<meta name="description" content="Live agriculture and commodity news feed the Crophecy world models read, tagged with commodities, regions and markets.">
+<style>
+  body { font: 15px/1.45 system-ui, sans-serif; margin: 0 auto; max-width: 900px; padding: 16px; background: #fff; color: #1b1b1b; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .muted { color: #666; font-size: 13px; }
+  form { margin: 12px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { padding: 10px 0; border-bottom: 1px solid #e5e5e5; }
+  li a { color: #0b4f9c; text-decoration: none; font-weight: 600; }
+  .tag { display: inline-block; font-size: 12px; padding: 0 6px; margin: 2px 4px 0 0; border-radius: 4px; background: #eef2e6; }
+  .q { background: #e6eef8; }
+  .up { color: #b42318; } .down { color: #067647; } .neutral { color: #666; }
+</style>
+</head>
+<body>
+<h1>News feed</h1>
+<p class="muted">Agriculture and commodity headlines the world models read, refreshed about every 10 minutes.
+  JSON for agents: <a href="/harvest/api/news">/harvest/api/news</a>. <a href="/harvest">Back to The Crophecy</a></p>
+<form id="f">
+  <select id="commodity"><option value="">all commodities</option></select>
+  <input id="qid" placeholder="market qid (optional)" size="28">
+  <button>Filter</button>
+</form>
+<p class="muted" id="status">Loading…</p>
+<ul id="list"></ul>
+<p class="muted">Play credits · no real money · no cash-out. <a href="/harvest/terms">Terms</a></p>
+<script>
+const COMMODITIES = ["wheat", "maize", "olive oil", "coffee", "cocoa", "sugar", "sunflower oil", "rice", "farmland", "water", "farm policy"];
+const sel = document.getElementById("commodity");
+for (const c of COMMODITIES) sel.append(new Option(c, c));
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; }
+async function load() {
+  const p = new URLSearchParams({ limit: "100" });
+  if (sel.value) p.set("commodity", sel.value);
+  const qid = document.getElementById("qid").value.trim();
+  if (qid) p.set("qid", qid);
+  const status = document.getElementById("status");
+  try {
+    const r = await fetch("/harvest/api/news?" + p);
+    const d = await r.json();
+    const list = document.getElementById("list");
+    list.replaceChildren();
+    for (const it of d.items) {
+      const li = el("li");
+      const a = el("a", "", it.title); a.href = it.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      li.append(a, el("div", "muted", `${it.source} · ${(it.published_at || "").replace("T", " ").slice(0, 16)}`));
+      if (it.summary) li.append(el("div", it.direction || "", `${it.direction === "up" ? "▲" : it.direction === "down" ? "▼" : "•"} ${it.summary}`));
+      const tags = el("div");
+      for (const c of it.commodities) tags.append(el("span", "tag", c));
+      for (const g of it.regions) tags.append(el("span", "tag", g));
+      for (const q of it.qids) tags.append(el("span", "tag q", q));
+      li.append(tags);
+      list.append(li);
+    }
+    status.textContent = `${d.items.length} items · latest id ${d.latest_id}`;
+  } catch (e) { status.textContent = "Could not load the feed."; }
+}
+document.getElementById("f").addEventListener("submit", e => { e.preventDefault(); load(); });
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
