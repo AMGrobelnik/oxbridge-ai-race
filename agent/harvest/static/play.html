@@ -21,8 +21,9 @@
   .chips-av { display: flex; gap: 6px; margin: 14px 0 18px; flex-wrap: wrap; }
   input.nick { width: 100%; font: 600 18px var(--sans); padding: 14px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); }
   .bigbtn { width: 100%; margin-top: 10px; padding: 14px; font-size: 17px; border-radius: 12px; }
-  .ptabs { display: grid; grid-template-columns: repeat(3, 1fr); position: sticky; top: var(--pb); z-index: 10; background: var(--bg); padding: 6px 0 8px; }
-  .ptabs .tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; grid-column: 1 / -1; }
+  .ptabs { display: grid; grid-template-columns: repeat(4, 1fr); position: sticky; top: var(--pb); z-index: 10; background: var(--bg); padding: 6px 0 8px; }
+  .ptabs .tabs { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; grid-column: 1 / -1; }
+  .ptabs .tabs button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 6px 4px; font-size: 13px; }
   .spend { display: flex; gap: 6px; align-items: center; margin: 6px 0 10px; font-size: 13px; color: var(--muted); }
   .spend button { border: 1px solid var(--line2); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: 600 13px var(--mono); }
   .spend button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
@@ -53,6 +54,22 @@
   .rk .v { font: 600 13px var(--mono); text-align: right; }
   h3.sub2 { font: 600 15px var(--display); margin: 18px 0 6px; }
   .intro { font-size: 13px; color: var(--muted); margin: 2px 0 10px; }
+  .exs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+  .exs button { border: 1px solid var(--line2); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: 600 12.5px var(--sans); }
+  .exs button:hover { border-color: var(--accent); }
+  textarea.theory { width: 100%; min-height: 150px; resize: vertical; margin-top: 8px; font: 400 15px/1.45 var(--sans); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line2); background: var(--panel); color: var(--ink); }
+  input.nick.small { font-size: 16px; padding: 11px 14px; }
+  .count { font: 600 11.5px var(--mono); color: var(--faint); text-align: right; margin-top: 4px; }
+  .busy { padding: 14px 16px; margin: 12px 0; font-size: 14px; }
+  .busy .bar { height: 4px; border-radius: 4px; background: var(--bg2); overflow: hidden; margin-top: 10px; }
+  .busy .bar i { display: block; height: 100%; width: 35%; border-radius: 4px; background: linear-gradient(90deg, var(--accent2), var(--heat)); animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+  @media (prefers-reduced-motion: reduce) { .busy .bar i { animation: none; width: 100%; opacity: .5; } }
+  .why { padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; text-align: left; }
+  .why .q { font-weight: 600; margin-bottom: 3px; }
+  .why .r { color: var(--muted); font-style: italic; }
+  .share { display: flex; gap: 8px; align-items: center; margin-top: 12px; text-align: left; }
+  .share code { flex: 1; font: 500 12px/1.35 var(--mono); color: var(--muted); background: var(--bg2); border-radius: 8px; padding: 8px 10px; }
 </style>
 </head>
 <body>
@@ -77,7 +94,7 @@
   </div>
 
   <div id="app" hidden>
-    <div class="ptabs"><div class="tabs" id="ptabs"><button data-tab="mk" class="on">Live bets</button><button data-tab="tm">Time machine</button><button data-tab="rank">Rank</button></div></div>
+    <div class="ptabs"><div class="tabs" id="ptabs"><button data-tab="mk" class="on">Live bets</button><button data-tab="tm">Time machine</button><button data-tab="th">Theory</button><button data-tab="rank">Rank</button></div></div>
     <div id="tab-mk">
       <div class="spend" id="spend">Stake <button data-v="10">10</button><button data-v="25" class="on">25</button><button data-v="50">50</button><button data-v="100">100</button></div>
       <p class="intro">Credits have no monetary value and cannot be bought, sold, transferred or withdrawn.</p>
@@ -88,6 +105,18 @@
       <div id="tm-result"></div>
       <div id="tm-list"></div>
       <button class="btn gold bigbtn" id="tm-submit">Lock in and reveal</button>
+    </div>
+    <div id="tab-th" hidden>
+      <p class="intro">Write your own world model in a paragraph: how do heat, politics and money move food prices? We commit it to the ledger, run it through the same Gemini forecaster as the eight agents on the same sealed holdout (commodity names and dates masked), and score it against them and the market.</p>
+      <div class="exs" id="th-ex"></div>
+      <form id="th-form">
+        <input class="nick small" id="th-name" maxlength="40" placeholder="Name your theory" autocomplete="off" required>
+        <textarea class="theory" id="th-text" maxlength="1200" placeholder="e.g. Heat is the binding constraint on Europe's harvest..." required></textarea>
+        <div class="count"><span id="th-count">0</span> / 1200</div>
+        <button class="btn gold bigbtn" id="th-btn" type="submit">Backtest my theory</button>
+      </form>
+      <div id="th-busy" class="panel busy" hidden><b id="th-step">Committing your theory to the ledger…</b><div class="muted" style="font-size:12.5px;margin-top:4px">Three sealed quarters, one forecaster call each. Usually under a minute.</div><div class="bar"><i></i></div></div>
+      <div id="th-result"></div>
     </div>
     <div id="tab-rank" hidden>
       <div class="result panel" id="me-card"></div>
