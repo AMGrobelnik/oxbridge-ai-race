@@ -1,0 +1,11 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets: never commit these.
+.env
+.env.local
+.env.*.local
+*.keypair.json

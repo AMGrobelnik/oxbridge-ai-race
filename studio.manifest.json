@@ -1,0 +1,196 @@
+{
+  "scaffoldVersion": "0.13.1",
+  "framework": "python",
+  "modules": [
+    "payments",
+    "spending",
+    "paidapi",
+    "gemini",
+    "race",
+    "paysh"
+  ],
+  "autoAddedModules": [],
+  "files": [
+    ".env.example",
+    ".gitignore",
+    "README.md",
+    "agent/__init__.py",
+    "agent/__main__.py",
+    "agent/ai/__init__.py",
+    "agent/ai/gemini.py",
+    "agent/commands/__init__.py",
+    "agent/commands/ask.py",
+    "agent/commands/buy.py",
+    "agent/commands/keygen.py",
+    "agent/commands/paysh.py",
+    "agent/commands/race.py",
+    "agent/commands/wallets.py",
+    "agent/config.py",
+    "agent/landing.py",
+    "agent/modules.py",
+    "agent/paidapi/__init__.py",
+    "agent/paidapi/buyer.py",
+    "agent/payments/__init__.py",
+    "agent/payments/client.py",
+    "agent/payments/config.py",
+    "agent/payments/server.py",
+    "agent/payments/transfer.py",
+    "agent/plugins.py",
+    "agent/race/__init__.py",
+    "agent/race/adapter.py",
+    "agent/race/handlers.py",
+    "agent/race/memory.py",
+    "agent/race/protocol.py",
+    "agent/race/tools.py",
+    "agent/routes/__init__.py",
+    "agent/routes/buy.py",
+    "agent/routes/chat.py",
+    "agent/routes/premium_data.py",
+    "agent/routes/race.py",
+    "agent/server.py",
+    "agent/spending/__init__.py",
+    "agent/spending/attach.py",
+    "agent/spending/policy.py",
+    "agent/spending/tracker.py",
+    "pyproject.toml",
+    "requirements-dev.txt",
+    "requirements.txt",
+    "studio.manifest.json",
+    "tests/test_agent.py",
+    "tests/test_paysh.py",
+    "tests/test_race.py",
+    "tests/test_spending.py",
+    "tests/test_spending_x402.py",
+    "tests/test_transfer.py"
+  ],
+  "dependencies": {
+    "fastapi": "0.143.0",
+    "google-genai": "2.29.0",
+    "httpx": "0.28.1",
+    "python-dotenv": "1.2.4",
+    "solana": "0.38.0",
+    "solders": "0.27.1",
+    "uvicorn": "0.54.0",
+    "x402[httpx,svm]": "2.25.0"
+  },
+  "devDependencies": {
+    "pyright[nodejs]": "1.1.414"
+  },
+  "scripts": {
+    "agent": "python -m agent",
+    "dev": "python -m agent serve --reload",
+    "start": "python -m agent serve",
+    "test": "python -m unittest discover -s tests -v",
+    "typecheck": "pyright",
+    "keygen": "python -m agent keygen",
+    "wallets": "python -m agent wallets",
+    "test:spending": "python -m unittest discover -s tests -p \"test_spending*.py\" -v",
+    "buy": "python -m agent buy",
+    "ask": "python -m agent ask",
+    "race": "python -m agent race",
+    "paysh": "python -m agent paysh"
+  },
+  "env": [
+    {
+      "key": "PAY_TO_ADDRESS",
+      "required": true,
+      "secret": false,
+      "module": "payments"
+    },
+    {
+      "key": "X402_NETWORK",
+      "required": false,
+      "secret": false,
+      "module": "payments"
+    },
+    {
+      "key": "X402_FACILITATOR_URL",
+      "required": false,
+      "secret": false,
+      "module": "payments"
+    },
+    {
+      "key": "AGENT_PRIVATE_KEY",
+      "required": false,
+      "secret": true,
+      "module": "payments"
+    },
+    {
+      "key": "SOLANA_RPC_URL",
+      "required": false,
+      "secret": false,
+      "module": "payments"
+    },
+    {
+      "key": "AGENT_BUDGET_USD",
+      "required": false,
+      "secret": false,
+      "module": "spending"
+    },
+    {
+      "key": "MAX_PAYMENT_USD",
+      "required": false,
+      "secret": false,
+      "module": "spending"
+    },
+    {
+      "key": "PAID_API_PRICE_USD",
+      "required": false,
+      "secret": false,
+      "module": "paidapi"
+    },
+    {
+      "key": "GEMINI_API_KEY",
+      "required": true,
+      "secret": true,
+      "module": "gemini"
+    },
+    {
+      "key": "GEMINI_MODEL",
+      "required": false,
+      "secret": false,
+      "module": "gemini"
+    },
+    {
+      "key": "AGENT_STUDIO_VERIFIER_TOKEN",
+      "required": true,
+      "secret": true,
+      "module": "race"
+    },
+    {
+      "key": "AGENT_STUDIO_APP_NAME",
+      "required": false,
+      "secret": false,
+      "module": "race"
+    },
+    {
+      "key": "UPSTASH_REDIS_REST_URL",
+      "required": false,
+      "secret": false,
+      "module": "race"
+    },
+    {
+      "key": "UPSTASH_REDIS_REST_TOKEN",
+      "required": false,
+      "secret": true,
+      "module": "race"
+    },
+    {
+      "key": "PAYSH_SERVICE_URL",
+      "required": false,
+      "secret": false,
+      "module": "paysh"
+    }
+  ],
+  "prerequisites": [
+    "Python 3.10 or newer (3.12 recommended)",
+    "A Solana devnet address to receive test payments (PAY_TO_ADDRESS); `python -m agent keygen --pay-to` makes one",
+    "To pay: a throwaway devnet keypair (`python -m agent keygen`) funded with devnet USDC from https://faucet.circle.com (no real money)",
+    "The receiving address also needs a devnet USDC token account: send it faucet USDC once",
+    "Google account",
+    "Gemini API key from Google AI Studio (free tier is enough)",
+    "A team on Agent Studio (for the verifier token)",
+    "A public https:// URL when you race (deploy, or a tunnel such as ngrok)",
+    "The Pay.sh CLI: brew install pay, or npm install -g @solana/pay"
+  ]
+}
