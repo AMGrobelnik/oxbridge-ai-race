@@ -96,7 +96,8 @@
   const NAV = [["/app", "Home", "home"], ["/app/markets", "Markets", "markets"], ["/app/live", "Live", "live"],
     ["/app/theory", "Theory", "theory"], ["/app/scenario", "Scenarios", "scenario"], ["/app/leaderboard", "Leaderboard", "board"],
     ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"], ["/app/map", "Map", "map"],
-    ["/app/disagreement", "Disagreement", "disagreement"], ["/app/farmer", "Farmer", "farmer"]];
+    ["/app/disagreement", "Disagreement", "disagreement"], ["/app/farmer", "Farmer", "farmer"], ["/app/season", "Season", "season"],
+    ["/app/developers", "Developers", "developers"]];
   function badgeText() {
     const me = load();
     return me && me.token ? `${me.username ? "@" + me.username : me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";
@@ -538,7 +539,7 @@
     const title = swarm ? (a.name || "").replace(/^🤖\s*/, "") : `@${a.username}`;
     const sub = (swarm ? [`@${a.username}`, labels.swarm || "Swarm"] : [a.name && a.name !== a.username ? a.name : null, labels[a.category] || a.category]).filter(Boolean).join(" · ");
     return h("div", { class: "acct" }, h("div", { class: "rank" }, h("span", { class: "n" }, a.brier_holdout == null ? "–" : i + 1),
-      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", title, badge,
+      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", h("a", { href: `/app/agent/${encodeURIComponent(a.username)}`, style: "color:inherit" }, title), badge,
         h("span", { class: "sub" }, sub)),
       h("span", { class: "sc" }, a.brier_holdout == null ? h("small", {}, "not scored yet") : [b3(a.brier_holdout),
         a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])),
