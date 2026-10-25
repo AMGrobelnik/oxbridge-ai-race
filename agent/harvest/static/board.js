@@ -34,10 +34,13 @@
       }
       n += 1;
       const li = el("li");
-      li.append(el("span", "n", n), H.avatar(m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, 22), el("span", "nm", m.name), el("span", "v", b3(m.brier_holdout)));
+      li.append(el("span", "n", n), H.avatar(m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, 22), el("span", "nm", m.name), el("span", "v", b3(m.brier_holdout) + (m.brier_holdout_lo != null ? ` ±${((m.brier_holdout_hi - m.brier_holdout_lo) / 2).toFixed(2)}` : "")));
+      if (m.beats_market_ci) li.classList.add("beats");
       ul.append(li);
     }
     document.getElementById("ins").textContent = lb.insight || "";
+    const note = document.getElementById("lb-note");
+    if (note) note.textContent = lb.interval ? lb.interval.note : "";
     const hum = document.getElementById("hum");
     hum.innerHTML = "";
     const rows = lb.world_models.filter((m) => m.pnl_live != null).map((m) => ({ id: m.origin === "house" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))

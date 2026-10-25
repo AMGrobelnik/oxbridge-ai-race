@@ -265,3 +265,10 @@ footer.foot { padding: 30px 0 40px; color: var(--faint); font-size: 12.5px; }
   .cards, .sm, .how, .aud { grid-template-columns: 1fr; }
   .alloc .row { grid-template-columns: 110px 1fr 54px; }
 }
+
+/* honest error bars: 90% bootstrap interval whisker over the Brier bar */
+.bbar .ci { position: absolute; top: 2px; height: 2px; background: var(--ink); opacity: .55; border-radius: 1px; }
+.bbar .ci::before, .bbar .ci::after { content: ""; position: absolute; top: -2px; width: 1px; height: 6px; background: var(--ink); }
+.bbar .ci::before { left: 0; } .bbar .ci::after { right: 0; }
+.ci-pm { color: var(--muted); font-size: .85em; }
+.lb-note { margin: 0; padding: 8px 14px 12px; font-size: 12px; color: var(--muted); }

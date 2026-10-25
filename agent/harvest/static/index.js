@@ -194,12 +194,23 @@
       td.append(nm);
       tr.append(td);
       const bh = el("td", "num", b3(m.brier_holdout));
+      if (m.brier_holdout != null && m.brier_holdout_lo != null) {
+        const half = (m.brier_holdout_hi - m.brier_holdout_lo) / 2;
+        bh.append(el("span", "ci-pm", ` ± ${half.toFixed(2)}`));
+        bh.title = `90% interval ${b3(m.brier_holdout_lo)} to ${b3(m.brier_holdout_hi)}` + (m.diff_vs_market_lo != null ? `; gap to market ${m.diff_vs_market >= 0 ? "+" : ""}${m.diff_vs_market.toFixed(3)} (${m.diff_vs_market_lo.toFixed(3)} to ${m.diff_vs_market_hi.toFixed(3)})${m.beats_market_ci ? ", beats the market" : ", within noise"}` : "");
+      }
       if (m.brier_holdout != null) {
         const bar = el("div", "bbar");
         const i = el("i");
         i.style.width = `${Math.min(100, (100 * m.brier_holdout) / maxB)}%`;
         i.style.background = m.color || "var(--accent)";
         bar.append(i);
+        if (m.brier_holdout_lo != null) {
+          const w = el("span", "ci");
+          w.style.left = `${Math.min(100, (100 * m.brier_holdout_lo) / maxB)}%`;
+          w.style.width = `${Math.max(0, Math.min(100, (100 * m.brier_holdout_hi) / maxB) - Math.min(100, (100 * m.brier_holdout_lo) / maxB))}%`;
+          bar.append(w);
+        }
         if (lb.baselines.market != null) { const mk = el("span", "mk"); mk.style.left = `${(100 * lb.baselines.market) / maxB}%`; mk.title = "market baseline"; bar.append(mk); }
         bh.append(bar);
       }
@@ -211,6 +222,8 @@
       lbTable.append(tr);
     }
     while (baseQueue.length) lbTable.append(mkBase(baseQueue.shift()));
+    const note = document.getElementById("lb-note");
+    if (note && lb.interval) note.textContent = `Whiskers and ± show the ${lb.interval.note}; if the whisker spans the market tick, the model is within noise of the market.`;
     const ins = lb.insight || state.insight;
     if (ins) { document.getElementById("insight").hidden = false; document.getElementById("insight-text").textContent = ins; }
   }
