@@ -85,7 +85,7 @@ async def run_scenario(raw: dict[str, Any]) -> dict[str, Any]:
     llm = _llm_cache.get(k)
     exposed = scenario.exposed(rows)
     if llm is None and exposed and (k in _inflight or fast_llm.available()):
-        task = _llm_job(k, exposed, personas, scen)
+        task = _llm_job(k, exposed, scenario.llm_personas(personas), scen)
         try:
             llm = await asyncio.wait_for(asyncio.shield(task), max(0.5, deadline_s() - (time.monotonic() - started)))
         except TimeoutError:
@@ -111,7 +111,7 @@ async def warm() -> None:
         exposed = scenario.exposed(scenario.deterministic(views, personas, scen))
         if exposed:
             try:
-                await _llm_job(k, exposed, personas, scen)
+                await _llm_job(k, exposed, scenario.llm_personas(personas), scen)
             except Exception:  # noqa: BLE001 - warming is best effort
                 continue
 

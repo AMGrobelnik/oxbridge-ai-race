@@ -159,3 +159,14 @@ def test_news_window_marks_old_headlines():
     items = [{"title": "old", "published_at": "2020-01-01T00:00:00Z"}]
     out = why.news_in_window(items, "2026-10-25T10:00:00Z")
     assert out[0]["in_window"] is False
+
+
+def test_persona_x_model_ids_keep_their_world_model_and_llm_takes_one_per_base():
+    ps = [{**p, "id": f"{p['id']}--phi-4", "name": p["name"] + " · Phi-4"} for p in PERSONAS] + [{**PERSONAS[0], "id": "climate-pessimist--gemma"}]
+    m = {"qid": "x", "title": "t", "region": "Spain", "crop": "olive oil", "rule": HARD["rule"], "p_yes": 0.4, "agent_forecasts": []}
+    row = scenario.deterministic([m], ps, scenario.normalize(HEAT))[0]
+    a = {x["persona_id"]: x for x in row["agents"]}
+    assert a["climate-pessimist--phi-4"]["delta"] > a["adaptation-optimist--phi-4"]["delta"] > 0
+    assert a["climate-pessimist--phi-4"]["rationale"].startswith("Heat compounds")
+    chosen = scenario.llm_personas(ps)
+    assert [p["id"] for p in chosen] == ["climate-pessimist--phi-4", "adaptation-optimist--phi-4"]

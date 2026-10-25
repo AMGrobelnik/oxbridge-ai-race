@@ -42,6 +42,10 @@ DEFAULT_WEIGHTS = (0.3, 0.8, 0.1)
 # How strongly each persona's world model lets climate stress move its forecast.
 SENSITIVITY = {"climate-pessimist": 1.6, "agronomist": 1.3, "efficient-market-skeptic": 1.1, "geopolitics-hawk": 0.8,
                "land-grab-realist": 0.7, "macro-dollar": 0.6, "adaptation-optimist": 0.45, "crowd-follower": 0.5}
+SENSITIVITY.update({"narr-env-ngos": 1.5, "narr-copa-cogeca": 1.2, "narr-fao": 0.9, "narr-eu-dgagri": 0.8, "narr-ifpri-glauber": 0.8,
+                    "narr-usda-wasde": 0.7, "narr-imf": 0.6, "narr-irwin-farmdoc": 0.6})
+# The personas the LLM role-plays (most distinct views first); the others use the world-model rules.
+LLM_PERSONAS = ("climate-pessimist", "adaptation-optimist", "agronomist", "geopolitics-hawk", "narr-copa-cogeca", "narr-imf")
 VOICE = {"climate-pessimist": "Heat compounds every shock", "agronomist": "In the field this means yield loss",
          "efficient-market-skeptic": "The market will underprice this", "geopolitics-hawk": "Stress feeds export politics",
          "land-grab-realist": "Scarcity pulls in land buyers", "macro-dollar": "Weather is second to the dollar",
@@ -119,11 +123,29 @@ def latest_forecasts(agent_forecasts: list[dict[str, Any]]) -> dict[str, dict[st
     return by
 
 
+def base_id(persona_id: str) -> str:
+    """'climate-pessimist--phi-4' (persona x model) -> 'climate-pessimist'."""
+    return persona_id.split("--", 1)[0]
+
+
+def llm_personas(personas: list[Persona], k: int = len(LLM_PERSONAS)) -> list[Persona]:
+    """Up to k personas for the LLM, one per base world model, most distinct views first."""
+    rank = {pid: i for i, pid in enumerate(LLM_PERSONAS)}
+    seen: set[str] = set()
+    out = []
+    for p in sorted(personas, key=lambda p: rank.get(base_id(p["id"]), len(rank))):
+        if base_id(p["id"]) not in seen:
+            seen.add(base_id(p["id"]))
+            out.append(p)
+    return out[:k]
+
+
 def _rationale(persona_id: str, drivers: list[str], delta: float) -> str:
     if not drivers or abs(delta) < 0.005:
         return "This scenario barely touches this market, so I hold my view."
     move = "raise" if delta > 0 else "cut"
-    return f"{VOICE.get(persona_id, 'My world model reacts')}: {', '.join(drivers)}, so I {move} YES by {abs(delta) * 100:.0f} points."
+    voice = VOICE.get(base_id(persona_id)) or ("From this institution's outlook" if persona_id.startswith("narr-") else "My world model reacts")
+    return f"{voice}: {', '.join(drivers)}, so I {move} YES by {abs(delta) * 100:.0f} points."
 
 
 def deterministic(markets: list[dict[str, Any]], personas: list[Persona], scenario: dict[str, Any]) -> list[dict[str, Any]]:
@@ -136,7 +158,7 @@ def deterministic(markets: list[dict[str, Any]], personas: list[Persona], scenar
         agents = []
         for p in personas:
             base = float((latest.get(p["id"]) or {}).get("p_yes", m["p_yes"]))
-            scen = clamp(sigmoid(logit(base) + signed * SENSITIVITY.get(p["id"], 1.0)))
+            scen = clamp(sigmoid(logit(base) + signed * SENSITIVITY.get(base_id(p["id"]), 1.0)))
             agents.append({"persona_id": p["id"], "name": p["name"], "color": p.get("color", "#888888"), "baseline": round(base, 4),
                            "scenario": round(scen, 4), "delta": round(scen - base, 4), "rationale": _rationale(p["id"], drivers, scen - base),
                            "source": "fallback"})
@@ -153,7 +175,7 @@ def finish(rows: list[dict[str, Any]], prices: dict[str, float], top: int = 3) -
         base = prices[r["qid"]]
         scen = clamp(sigmoid(logit(base) + (sum(shifts) / len(shifts) if shifts else 0.0)))
         r.update(baseline=round(base, 4), scenario=round(scen, 4), delta=round(scen - base, 4))
-        movers = sorted(r["agents"], key=lambda a: -abs(a["delta"]))[:top]
+        movers = sorted(r["agents"], key=lambda a: (a["source"] == "fallback", -abs(a["delta"])))[:top]  # LLM voices first
         r["rationales"] = [{"persona_id": a["persona_id"], "name": a["name"], "delta": a["delta"], "text": a["rationale"], "source": a["source"]}
                            for a in movers]
     rows.sort(key=lambda r: -abs(r["delta"]))
