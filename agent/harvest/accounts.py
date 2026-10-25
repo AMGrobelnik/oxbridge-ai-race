@@ -11,7 +11,11 @@ The one filterable leaderboard puts every account in one category:
   verified  sourced narrative personas (origin "narrative")
   house     the house world models
   baseline  simple quant models (baseline_models.py), no LLM
-  users     pilots: humans who joined and agents registered through the API or "write your theory"
+  swarm     the agent swarm (swarm.py): persona x model bots, owner SWARM_OWNER, shown by their persona · model name
+  agents    other agents registered through the API or "write your theory"
+  users     pilots: real humans who joined, and nobody else
+
+Swarm accounts that registered before usernames existed get a deterministic bot-<name>-xxxx instead of pilot-xxxx.
 """
 
 import hashlib
@@ -25,8 +29,11 @@ USERNAME_RULE = "3-24 characters: lowercase letters, digits, - and _, starting w
 """Also no '--', which house agent ids use."""
 RESERVED = frozenset({"admin", "administrator", "root", "system", "market", "the-market", "house", "croppy", "crophecy",
                       "moderator", "mod", "support", "staff", "official", "null", "undefined", "anonymous", "you"})
-CATEGORIES = ("verified", "house", "baseline", "users")
-CATEGORY_LABELS = {"verified": "Verified", "house": "House", "baseline": "Baseline models", "users": "Pilots"}
+CATEGORIES = ("verified", "house", "baseline", "swarm", "agents", "users")
+CATEGORY_LABELS = {"verified": "Verified", "house": "House", "baseline": "Baseline models", "swarm": "Swarm", "agents": "Pilot agents",
+                   "users": "Pilots"}
+SWARM_OWNER = "swarm (AI agents)"
+"""The owner every agent-swarm account registers with (swarm.py); it marks the account as a bot."""
 VERIFIED_LABEL = "based on public statements; not endorsed"
 NARRATIVE = "narrative"
 
@@ -72,19 +79,37 @@ def legacy_username(trader_id: str, taken: Callable[[str], bool]) -> str:
     return f"pilot-{digest}"
 
 
+def swarm_username(trader_id: str, taken: Callable[[str], bool], *, name: str = "") -> str:
+    """Deterministic bot-<persona-model>-xxxx for a swarm account recorded without a username."""
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    digest = hashlib.sha256(f"crophecy-swarm-username:v1:{trader_id}".encode()).hexdigest()
+    for width in range(4, len(digest) + 1):
+        head = ("bot-" + slug)[: 24 - 1 - width].rstrip("-") if slug else "bot"
+        cand = f"{head}-{digest[:width]}"
+        if not taken(cand):
+            return cand
+    return f"bot-{digest}"
+
+
+def is_swarm(info: dict[str, Any] | None) -> bool:
+    """True for an agent-swarm account (registered with owner SWARM_OWNER)."""
+    return (info or {}).get("owner") == SWARM_OWNER
+
+
 def user_id_for(username: str) -> str:
     """The human trader id: a hash of the username, in its own namespace so it never matches an older nickname id."""
     return "user:" + hashlib.sha256(f"crophecy-username:v1:{username}".encode()).hexdigest()[:12]
 
 
-def claim(usernames: dict[str, str], trader: str, wanted: Any, *, reserved: Callable[[str], bool] = lambda _n: False) -> str:
-    """Assigns `trader` a username in `usernames` (username -> trader): `wanted` when valid and free, else a legacy one."""
+def claim(usernames: dict[str, str], trader: str, wanted: Any, *, reserved: Callable[[str], bool] = lambda _n: False,
+          legacy: Callable[[str, Callable[[str], bool]], str] = legacy_username) -> str:
+    """Assigns `trader` a username in `usernames` (username -> trader): `wanted` when valid and free, else `legacy`'s."""
     try:
         name = normalise_username(wanted) if wanted else ""
     except UsernameError:
         name = ""
     if not name or usernames.get(name, trader) != trader or reserved(name):
-        name = legacy_username(trader, lambda n: n in usernames or reserved(n))
+        name = legacy(trader, lambda n: n in usernames or reserved(n))
     usernames[name] = trader
     return name
 
@@ -142,8 +167,8 @@ def board(world_models: list[dict[str, Any]], *, personas: list[dict[str, Any]],
         info = traders.get(pid)
         base = {"id": pid, "name": m.get("name", pid), "color": m.get("color"), "origin": m.get("origin"), **_score_fields(m)}
         if info is not None:  # registered through the agent API or "write your theory"
-            rows.append({**base, "username": info.get("username") or system_username(pid), "type": "agent", "category": "users",
-                         "verified": False, "owner": info.get("owner")})
+            rows.append({**base, "username": info.get("username") or system_username(pid), "type": "agent",
+                         "category": "swarm" if is_swarm(info) else "agents", "verified": False, "owner": info.get("owner")})
             continue
         persona = _persona_for(pid, index)
         row = {**base, "username": system_username(pid), "type": "agent", "category": "house", "verified": False}

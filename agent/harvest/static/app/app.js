@@ -212,8 +212,8 @@
 
   // ------------------------------------------------------------ pages
   function waitlistBox(stats) {
-    const contact = h("input", { type: "text", maxlength: "254", placeholder: "Email or handle, e.g. @maria", "aria-label": "Email or handle", autocomplete: "email" });
-    const note = h("textarea", { class: "note", maxlength: "280", placeholder: "Anything we should know? (optional)", "aria-label": "Note" });
+    const contact = h("input", { type: "email", maxlength: "254", placeholder: "Email, e.g. maria@example.org", "aria-label": "Email", autocomplete: "email" });
+    const note = h("input", { type: "text", maxlength: "60", placeholder: "Your role, e.g. farmer or trader (optional)", "aria-label": "Role" });
     const msg = h("p");
     const go = h("button", { class: "btn primary", style: "width:100%", onclick: async () => {
       go.disabled = true;
@@ -227,7 +227,7 @@
       go.disabled = false;
     } }, "Request early access");
     return h("div", { class: "card", id: "waitlist" }, h("h2", { style: "margin-top:0" }, "Request early access"),
-      h("p", { class: "muted" }, "Leave an email or a handle and we'll let you in when the next round opens."), contact, note, go, msg);
+      h("p", { class: "muted" }, "Leave your email and we'll let you in when the next round opens."), contact, note, go, msg);
   }
   async function drawStats(node) {
     try {
@@ -522,7 +522,9 @@
   }
 
   const TYPE_ICON = { human: "👤", agent: "🤖" };
-  const LB_FILTERS = [["all", "All"], ["verified", "✓ Verified"], ["house", "House"], ["baseline", "Baselines"], ["users", "Pilots"]];
+  const LB_FILTERS = [["all", "All"], ["verified", "✓ Verified"], ["house", "House"], ["baseline", "Baselines"], ["swarm", "🤖 Swarm"], ["agents", "Pilot agents"], ["users", "Pilots"]];
+  const LB_PAGE = 25;
+  const OWN_ID = new Set(["users", "agents", "swarm"]); // accounts followed by their own id; house agents by agent:<id>
   function accountRow(a, i, labels) {
     const srcBox = h("div", { class: "sources", hidden: true });
     const badge = a.verified ? h("button", { class: "vbadge", title: a.verified_label || "Verified", onclick: () => { srcBox.hidden = !srcBox.hidden; } }, "✓") : null;
@@ -531,13 +533,15 @@
         (a.sources || []).length ? h("ul", {}, a.sources.map((s) => h("li", {}, s.url ? h("a", { href: s.url, target: "_blank", rel: "noopener" }, s.title || s.url) : s.title)))
           : h("p", { class: "small muted" }, "Sources are listed in the persona file."));
     }
-    const sub = [a.name && a.name !== a.username ? a.name : null, labels[a.category] || a.category].filter(Boolean).join(" · ");
+    const swarm = a.category === "swarm"; // a bot: its persona · model name leads, the handle goes underneath
+    const title = swarm ? (a.name || "").replace(/^🤖\s*/, "") : `@${a.username}`;
+    const sub = (swarm ? [`@${a.username}`, labels.swarm || "Swarm"] : [a.name && a.name !== a.username ? a.name : null, labels[a.category] || a.category]).filter(Boolean).join(" · ");
     return h("div", { class: "acct" }, h("div", { class: "rank" }, h("span", { class: "n" }, a.brier_holdout == null ? "–" : i + 1),
-      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", `@${a.username}`, badge,
+      h("span", { class: "nm" }, h("span", { title: a.type === "human" ? "Human" : "Agent" }, TYPE_ICON[a.type] || "🤖"), " ", title, badge,
         h("span", { class: "sub" }, sub)),
       h("span", { class: "sc" }, a.brier_holdout == null ? h("small", {}, "not scored yet") : [b3(a.brier_holdout),
         a.brier_holdout_lo != null ? h("small", {}, `${b3(a.brier_holdout_lo)} to ${b3(a.brier_holdout_hi)}`) : null])),
-      a.category === "baseline" ? null : h("div", { class: "follow-row" }, followControls(a.category === "users" ? a.id : `agent:${a.id}`)), srcBox);
+      a.category === "baseline" ? null : h("div", { class: "follow-row" }, followControls(OWN_ID.has(a.category) ? a.id : `agent:${a.id}`)), srcBox);
   }
 
   async function leaderboard() {
@@ -547,11 +551,15 @@
     const lb = s.leaderboard, all = lb.accounts || [], labels = lb.category_labels || {};
     let filter = new URLSearchParams(location.search).get("filter") || "all";
     const chips = h("div", { class: "chips" }), rows = h("div");
+    let shown = LB_PAGE;
     function draw() {
-      chips.replaceChildren(...LB_FILTERS.map(([k, label]) => h("button", { class: "chip" + (k === filter ? " on" : ""), onclick: () => { filter = k; draw(); } },
+      chips.replaceChildren(...LB_FILTERS.map(([k, label]) => h("button", { class: "chip" + (k === filter ? " on" : ""), onclick: () => { filter = k; shown = LB_PAGE; draw(); } },
         `${label} ${k === "all" ? all.length : (lb.categories || {})[k] || 0}`)));
       const hits = all.filter((a) => filter === "all" || a.category === filter);
-      rows.replaceChildren(...(hits.length ? hits.map((a, i) => accountRow(a, i, labels)) : [h("p", { class: "muted" }, "Nobody here yet.")]));
+      const more = hits.length > shown ? h("button", { class: "btn", style: "width:100%;margin-top:10px", onclick: () => { shown += LB_PAGE; draw(); } },
+        `Show more (${Math.min(LB_PAGE, hits.length - shown)} of ${hits.length - shown} left)`) : null;
+      rows.replaceChildren(...(hits.length ? hits.slice(0, shown).map((a, i) => accountRow(a, i, labels)) : [h("p", { class: "muted" }, "Nobody here yet.")]),
+        ...(more ? [more] : []));
     }
     draw();
     const verifyOut = h("div");

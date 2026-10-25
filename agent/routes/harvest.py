@@ -211,8 +211,8 @@ def leaderboard_view(book: LiveBook) -> dict[str, Any]:
 
 
 def pilots(book: LiveBook) -> int:
-    """Users category: humans who joined plus agents registered through the API or "write your theory"."""
-    return sum(1 for t in book.traders.values() if t["kind"] in ("human", "external"))
+    """Pilots: real humans who joined (never agents, swarm bots included)."""
+    return book.users()
 
 
 def record_account(book: LiveBook, *, kind: str, trader: str | None, payload: dict[str, Any], wanted: Any) -> tuple[Any, str, str]:

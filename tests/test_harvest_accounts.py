@@ -1,7 +1,9 @@
 """Accounts (usernames, type tags, verified badge, categories), baseline models, the agent view and the waitlist. Offline."""
 
+import json
 import re
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -80,14 +82,36 @@ def test_agent_register_takes_or_generates_a_username(client):
     assert client.get(f"/harvest/api/agents/{named['agent_id']}").json()["username"] == "drought-bear"
 
 
-# ---------------------------------------------------------------- one leaderboard, four categories
+def test_legacy_swarm_accounts_become_bots_in_place(client):
+    """Swarm bots recorded before usernames existed keep their id, get a bot- handle and leave the pilots."""
+    name = "\U0001f916 Climate Pessimist · gemini-2.5-lite"
+    ledger.append(kind="agent", trader="ext:climate-pessimist-gemi-abc123", payload={"name": name, "owner": accounts.SWARM_OWNER, "world_model": "x"})
+    client.post("/harvest/api/join", json={"username": "real-human"})
+    market.reset_live_book()
+    book = market.live_book()
+    handle = book.traders["ext:climate-pessimist-gemi-abc123"]["username"]
+    assert re.fullmatch(r"bot-climate-pessimi-[0-9a-f]{4,}", handle) and len(handle) <= 24
+    market.reset_live_book()
+    assert market.live_book().traders["ext:climate-pessimist-gemi-abc123"]["username"] == handle  # deterministic
+    rows = {r["id"]: r for r in client.get("/harvest/api/leaderboard").json()["accounts"]}
+    bot = rows["ext:climate-pessimist-gemi-abc123"]
+    assert bot["category"] == "swarm" and bot["type"] == "agent" and bot["name"] == name and bot["username"] == handle
+    assert client.get("/harvest/api/waitlist/count").json()["pilots"] == 1
+
+
+# ---------------------------------------------------------------- one leaderboard, six categories
 def test_leaderboard_lists_every_account_with_category_and_type(client):
     client.post("/harvest/api/join", json={"username": "human-one"})
     client.post("/harvest/api/agents/register", json={"name": "Bot", "world_model": "Prices trend.", "username": "bot-one"})
+    client.post("/harvest/api/agents/register", json={"name": "\U0001f916 Agronomist · phi-4", "world_model": "Yields first.",
+                                                      "owner": accounts.SWARM_OWNER, "username": "bot-agronomist-phi-1234"})
     lb = client.get("/harvest/api/leaderboard").json()
     rows = {r["username"]: r for r in lb["accounts"]}
     assert rows["human-one"]["category"] == "users" and rows["human-one"]["type"] == "human"
-    assert rows["bot-one"]["category"] == "users" and rows["bot-one"]["type"] == "agent"
+    assert rows["bot-one"]["category"] == "agents" and rows["bot-one"]["type"] == "agent"
+    assert rows["bot-agronomist-phi-1234"]["category"] == "swarm" and rows["bot-agronomist-phi-1234"]["type"] == "agent"
+    assert lb["categories"]["users"] == 1 and lb["categories"]["swarm"] == 1 and lb["category_labels"]["swarm"] == "Swarm"
+    assert client.get("/harvest/api/waitlist/count").json()["pilots"] == 1  # humans only
     assert {u for u, r in rows.items() if r["category"] == "baseline"} == set(baseline_models.USERNAMES)
     origins = [m["origin"] for m in lb["world_models"]]
     assert lb["categories"]["house"] == origins.count("house") and lb["categories"]["verified"] == origins.count("narrative")
@@ -110,7 +134,7 @@ def test_narrative_personas_are_verified_with_sources():
     assert fao["sources"] == [{"title": "Food Outlook", "url": "https://www.fao.org/x"}, {"title": "https://example.org/y", "url": "https://example.org/y"},
                               {"title": "Price index brief (2025-07)", "url": "https://www.fao.org/z"}]
     assert rows[0]["username"] == "climate-pessimist" and rows[0]["category"] == "house" and not rows[0]["verified"]
-    assert accounts.category_counts(rows) == {"verified": 1, "house": 1, "baseline": 0, "users": 0}
+    assert accounts.category_counts(rows) == {"verified": 1, "house": 1, "baseline": 0, "swarm": 0, "agents": 0, "users": 0}
 
 
 def test_baselines_reuse_the_scoring_baselines(client):
@@ -148,13 +172,15 @@ def test_agent_view_page_is_public(client):
 
 
 # ---------------------------------------------------------------- waitlist
-def test_waitlist_adds_dedupes_and_counts(client):
+def test_waitlist_falls_back_to_sqlite_offline(client):
     r = client.post("/harvest/api/waitlist", json={"contact": "Ana@Example.org", "note": "farmer in Andalusia"})
     assert r.status_code == 200 and r.json() == {"ok": True, "already": False, "count": 1}
     assert client.post("/harvest/api/waitlist", json={"email": "ana@example.org"}).json()["already"] is True
-    assert client.post("/harvest/api/waitlist", json={"handle": "@maria"}).json()["count"] == 2
+    assert client.post("/harvest/api/waitlist", json={"email": "maria@example.org"}).json()["count"] == 2
     assert client.post("/harvest/api/waitlist", json={"contact": "not an email"}).status_code == 422
-    assert client.post("/harvest/api/waitlist", json={"contact": "@x2", "note": "n" * 281}).status_code == 422
+    with pytest.raises(waitlist.WaitlistError):
+        waitlist.parse_contact("@maria")  # Supabase stores emails only
+    assert client.post("/harvest/api/waitlist", json={"contact": "x2@example.org", "note": "n" * 61}).status_code == 422
     client.post("/harvest/api/join", json={"username": "pilot-one"})
     assert client.get("/harvest/api/waitlist/count").json() == {"count": 2, "waitlist": 2, "pilots": 1}
     assert waitlist.count() == 2
@@ -162,7 +188,62 @@ def test_waitlist_adds_dedupes_and_counts(client):
 
 def test_waitlist_is_rate_limited_and_public(client, monkeypatch):
     monkeypatch.setattr(routes.waitlist_limiter, "limit", 2)
-    codes = [client.post("/harvest/api/waitlist", json={"contact": f"@user{i}"}).status_code for i in range(3)]
+    codes = [client.post("/harvest/api/waitlist", json={"contact": f"user{i}@example.org"}).status_code for i in range(3)]
     assert codes == [200, 200, 429]
     assert public_mode.is_public("POST", "/harvest/api/waitlist") and public_mode.is_public("GET", "/harvest/api/waitlist/count")
     assert client.get("/harvest/api/waitlist").status_code in (404, 405)
+
+
+class FakeSupabase:
+    """A mocked Supabase REST API: a waitlist table with the unique email index and the waitlist_count RPC."""
+
+    def __init__(self, down: bool = False) -> None:
+        self.rows: list[dict] = []
+        self.requests: list[httpx.Request] = []
+        self.down = down
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if self.down:
+            raise httpx.ConnectError("unreachable", request=request)
+        if request.url.path == "/rest/v1/waitlist":
+            row = json.loads(request.content)
+            if any(r["email"] == row["email"] and r["kind"] == row["kind"] for r in self.rows):
+                return httpx.Response(409, json={"code": "23505"})
+            self.rows.append(row)
+            return httpx.Response(201)
+        if request.url.path == "/rest/v1/rpc/waitlist_count":
+            return httpx.Response(200, json={"total": len(self.rows) + 40, "agents": 3})
+        return httpx.Response(404)
+
+
+@pytest.fixture()
+def supa(client, monkeypatch):
+    def use(fake: FakeSupabase) -> FakeSupabase:
+        monkeypatch.setattr(waitlist, "_config", lambda: ("https://proj.supabase.test", "sb_publishable_test"))
+        monkeypatch.setattr(waitlist, "_client", lambda: httpx.Client(transport=httpx.MockTransport(fake)))
+        return fake
+    return use
+
+
+def test_waitlist_writes_to_supabase_and_counts_from_its_rpc(client, supa):
+    fake = supa(FakeSupabase())
+    r = client.post("/harvest/api/waitlist", json={"contact": " Ana@Example.org ", "note": "farmer"})
+    assert r.status_code == 200 and r.json() == {"ok": True, "already": False, "count": 41}
+    assert fake.rows == [{"kind": "human", "email": "ana@example.org", "role": "farmer", "signup_source": "app"}]
+    insert = fake.requests[0]
+    assert insert.headers["apikey"] == "sb_publishable_test" and insert.headers["prefer"] == "return=minimal"
+    assert "authorization" not in insert.headers  # a publishable key is not a JWT
+    assert client.post("/harvest/api/waitlist", json={"email": "ana@example.org"}).json()["already"] is True
+    client.post("/harvest/api/join", json={"username": "human-one"})
+    assert client.get("/harvest/api/waitlist/count").json() == {"count": 41, "waitlist": 41, "pilots": 1}
+    assert waitlist.local_count() == 0  # nothing in the SQLite fallback
+
+
+def test_waitlist_falls_back_to_sqlite_when_supabase_is_down(client, supa):
+    fake = supa(FakeSupabase(down=True))
+    r = client.post("/harvest/api/waitlist", json={"email": "ana@example.org"})
+    assert r.status_code == 200 and r.json() == {"ok": True, "already": False, "count": 1}
+    assert fake.requests and waitlist.local_count() == 1
+    fake.down = False
+    assert client.get("/harvest/api/waitlist/count").json()["count"] == 40  # Supabase answers again: it is the source

@@ -6,6 +6,7 @@ adds market metadata, registered traders and the SQLite ledger: every live write
 the chain's entries so the live state is a pure function of the ledger.
 """
 
+import functools
 import logging
 import math
 import os
@@ -357,7 +358,8 @@ class LiveBook(Book):
                 if k in p:
                     info[k] = p[k]
             if "username" not in info:
-                info["username"] = acct.claim(self.usernames, trader, p.get("username"), reserved=self.username_reserved)
+                legacy = functools.partial(acct.swarm_username, name=str(info.get("name") or "")) if acct.is_swarm(info) else acct.legacy_username
+                info["username"] = acct.claim(self.usernames, trader, p.get("username"), reserved=self.username_reserved, legacy=legacy)
             if p.get("token_sha256"):
                 self.tokens[p["token_sha256"]] = trader
             self.balance(trader)

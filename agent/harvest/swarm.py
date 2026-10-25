@@ -38,8 +38,7 @@ from typing import Any
 import httpx
 
 from . import climate, forecaster, prices
-
-SWARM_OWNER = "swarm (AI agents)"
+from .accounts import SWARM_OWNER
 ROBOT = "\U0001f916"
 NAME_MAX = 40
 WM_MAX = 1200
