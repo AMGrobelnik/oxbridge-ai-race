@@ -186,7 +186,7 @@ async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: lis
 
     result: ReplayResult = {
         "v": 1, "generated_at": _now(),
-        "model": "offline-fallback" if offline else (os.environ.get("GEMINI_MODEL") or "gemini-flash-latest"),
+        "model": "offline (llm cache, else heuristic fallback)" if offline else (os.environ.get("GEMINI_MODEL") or "gemini-flash-latest"),
         "mask": mask, "personas": personas, "cutoffs": results, "commitments": commitments,
         "scores": {"world_models": [], "baselines": {}, "humans": []},
     }
@@ -201,7 +201,7 @@ async def run(*, fixture: PriceFixture, specs: list[QuestionSpec], personas: lis
 
 def freeze(result: ReplayResult, path: Path = DEMO) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(result, indent=1) + "\n")
+    path.write_text(json.dumps(result, separators=(",", ":")) + "\n")
     return path
 
 

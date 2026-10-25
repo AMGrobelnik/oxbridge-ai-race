@@ -213,6 +213,10 @@ def _load_cache() -> dict[str, Any]:
 
 def _save_cache() -> None:
     if _cache is not None:
+        try:  # merge what other processes wrote meanwhile, so parallel runs never drop entries
+            _cache.update({k: v for k, v in json.loads(CACHE.read_text()).items() if k not in _cache})
+        except (OSError, ValueError):
+            pass
         CACHE.write_text(json.dumps(_cache, indent=0, sort_keys=True) + "\n")
 
 
