@@ -326,7 +326,7 @@
       h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden. Lower score is better. The grey range shows how sure we are: when ranges overlap, it is too close to call.`),
       h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),
       models.map((m, i) => h("div", { class: "rank" }, h("span", { class: "n" }, i + 1),
-        h("span", { class: "nm" }, m.name, m.origin && m.origin !== "house" ? h("span", { class: "tag", style: "margin-left:8px" }, m.origin === "human" ? "player" : m.origin) : null),
+        h("span", { class: "nm" }, m.name, m.origin && m.origin !== "house" ? h("span", { class: "tag", style: "margin-left:8px" }, m.origin.includes("human") ? "player" : m.origin) : null),
         h("span", { class: "sc" }, b3(m.brier_holdout), h("small", {}, `${b3(m.brier_holdout_lo)} to ${b3(m.brier_holdout_hi)}`)))),
       lb.insight ? h("p", { class: "card" }, lb.insight) : null,
       h("h2", {}, "Can we trust it?"),
