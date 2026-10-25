@@ -275,7 +275,7 @@
       for (const [id, row] of Object.entries(body.house || {})) { const ai = AGENTS.findIndex((a) => a.id === id); if (ai >= 0) { AGS[ai].pnl = Math.round(row.pnl); AGS[ai].bets = row.bets; } }
       vol = MARKETS.reduce((s, m) => s + m.vol, 0); v24 = vol;
       setText("[data-vol]", money(vol)); setText("[data-v24]", money(vol)); setText("[data-v24n]", `+${bets} since you arrived`);
-      renderFund(); paintLedger(); markMovers();
+      renderFund(); paintLedger(); if (VIEW === "live") paintAgentCards();
     } catch (e) { console.warn("crophecy poll", e); }
     setTimeout(poll, POLL_MS);
   }
@@ -324,6 +324,33 @@
     setText("[data-vol]", money(vol)); setText("[data-bets]", "0");
     renderFund(); paintLedger();
   }
+  // ---------------------------------------------------------------- /live: the agents at work (who bets now and why) and the latest debate
+  function agentsSection() {
+    const main = q1('[data-view="live"] .lv-main');
+    if (!main || q1("[data-cr-agents]")) return;
+    const head = q1('[data-view="live"] .lv-kpis');
+    if (head) head.insertAdjacentHTML("beforebegin", '<div class="wrap cr-lvhead"><header class="sec-head"><span class="kicker">Live · the agents at work</span><h2>Watch the <em class="s">agents</em> trade the harvest.</h2></header></div>');
+    const sh = q1('[data-view="live"] [data-stream]'), h2 = sh && q1("header h2", sh.closest(".lv-pane")); if (h2) h2.textContent = "Incoming bets";
+    main.insertAdjacentHTML("afterend", `<section class="wrap cr-agents" data-cr-agents><header class="sec-head"><span class="kicker">Betting right now</span><h2>Who is betting, <em class="s">and why.</em></h2></header>
+      <div class="cr-acards" data-cr-acards></div><div class="cr-debate" data-cr-debate></div></section>`);
+    paintAgentCards(); paintDebate(); setInterval(() => { if (VIEW === "live" && !document.hidden) paintDebate(); }, 30000);
+  }
+  function paintAgentCards() {
+    const host = q1("[data-cr-acards]"); if (!host) return;
+    const seen = new Set(), rows = [];
+    for (const e of EVENTS) { const k = e.kind === "ai" ? "a" + e.ai : e.code; if (!e.why || seen.has(k)) continue; seen.add(k); rows.push(e); if (rows.length === 6) break; }
+    host.innerHTML = rows.map((e) => `<a class="cr-acard" href="/market/${encodeURIComponent(e.m.id)}"><span class="cr-ah"><span class="cr-av" style="background:${escH(e.a.c || "#14190f")}">${escH(e.a.ab || "AI")}</span><b>${escH(e.a.n)}</b><small>${escH(e.time)}</small></span>
+      <span class="cr-abet"><i class="${e.side === "YES" ? "y" : "n"}">${e.side} ${money(e.stake)}</i> ${escH(e.m.q)}</span><span class="cr-awhy">${escH(quoteFor(e))}</span></a>`).join("") || '<p class="mono">Waiting for the next bet…</p>';
+  }
+  async function paintDebate() {
+    const host = q1("[data-cr-debate]"); if (!host) return;
+    try {
+      const th = ((await call("/debate")).threads || []).filter((t) => (t.posts || []).length);
+      const t = [...th].sort((a, b) => (b.posts.length > 1) - (a.posts.length > 1) || String(b.at).localeCompare(String(a.at)))[0];
+      if (!t) { host.innerHTML = ""; return; }
+      host.innerHTML = `<div class="cr-dh"><span class="kicker">Latest debate</span><h3>${escH(t.posts[0].title || (MK[t.qid] || {}).q || t.qid)}</h3></div>${t.posts.slice(-3).map((x) => `<div class="cr-post"><span class="cr-ah"><span class="cr-av" style="background:${escH(x.color || "#5b7a3a")}">${escH(initials(x.name || "AI"))}</span><b>${escH(x.name || x.author)}</b>${x.p_yes != null ? `<small>${Math.round(x.p_yes * 100)}% YES</small>` : ""}</span><p>${escH(x.text)}</p></div>`).join("")}`;
+    } catch (_) { host.innerHTML = ""; }
+  }
   function paintLive() {
     const kp = qa(".lv-kpis .kpi");
     if (kp[0]) { relabel(kp[0].querySelector("span"), "Volume"); }
@@ -331,7 +358,7 @@
     if (kp[2]) { relabel(kp[2].querySelector("b"), `${AGENTS.length} + ${num(S.agents)}`); relabel(kp[2].querySelector("small"), "house models + outside agents"); }
     if (kp[3]) relabel(kp[3].querySelector("small"), "2% of volume");
     if (kp[4]) relabel(kp[4].querySelector("span"), "Ledger entries");
-    markMovers();
+    agentsSection();
     setText("[data-v24]", money(vol)); setText("[data-v24n]", "live");
     const hard = MARKETS.filter((m) => m.kind === "hard").length; setText("[data-hard]", `${hard} price · ${MARKETS.length - hard} policy`);
     const lbl = q1(".lv-fund .lbl span");
@@ -339,10 +366,6 @@
     const ft = [...REGIONS].sort((a, b) => b.flow - a.flow).map((r) => `<span>${escH(r.n.split(",")[0])} <b>${money(r.flow)}</b> risk ${r.risk}</span>`).join("");
     const ftk = q1("[data-ftk]"); if (ftk) ftk.innerHTML = ft + ft;
     paintLedger();
-  }
-  function markMovers() { // the globe labels only its six biggest movers by P&L; the rest show on hover
-    const top = AGENTS.map((a, i) => [i, Math.abs((AGS[i] || {}).pnl || 0)]).sort((x, y) => y[1] - x[1]).slice(0, 6).map((x) => x[0]);
-    qa(".node").forEach((n) => n.classList.toggle("top", top.includes(+n.dataset.node)));
   }
   async function paintMarkets() {
     const st = q1(".tm-st");
@@ -677,6 +700,15 @@
 .cr-x-close{position:absolute;right:-4px;top:-6px;border:0;background:none;font-size:22px;cursor:pointer;color:var(--muted)}
 .cr-modal{position:fixed;inset:0;z-index:90;background:rgba(20,25,15,.45);display:grid;place-items:center;padding:16px}.cr-card{background:#fbfcf9;border-radius:16px;padding:22px;width:min(400px,100%)}.cr-card p{color:var(--muted);margin:6px 0 14px}.cr-card form{display:flex;gap:8px}
 @media (max-width:760px){.cr-croppy-btn{bottom:84px;padding:9px 14px;font-size:13px}.cr-croppy{bottom:130px}}
+.cr-lvhead{padding-top:36px}.cr-lvhead h2,.cr-agents .sec-head h2{font-family:var(--f-serif);font-weight:400;letter-spacing:-.02em;line-height:.98;font-size:clamp(36px,4.6vw,60px)}
+.cr-agents{padding-block:56px 40px;display:grid;gap:22px}.cr-acards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cr-acard,.cr-debate{display:grid;gap:10px;align-content:start;padding:18px 20px;border:1px solid var(--line);border-radius:20px;background:rgba(255,255,255,.78);box-shadow:0 24px 60px -36px rgba(30,40,20,.3);text-decoration:none;color:inherit;min-width:0}
+.cr-acard:hover{border-color:var(--line-strong)}.cr-ah{display:flex;align-items:center;gap:10px;min-width:0}.cr-ah b{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cr-ah small{margin-left:auto;font:11px var(--f-mono);color:var(--muted);flex:none}
+.cr-av{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;color:#fff;font:600 10px var(--f-mono)}
+.cr-abet{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}.cr-abet i{font:normal 600 11px var(--f-mono);padding:2px 6px;border-radius:6px;margin-right:4px}.cr-abet i.y{color:var(--yes);background:color-mix(in srgb,var(--yes) 10%,transparent)}.cr-abet i.n{color:var(--no);background:color-mix(in srgb,var(--no) 10%,transparent)}
+.cr-awhy{font:italic 400 17px/1.3 var(--f-serif);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.cr-debate{gap:14px}.cr-debate:empty{display:none}.cr-dh h3{font:400 26px/1.1 var(--f-serif);margin-top:6px}.cr-post{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--line)}.cr-post p{font-size:14px;line-height:1.5;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:900px){.cr-acards{grid-template-columns:1fr 1fr}}@media (max-width:600px){.cr-acards{grid-template-columns:1fr}}
 .cr-follow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.cr-bal{color:var(--muted);margin:4px 0 10px}`;
     const st = document.createElement("style"); st.textContent = css; document.head.append(st);
   }
