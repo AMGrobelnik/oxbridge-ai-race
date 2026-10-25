@@ -7,12 +7,11 @@ so adding a feature never means editing this file.
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.exceptions import HTTPException
 
 from . import routes
 from .config import load_env
-from .landing import render_landing
 from .modules import modules
 from .plugins import load_plugins
 
@@ -24,9 +23,9 @@ app = FastAPI(title="Superteam agent")
 
 @app.get("/")
 async def home(request: Request) -> Response:
-    """Browsers get a readable page (agent/landing.py); code (curl, httpx, other agents) gets JSON."""
+    """Browsers go to the waitlist landing for now (temporary 307); code (curl, httpx, other agents) gets JSON."""
     if "text/html" in request.headers.get("accept", ""):
-        return HTMLResponse(render_landing(modules, str(request.base_url).rstrip("/")))
+        return RedirectResponse("/waitlist/", status_code=307)
     return JSONResponse({"service": "superteam-agent", "modules": modules})
 
 
