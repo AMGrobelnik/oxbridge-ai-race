@@ -113,3 +113,17 @@ def test_parse_reply_recovers_rows_from_broken_json():
     assert parsed["Q1"][0] == pytest.approx(0.62) and parsed["Q2"] == (pytest.approx(0.2), "calm") and "Q9" not in parsed
     with pytest.raises(ValueError):
         swarm.parse_reply("I cannot answer", 2)
+
+
+def test_beliefs_survive_a_restart(tmp_path):
+    def make():
+        return swarm.Swarm(base="http://x", until=time.time() + 60, stop_file=tmp_path / "stop", state_file=tmp_path / "accounts.json",
+                           models=swarm.MODELS[:1], bets_per_min=10)
+    first = make()
+    a = next(x for x in first.agents if x.kind == "llm")
+    a.beliefs, a.believed_at = {"q1": (0.7, "dry")}, 123.0
+    first._save_beliefs()
+    second = make()
+    assert second.load_beliefs() == 1
+    b = next(x for x in second.agents if x.key == a.key)
+    assert b.beliefs == {"q1": (0.7, "dry")} and b.believed_at == 123.0
