@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What if? · The Crophecy</title>
+<link rel="stylesheet" href="/harvest/static/app/app.css">
+<style>
+  .sl { display:grid; grid-template-columns:110px 1fr 70px; align-items:center; gap:10px; margin:6px 0; }
+  .sl label { font-weight:600; font-size:16px; }
+  .sl output { text-align:right; font-variant-numeric:tabular-nums; font-size:16px; }
+  .sl input[type=range] { width:100%; accent-color:var(--green); }
+  .move { border-bottom:1px solid var(--line); padding:14px 0; }
+  .move .q { font-weight:600; }
+  .move .nums { font-variant-numeric:tabular-nums; margin:4px 0; }
+  .move .up, .move .down { font-weight:700; }
+  .track { position:relative; height:14px; background:var(--soft); border:1px solid var(--line); border-radius:99px; margin:8px 0; }
+  .track .span { position:absolute; top:5px; height:4px; background:#999; }
+  .track .dot { position:absolute; top:2px; width:10px; height:10px; margin-left:-5px; border-radius:50%; }
+  .track .dot.base { background:#999; }
+  .track .dot.scen { background:var(--ink); }
+  .move .r { font-size:15px; color:#333; margin:4px 0 0; }
+  .move .r b { font-weight:600; }
+</style>
+</head>
+<body data-page="scenario">
+<header id="top"></header>
+<main id="main"><p class="muted">Loading…</p></main>
+<script src="/harvest/static/app/app.js"></script>
+<script src="/harvest/static/app/scenario.js"></script>
+</body>
+</html>

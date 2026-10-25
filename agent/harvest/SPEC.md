@@ -401,3 +401,34 @@ Intervals are the seeded 90% percentile bootstrap of `scoring`.
 - Pages: `/app/replay` (about 30 s animation, play/pause/speed, `?at=<step>` jumps,
   `?autoplay=0` waits), `/app/impact`, and a calibration section under `/app/leaderboard`
   (`#calibration`), all in `static/app/proof.js`.
+
+## 14. Scenario sliders (`scenario.py`, `agent/routes/harvest_scenario.py`, page `/app/scenario`)
+
+- `GET /harvest/api/scenario` returns the slider spec: `regions` (France, Spain, Italy, Germany, Poland, Romania,
+  Greece), the `min`/`max`/`step` of `temp_anomaly` (0..3 °C, step 0.5), `rain_pct` (-50..50 %, step 10) and `enso`
+  (-2..2, step 0.5), and named `presets` (scenario bodies). The first call also warms the LLM cache for every preset.
+- `POST /harvest/api/scenario` `{"temp_anomaly": {region: float}, "rain_pct": float, "enso": float}` (missing values
+  are 0; values are clamped and snapped to the steps) returns
+  `{"scenario", "key", "source": "llm"|"fallback", "llm_cached", "llm_pending", "llm_model", "elapsed_ms", "markets"}`.
+  Each market, sorted by the size of its move: `{qid, title, kind, region, crop, baseline, scenario, delta, stress,
+  drivers: [str], agents: [{persona_id, name, color, baseline, scenario, delta, rationale, source}],
+  rationales: [{persona_id, name, delta, text, source}]}` (the top three movers).
+- Deterministic world-model rules give every answer instantly: climate stress per market = crop-weighted heat
+  (0.6 x the market's region + 0.4 x Europe), dryness and ENSO, signed +1 for "above/higher" and stress events and -1
+  for "below/lower"; each persona scales it by its climate sensitivity. One fast-LLM call per three personas
+  (Gemini Flash-Lite, `FAST_LLM_MODEL`) re-forecasts the six most exposed markets and replaces those answers; it is
+  awaited for at most `SCENARIO_DEADLINE_S` (8 s), else `llm_pending: true` and the answer lands in the cache for
+  the next call. The market's scenario price moves by the agents' mean logit shift. Rate limit `SCENARIO_PER_MIN` (30).
+
+## 15. Why did this move? (`why.py`, `agent/routes/harvest_why.py`, button on `/app/market/{qid}`)
+
+- `GET /harvest/api/markets/{qid}/why?n=12` (n 3..50) returns `{qid, title, spec_id, move, news, explanation,
+  source: "llm"|"cache"|"fallback", by: "Croppy"}`.
+  - `move`: the last n ledger bets on the market: `{n_bets, from, to, delta, start, end, yes_spend, no_spend,
+    bets: [{seq, trader, name, side, spend, price_before, price_after, delta, at, rationale}], top: [the five bets
+    that moved the price most]}`.
+  - `news`: headlines tagged to the market's question (`news.query(spec=...)`) published from 72 h before the
+    window onwards, `{title, source, url, published_at, direction, summary, in_window}`; when none are that recent,
+    the latest few with `in_window: false`.
+  - `explanation`: Croppy (fast LLM, 8 s deadline `WHY_DEADLINE_S`, cached per qid, last bet and n) citing the bets
+    and headlines, else a deterministic summary. Rate limit `WHY_PER_MIN` (30). Unknown qid gives 404.

@@ -94,7 +94,7 @@
 
   // ------------------------------------------------------------ chrome: nav, credits badge, Croppy
   const NAV = [["/app", "Home", "home"], ["/app/markets", "Markets", "markets"], ["/app/live", "Live", "live"],
-    ["/app/theory", "Theory", "theory"], ["/app/leaderboard", "Leaderboard", "board"],
+    ["/app/theory", "Theory", "theory"], ["/app/scenario", "Scenarios", "scenario"], ["/app/leaderboard", "Leaderboard", "board"],
     ["/app/replay", "Replay", "replay"], ["/app/impact", "Impact", "impact"]];
   function badgeText() {
     const me = load();
@@ -372,7 +372,7 @@
   }
 
   // ------------------------------------------------------------ boot
-  const PAGES = { home, markets, market: marketPage, live, theory, board: leaderboard };
+  const PAGES = { home, markets, market: marketPage, live, theory, board: leaderboard, scenario: () => {} }; // scenario: scenario.js
   renderChrome();
   (PAGES[document.body.dataset.page] || (() => {}))(); // other pages (replay, impact) bring their own script
   refreshBalance();
