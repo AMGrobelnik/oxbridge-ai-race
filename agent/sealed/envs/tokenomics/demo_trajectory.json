@@ -1,0 +1,146 @@
+[
+ {
+  "hypothesis": "Daily unlock releases and half the emissions will cut the quarterly sell waves and lift the drawdown score.",
+  "rationale": "Quarterly lumps of team and investor tokens hit the pool at once, and farmers dump 60% of 2%/month emissions.",
+  "strategy": "continue",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 12,
+   "investor_cliff_months": 3,
+   "investor_vest_months": 9,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 1.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 1.0,
+   "buyback_trigger_drawdown": 0.5,
+   "buyback_daily_pct": 0.0,
+   "treasury_reserve_months": 12.0
+  }
+ },
+ {
+  "hypothesis": "Stretching team vesting from 12 to 36 months will cut daily team selling enough to lift stability.",
+  "rationale": "Team tokens have a $0.005 cost basis, so the team sells about 60% of every unlock.",
+  "strategy": "continue",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 3,
+   "investor_vest_months": 9,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 1.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 1.0,
+   "buyback_trigger_drawdown": 0.5,
+   "buyback_daily_pct": 0.0,
+   "treasury_reserve_months": 12.0
+  }
+ },
+ {
+  "hypothesis": "A $3M protocol pool, a 5%/day buyback on 30% dips with a 12-month reserve, and a 12-month investor drip with emissions off will keep depth and drawdown in range.",
+  "rationale": "The worst pool depth sits below the $3M target, the month-3 investor cliff lands as one wave, and a reserve stops buybacks eating the opex runway.",
+  "strategy": "widen",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 12,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 0.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 3.0,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.05,
+   "treasury_reserve_months": 12.0
+  }
+ },
+ {
+  "hypothesis": "A $13M pool would make price impact negligible.",
+  "rationale": "Depth is the strongest lever on drawdown in the dev runs.",
+  "strategy": "widen",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 12,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 0.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 13.0,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.05,
+   "treasury_reserve_months": 12.0
+  }
+ },
+ {
+  "hypothesis": "Putting $6M into the pool should buy stability at little runway cost.",
+  "rationale": "Depth helps drawdown and liquidity, and the raise can fund it.",
+  "strategy": "continue",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 12,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 0.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 6.0,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.05,
+   "treasury_reserve_months": 12.0
+  }
+ },
+ {
+  "hypothesis": "Cutting the protocol pool to $0.5M, dropping the buyback and a 6-month investor drip frees about $4M of runway while mercenary LPs keep depth above target.",
+  "rationale": "In every dev run the $4M of outside liquidity alone keeps the pool above $3M, so protocol depth only costs runway; shorter locks raise more.",
+  "strategy": "pivot",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 6,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 0.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 0.5,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.0,
+   "treasury_reserve_months": 0.0
+  }
+ },
+ {
+  "hypothesis": "Turning emissions back on at 1%/month should bring in enough buyers to lift the price.",
+  "rationale": "Emissions add organic demand.",
+  "strategy": "continue",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 6,
+   "unlock_cadence_days": 1,
+   "emission_pct_per_month": 1.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 0.5,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.0,
+   "treasury_reserve_months": 0.0
+  }
+ },
+ {
+  "hypothesis": "Monthly instead of daily releases should mean fewer sell events.",
+  "rationale": "Each release day triggers a fresh sell decision by every cohort.",
+  "strategy": "continue",
+  "candidate": {
+   "team_cliff_months": 6,
+   "team_vest_months": 36,
+   "investor_cliff_months": 0,
+   "investor_vest_months": 6,
+   "unlock_cadence_days": 30,
+   "emission_pct_per_month": 0.0,
+   "initial_float_pct": 10.0,
+   "lp_depth_usd_m": 0.5,
+   "buyback_trigger_drawdown": 0.3,
+   "buyback_daily_pct": 0.0,
+   "treasury_reserve_months": 0.0
+  }
+ }
+]

@@ -1,0 +1,9 @@
+{
+  "seeds": [7301, 7302, 7303, 7304, 7305, 7306, 7307, 7308],
+  "shifts": [
+    {"id": "market_crash", "label": "60% market crash in month 3", "params": {"crash_day": 75, "crash_depth": 0.6, "crash_days": 10, "market_sigma_mult": 1.5}},
+    {"id": "whale_dump", "label": "whale dumps 2% of supply in one day", "params": {"whale_day": 150, "whale_pct": 2.0}},
+    {"id": "liquidity_withdrawal", "label": "mercenary LPs pull all their liquidity", "params": {"lp_withdraw_day": 120, "lp_withdraw_share": 1.0, "market_sigma_mult": 1.3}},
+    {"id": "correlated_unlocks", "label": "correlated unlock selling (2x)", "params": {"unlock_sell_mult": 2.0}}
+  ]
+}
