@@ -11,7 +11,7 @@ pass for a human. The swarm runs as its own process and only talks HTTP to the l
   world model, price windows, NOAA climate context, market prices, news), paced per provider and
   per model inside the documented free-tier limits, with backoff on 429 and on errors;
 - bets through POST /harvest/api/agents/bet, sized by edge and capped by bankroll, at most
-  SWARM_BETS_PER_MIN (default 100, under the server's 120/min per IP agent limit).
+  SWARM_BETS_PER_MIN (default 110, under the server's 120/min per IP agent limit).
 
 Stops at SWARM_UNTIL (local HH:MM), when SWARM_STOP_FILE exists, or on SIGTERM.
 Run: python -m agent.harvest.swarm [probe]. Account tokens are kept in SWARM_STATE (mode 600).
@@ -72,6 +72,15 @@ class Model:
     rpm: float
     budget: int
     json_mode: bool = True
+    spread: bool = True
+    """Spread `budget` evenly until the stop time (False: go at `rpm` until the budget is spent)."""
+    price_in: float = 0.0
+    """USD per million prompt tokens (0: free tier)."""
+    price_out: float = 0.0
+
+    @property
+    def paid(self) -> bool:
+        return self.price_in > 0 or self.price_out > 0
 
 
 PROVIDERS = {
@@ -79,13 +88,17 @@ PROVIDERS = {
     "openrouter": Provider("openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", rpm=18, budget=900),
     # Gemini API free tier: per-model limits (below); no shared cap.
     "gemini": Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY", rpm=0, budget=10**6),
+    # Paid models, cents per million tokens, under the swarm's own USD cap (SWARM_PAID_CAP_USD).
+    "openrouter-paid": Provider("openrouter-paid", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", rpm=0, budget=10**6),
+    "openai": Provider("openai", "https://api.openai.com/v1", "OPENAI_API_KEY", rpm=0, budget=10**6),
 }
 
 MODELS = [
     # Gemini free tier (ai.google.dev/gemini-api/docs/rate-limits): 2.5 Flash-Lite 15 RPM / 1000 RPD,
     # 2.5 Flash 10 RPM / 250 RPD. (Gemma 3 via the OpenAI endpoint 404s; inkling is agent-harness only; nemotron-3-super 404s.)
-    Model("gemini-2.5-flash-lite", "gemini", "gemini-2.5-lite", "Gemini", rpm=10, budget=600),
-    Model("gemini-2.5-flash", "gemini", "gemini-2.5-flash", "Gemini", rpm=5, budget=150),
+    # Run at the documented RPM until the daily cap (less what the house and earlier runs used today) is spent.
+    Model("gemini-2.5-flash-lite", "gemini", "gemini-2.5-lite", "Gemini", rpm=15, budget=900, spread=False),
+    Model("gemini-2.5-flash", "gemini", "gemini-2.5-flash", "Gemini", rpm=10, budget=220, spread=False),
     # OpenRouter :free models (catalog of 2026-10-25), shared 20 RPM.
     Model("google/gemma-4-31b-it:free", "openrouter", "gemma-4-31b", "Gemma", rpm=4, budget=900),
     Model("nvidia/nemotron-3.5-lightning:free", "openrouter", "nemotron-3.5", "Nemotron", rpm=4, budget=900),
@@ -94,6 +107,14 @@ MODELS = [
     Model("xingchen-agi/xing4.0-29b-a4b:free", "openrouter", "xing-4.0", "Xing", rpm=4, budget=900),
     Model("recursive/flint-v1.0:free", "openrouter", "flint-1.0", "Flint", rpm=4, budget=900),
     Model("liquid/lfm-2.5-2.6b:free", "openrouter", "lfm-2.5", "LFM", rpm=4, budget=900),
+    # Leakage-clean cheap models (agent/harvest/data/models.json) and three more via OpenRouter; prices per M tokens (in, out).
+    Model("meta-llama/llama-3.3-70b-instruct", "openrouter-paid", "llama-3.3-70b", "Llama", rpm=8, budget=10**6, price_in=0.10, price_out=0.32),
+    Model("microsoft/phi-4", "openrouter-paid", "phi-4", "Phi", rpm=8, budget=10**6, price_in=0.07, price_out=0.14),
+    Model("google/gemma-3-27b-it", "openrouter-paid", "gemma-3-27b", "Gemma", rpm=8, budget=10**6, price_in=0.08, price_out=0.35),
+    Model("gpt-4o-mini", "openai", "gpt-4o-mini", "GPT", rpm=8, budget=10**6, price_in=0.15, price_out=0.60),
+    Model("deepseek/deepseek-chat-v3-0324", "openrouter-paid", "deepseek-v3", "DeepSeek", rpm=8, budget=10**6, price_in=0.29, price_out=1.14),
+    Model("qwen/qwen3-235b-a22b-2507", "openrouter-paid", "qwen3-235b", "Qwen", rpm=8, budget=10**6, price_in=0.09, price_out=0.55),
+    Model("mistralai/mistral-small-3.2-24b-instruct", "openrouter-paid", "mistral-small", "Mistral", rpm=8, budget=10**6, price_in=0.075, price_out=0.20),
 ]
 
 
@@ -101,8 +122,8 @@ class Pacer:
     """Spaces calls to at most `rpm` a minute and spreads `budget` calls evenly until `until` (epoch s).
     `backoff(s)` pauses it (429 or errors)."""
 
-    def __init__(self, rpm: float, budget: int, until: float) -> None:
-        self.rpm, self.budget, self.until = rpm, budget, until
+    def __init__(self, rpm: float, budget: int, until: float, *, spread: bool = True) -> None:
+        self.rpm, self.budget, self.until, self.spread = rpm, budget, until, spread
         self.used = 0
         self.next_at = 0.0
         self.paused_until = 0.0
@@ -113,33 +134,71 @@ class Pacer:
         if left == 0:
             return math.inf
         by_rpm = 60.0 / self.rpm if self.rpm > 0 else 0.0
-        by_budget = max(self.until - now, 1.0) / left
-        return max(by_rpm, by_budget)
+        return max(by_rpm, self.by_budget(now, left)) if self.spread else by_rpm
+
+    def by_budget(self, now: float, left: float) -> float:
+        return max(self.until - now, 1.0) / left
 
     def ready_in(self, now: float) -> float:
         return max(self.next_at, self.paused_until) - now if self.used < self.budget else math.inf
 
-    def take(self, now: float) -> None:
+    def take(self, now: float, urgent: bool = False) -> None:
+        """`urgent` (an agent still without a belief) skips the even spreading; the rpm and budget still hold."""
         self.used += 1
-        self.next_at = now + self.gap(now)
+        gap = self.gap(now)
+        self.next_at = now + (min(gap, 60.0 / self.rpm) if urgent and self.rpm > 0 and gap != math.inf else gap)
 
     def backoff(self, seconds: float, now: float) -> None:
         self.paused_until = max(self.paused_until, now + seconds)
 
-    async def acquire(self, stop: asyncio.Event) -> bool:
+    async def acquire(self, stop: asyncio.Event, urgent: bool = False) -> bool:
         while not stop.is_set():
             async with self._lock:
                 wait = self.ready_in(time.time())
                 if wait == math.inf:
                     return False
                 if wait <= 0:
-                    self.take(time.time())
+                    self.take(time.time(), urgent)
                     return True
             try:
                 await asyncio.wait_for(stop.wait(), timeout=min(max(wait, 0.05), 30.0))
             except TimeoutError:
                 pass
         return False
+
+
+class SpendPacer(Pacer):
+    """Paid calls under a hard USD cap, kept in `path` across restarts: spread so the cap lasts until the
+    stop time, except urgent calls (first beliefs), which go at `rpm`. Stops once the next call could pass the cap."""
+
+    def __init__(self, cap_usd: float, until: float, path: Path, *, rpm: float = 40) -> None:
+        super().__init__(rpm, 10**9, until)
+        self.cap, self.path = cap_usd, path
+        self.spent, self.est = 0.0, 0.002
+        try:
+            data = json.loads(path.read_text())
+            self.spent, self.est = float(data["spent_usd"]), float(data.get("est_usd") or self.est)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+
+    def ready_in(self, now: float) -> float:
+        return math.inf if self.spent + self.est > self.cap else super().ready_in(now)
+
+    def by_budget(self, now: float, left: float) -> float:
+        room = self.cap - self.spent
+        return math.inf if room <= 0 else max(self.until - now, 1.0) * self.est / room
+
+    def record(self, model: Model, usage: dict[str, Any]) -> float:
+        cost = float(usage.get("cost") or 0.0)
+        if cost <= 0:
+            cost = (float(usage.get("prompt_tokens") or 0) * model.price_in + float(usage.get("completion_tokens") or 0) * model.price_out) / 1e6
+        self.spent += cost
+        self.est = 0.8 * self.est + 0.2 * cost if cost > 0 else self.est
+        try:
+            self.path.write_text(json.dumps({"spent_usd": round(self.spent, 6), "est_usd": round(self.est, 6), "cap_usd": self.cap}))
+        except OSError as err:
+            logger.warning("could not save spend: %s", type(err).__name__)
+        return cost
 
 
 # ---------------------------------------------------------------- agents
@@ -360,7 +419,8 @@ class RateLimited(Exception):
         self.retry_after = retry_after
 
 
-async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_s: float = 90.0) -> str:
+async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_s: float = 90.0) -> tuple[str, dict[str, Any]]:
+    """The reply text and the usage block (tokens, and OpenRouter's cost)."""
     prov = PROVIDERS[model.provider]
     key = os.environ.get(prov.key_env)
     if not key:
@@ -381,6 +441,8 @@ async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_
         except ValueError:
             retry = 30.0
         raise RateLimited(retry)
+    if r.status_code == 402:
+        raise RateLimited(600.0)  # out of credits on that key: back off for long
     if r.status_code >= 400:
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:160]}")
     data = r.json()
@@ -391,7 +453,7 @@ async def chat(client: httpx.AsyncClient, model: Model, prompt: str, *, timeout_
         raise RuntimeError(f"provider error {code}")
     msg = (data.get("choices") or [{}])[0].get("message") or {}
     # Some reasoning models leave the answer in the reasoning text when content comes back empty.
-    return str(msg.get("content") or msg.get("reasoning") or "")
+    return str(msg.get("content") or msg.get("reasoning") or ""), dict(data.get("usage") or {})
 
 
 # ---------------------------------------------------------------- the swarm
@@ -404,13 +466,17 @@ def _until_epoch(hhmm: str) -> float:
 
 
 class Swarm:
-    def __init__(self, *, base: str, until: float, stop_file: Path, state_file: Path, models: list[Model], bets_per_min: float) -> None:
+    def __init__(self, *, base: str, until: float, stop_file: Path, state_file: Path, models: list[Model], bets_per_min: float,
+                 paid_cap: float = 2.0) -> None:
         self.base = base.rstrip("/")
         self.until, self.stop_file, self.state_file = until, stop_file, state_file
         self.models = models
         self.bet_pacer = Pacer(bets_per_min, 10**9, until)
         self.provider_pacers = {n: Pacer(p.rpm, p.budget, until) for n, p in PROVIDERS.items() if p.rpm > 0}
-        self.model_pacers = {m.id: Pacer(m.rpm, m.budget, until) for m in models}
+        self.model_pacers = {m.id: Pacer(m.rpm, m.budget, until, spread=m.spread) for m in models}
+        self.spend = SpendPacer(paid_cap, until, state_file.with_name("swarm_spend.json"))
+        self.calls_file = state_file.with_name("swarm_calls.json")
+        self._load_calls()
         self.agents = build_agents(models, load_all_personas()) + build_baselines()
         self.markets: dict[str, dict[str, Any]] = {}
         self.history: dict[str, deque[tuple[float, float]]] = {}
@@ -420,6 +486,27 @@ class Swarm:
         self.bet_times: deque[float] = deque()
         self.fixture = prices.load_fixture()
         self.climate = climate.context_lines(climate.load_climate())
+
+    # ---- daily call counts (so a restart cannot reset a provider's daily cap)
+    def _pacers(self) -> dict[str, Pacer]:
+        return {**self.provider_pacers, **self.model_pacers}
+
+    def _load_calls(self) -> None:
+        try:
+            data = json.loads(self.calls_file.read_text())
+        except (OSError, ValueError):
+            return
+        if data.get("day") != datetime.now(UTC).strftime("%Y-%m-%d"):
+            return
+        for k, p in self._pacers().items():
+            p.used = int((data.get("used") or {}).get(k, 0))
+
+    def _save_calls(self) -> None:
+        data = {"day": datetime.now(UTC).strftime("%Y-%m-%d"), "used": {k: p.used for k, p in self._pacers().items()}}
+        try:
+            self.calls_file.write_text(json.dumps(data, indent=1))
+        except OSError as err:
+            logger.warning("could not save call counts: %s", type(err).__name__)
 
     # ---- accounts
     def _load_state(self) -> dict[str, Any]:
@@ -553,22 +640,26 @@ class Swarm:
     # ---- LLM workers
     async def llm_worker(self, http: httpx.AsyncClient, model: Model) -> None:
         pacer = self.model_pacers[model.id]
-        prov = self.provider_pacers.get(model.provider)
+        prov = self.spend if model.paid else self.provider_pacers.get(model.provider)
         fails = limited = 0
         while not self.stop.is_set():
             mine = [a for a in self.agents if a.model is model and a.token]
             if not mine or not self.markets:
                 await self._sleep(3)
                 continue
-            if not await pacer.acquire(self.stop):
+            urgent = any(not a.beliefs for a in mine)
+            if not await pacer.acquire(self.stop, urgent):
                 return
-            if prov is not None and not await prov.acquire(self.stop):
+            if prov is not None and not await prov.acquire(self.stop, urgent):
+                logger.info("%s stopped: %s", model.label, "paid cap reached" if model.paid else "budget spent")
                 return
-            agent = min(mine, key=lambda a: a.believed_at)
+            agent = min(mine, key=lambda a: (bool(a.beliefs), a.believed_at))
             prompt, qs = self.build_prompt(agent.persona)
             now = time.time()
             try:
-                text = await chat(http, model, prompt)
+                text, usage = await chat(http, model, prompt)
+                if model.paid:
+                    self.spend.record(model, usage)
                 parsed = parse_reply(text, len(qs))
             except RateLimited as err:
                 self.stats["llm_429"][model.label] = self.stats["llm_429"].get(model.label, 0) + 1
@@ -686,8 +777,11 @@ class Swarm:
         status = {**self.stats, "at": datetime.now().astimezone().isoformat(timespec="seconds"), "registered": reg, "agents": len(self.agents),
                   "bets_last_min": len(self.bet_times), "registered_by_model": by_model,
                   "believing": sum(1 for a in self.agents if a.kind == "llm" and a.beliefs),
+                  "believing_by_model": {m.label: sum(1 for a in self.agents if a.model is m and a.beliefs) for m in self.models},
+                  "paid_spent_usd": round(self.spend.spent, 4), "paid_cap_usd": self.spend.cap,
                   "pacers": {k: {"used": p.used, "budget": p.budget} for k, p in {**self.provider_pacers, **self.model_pacers}.items()}}
         logger.info("STATUS %s", json.dumps(status))
+        self._save_calls()
         try:
             (LOGS / "swarm_status.json").write_text(json.dumps(status, indent=1))
         except OSError:
@@ -717,7 +811,7 @@ async def probe(models: list[Model]) -> list[Model]:
         async def one(m: Model) -> tuple[Model, str]:
             t = time.time()
             try:
-                p = parse_reply(await chat(http, m, prompt, timeout_s=60), 1)
+                p = parse_reply((await chat(http, m, prompt, timeout_s=60))[0], 1)
                 return m, f"ok {time.time() - t:.1f}s p={p.get('Q1', ('?',))[0]}"
             except Exception as err:  # noqa: BLE001 - probe reports every failure
                 return m, f"FAIL {type(err).__name__}: {str(err)[:140]}"
@@ -741,7 +835,8 @@ def main() -> None:
     swarm = Swarm(base=os.environ.get("SWARM_BASE") or "http://127.0.0.1:3001", until=_until_epoch(os.environ.get("SWARM_UNTIL") or "19:45"),
                   stop_file=Path(os.environ.get("SWARM_STOP_FILE") or LOGS / "swarm.stop"),
                   state_file=Path(os.environ.get("SWARM_STATE") or LOGS / "swarm_accounts.json"), models=models,
-                  bets_per_min=float(os.environ.get("SWARM_BETS_PER_MIN") or 100))
+                  bets_per_min=float(os.environ.get("SWARM_BETS_PER_MIN") or 110),
+                  paid_cap=float(os.environ.get("SWARM_PAID_CAP_USD") or 2.0))
     logger.info("restored beliefs of %d LLM agents", swarm.load_beliefs())
     logger.info("swarm: %d agents (%d LLM on %d models, %d baselines), until %s", len(swarm.agents), sum(1 for a in swarm.agents if a.kind == "llm"),
                 len(models), sum(1 for a in swarm.agents if a.kind != "llm"), datetime.fromtimestamp(swarm.until).strftime("%H:%M"))

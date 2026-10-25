@@ -127,3 +127,39 @@ def test_beliefs_survive_a_restart(tmp_path):
     assert second.load_beliefs() == 1
     b = next(x for x in second.agents if x.key == a.key)
     assert b.beliefs == {"q1": (0.7, "dry")} and b.believed_at == 123.0
+
+
+def test_urgent_calls_skip_spreading_but_keep_rpm():
+    now = 1000.0
+    p = swarm.Pacer(rpm=20, budget=10, until=now + 6000)
+    p.take(now, urgent=True)
+    assert p.ready_in(now) == pytest.approx(3.0)
+    p.take(now)
+    assert p.ready_in(now) == pytest.approx(6000 / 8)
+    g = swarm.Pacer(rpm=15, budget=900, until=now + 6000, spread=False)
+    g.take(now)
+    assert g.ready_in(now) == pytest.approx(4.0)
+
+
+def test_paid_calls_stop_at_the_usd_cap_and_the_spend_persists(tmp_path):
+    path = tmp_path / "spend.json"
+    model = next(m for m in swarm.MODELS if m.id == "gpt-4o-mini")
+    s = swarm.SpendPacer(0.01, time.time() + 3600, path)
+    cost = s.record(model, {"prompt_tokens": 4000, "completion_tokens": 1000})
+    assert cost == pytest.approx((4000 * 0.15 + 1000 * 0.60) / 1e6)
+    assert s.record(model, {"cost": 0.003}) == pytest.approx(0.003)
+    assert s.ready_in(time.time()) < float("inf")
+    s.record(model, {"cost": 0.006})
+    assert s.ready_in(time.time()) == float("inf")
+    again = swarm.SpendPacer(0.01, time.time() + 3600, path)
+    assert again.spent == pytest.approx(s.spent) and again.ready_in(time.time()) == float("inf")
+
+
+def test_daily_call_counts_survive_a_restart(tmp_path):
+    def make():
+        return swarm.Swarm(base="http://x", until=time.time() + 60, stop_file=tmp_path / "stop", state_file=tmp_path / "accounts.json",
+                           models=swarm.MODELS[:3], bets_per_min=10)
+    first = make()
+    first.provider_pacers["openrouter"].used = 321
+    first._save_calls()
+    assert make().provider_pacers["openrouter"].used == 321
