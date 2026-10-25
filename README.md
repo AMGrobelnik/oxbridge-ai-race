@@ -1,21 +1,40 @@
-# Sealed: autoresearch that can't cheat its own test
+# Sealed Backtest: AI quant-research agents whose success criteria are sealed on Solana before they start, so they can't fool themselves
 
-Oxford and Cambridge AI Race, 25 Oct 2026. A Python agent built on the Superteam Agent Studio starter (FastAPI and Solana devnet). Sealed lives at `/sealed`. The starter's AI Race adapter and its six task handlers (`/agent-studio/v1/*`, `/race`) run unchanged in the same service.
+Oxford and Cambridge AI Race, Build track, 25 Oct 2026. Team: Adrian Mladenic Grobelnik, Antonio Aciob and Eashan Rautaray (Cambridge). A Python agent built on the Superteam Agent Studio starter (FastAPI and Solana devnet). Sealed Backtest lives at `/sealed`. The starter's AI Race adapter and its six task handlers (`/agent-studio/v1/*`, `/race`) run unchanged in the same service.
 
 ## Problem
 
-AI research agents grade their own homework. They iterate against a test they can see, and the result that scores best on that test is often the most overfit. Nobody can tell afterwards whether the test was moved, the seeds were cherry-picked or the metric was swapped mid-run. The agent's own logs can't settle it, because the agent wrote them.
+AI research agents grade their own homework. A quant agent that iterates against a backtest it can see will find the parameters that fit that history, and the best-looking result is usually the most overfit: the bug that looks like a discovery. Nobody can tell afterwards whether the test was moved, the data was cherry-picked or the metric was swapped mid-run, and the agent's own logs can't settle it because the agent wrote them. Onchain finance will only hand real money to AI agents that come with guardrails: limited autonomy, human sign-off on big actions and an onchain audit trail.
 
-## Description
+## What it does
 
-Sealed is an autoresearch harness that commits to its own exam before it starts studying.
+Sealed Backtest is a research agent with an audit trail. The success criteria are agreed in advance and sealed so any later edit is detectable.
 
-1. **Seal.** Before iteration 1 it hashes the locked evaluation code (`sim.py` and `eval.py`), the dev seeds, and a salted commitment to held-out seeds and scenario shifts. The hash goes on Solana devnet as a memo, and the block timestamp proves the test existed, unchanged, before the first experiment.
-2. **Search.** An LLM proposer (Gemini) states one falsifiable hypothesis per iteration and submits a full candidate policy, which is JSON validated against a schema. The harness scores it on the dev seeds only and keeps it if it beats the champion; otherwise it reverts. The proposer's context has no holdout field.
-3. **Reveal.** The salt is revealed and every kept candidate is re-scored on 20 unseen seeds under the base scenario and four shifts. A fixed gate, which is part of the sealed code, labels each candidate `GENERALISES` or `OVERFIT`. The best-scoring candidate that generalises is selected. A second memo anchors the result hash and the verdict.
+**The headline demo: SOL/USDC strategy research on real Kraken data.** An LLM (Gemini) proposes trading rules; the harness scores them on dev data only. A grid-tuned dip-buyer scores **103.3 on dev but 91.0 on the sealed 2026 holdout** and is rejected as `OVERFIT`. A slow trend filter with staking passes (**91.0 on dev, 95.6 on the holdout**) and is selected. The harness catches the bug that looks like a discovery.
+
+**Same harness, any scored environment.** An environment is a plug-in of about three files. Three ship today:
+
+| Plug-in | Goal |
+| --- | --- |
+| `strategy` (headline) | SOL/USDC/staking allocation rule that maximises risk-adjusted value after fees and slippage, on real Kraken daily data |
+| `tokenomics` | Token launch design (vesting, emissions, float, pool depth, buybacks) that stays stable for 18 months without draining the treasury |
+| `epidemic` | Age-structured SEIRV winter-epidemic policy (hospital-days, budget, school closures) |
+
+## How it works
+
+1. **Seal.** Before iteration 1 it hashes the locked evaluation code (`sim.py` and `eval.py`), the dev seeds, and a salted commitment to the held-out data, seeds and scenario shifts. The hash goes on Solana devnet as a memo, and the block timestamp proves the test existed, unchanged, before the first experiment.
+2. **Search.** The proposer states one falsifiable hypothesis per iteration and submits a full candidate, which is JSON validated against a schema, never code. The harness scores it on the dev data only and keeps it if it beats the champion; otherwise it reverts. The proposer's context has no holdout field.
+3. **Reveal.** The salt is revealed and every kept candidate is re-scored on the sealed holdout. A fixed gate, which is part of the sealed code, labels each candidate `GENERALISES` or `OVERFIT`. The best-scoring candidate that generalises is selected. A second memo anchors the result hash and the verdict.
 4. **Verify.** Anyone can download the run bundle and re-hash it against the sealed record and the on-chain memos. Change one number in one candidate and the check turns red.
 
-The harness is the product. An environment is a plug-in of about three files. Plug-in #1 is an age-structured SEIRV winter-epidemic simulator, where the goal is to minimise hospital-days for 10M people with GBP 40M, no school closures over 3 weeks and no widening of the age gap. Simulation evidence, not policy advice.
+## Guardrails
+
+- **Per-round onchain hash log.** Every iteration, the baseline included, is one link of a hash chain that starts at the preregistration commitment, and each round's hash is posted as a Solana memo (`sealed:v1:round:<run_id>:<index>:<hash>`). No round can be edited, dropped or reordered without breaking every later link; `verify` reports the first broken round.
+- **Human co-sign above a payment cap.** Any agent payment over `COSIGN_CAP_USD` (default 0.50 devnet USDC) is not sent. It is queued as an approval, the agent gets "awaiting human co-sign", and a human approves or rejects it through `/api/cosign/*`. State and an append-only `audit.jsonl` live in `.cosign/`. A co-signed payment still counts against the total budget.
+- **Limited autonomy.** Per-payment and total spending caps from the starter stay in force, and the LLM never grades its own work: keep/revert comes from the locked simulator, the verdict from the sealed holdout and a fixed gate.
+- **Honest on-chain state.** With an unfunded wallet, every memo shows "pending on-chain" and goes on chain once the wallet is funded (`sealed anchor`).
+
+Simulation and backtest evidence, not financial or policy advice.
 
 ## Architecture
 
@@ -24,25 +43,29 @@ agent/sealed/
   harness.py      seal -> baseline -> N x (propose, validate, dev score, KEEP/REVERT/INVALID) -> reveal -> anchor
   proposer.py     GeminiProposer (one JSON-mode call per iteration, retries transient errors) | ScriptedProposer (replay)
   prereg.py       code hash, salted holdout commitment, commitment, result hash, memos, verify_bundle
+  audit.py        per-round hash chain bound to the commitment
   chain.py        devnet memo anchor via the starter's pay_usdc(memo=...); never raises, "pending on-chain" when unfunded
   gate.py         holdout gate: relative gap limit + "no shift worse than the naive baseline"
   hashing.py      canonical JSON (sorted keys, 6-dp floats, 33.0 == 33) + SHA-256
-  store.py        run records as JSON, atomic writes; frozen demo in demo/epidemic_demo.json
+  store.py        run records as JSON, atomic writes; frozen demo in demo/
   environment.py  plug-in loader: sim.py, eval.py, holdout.json, handbook.md, demo_trajectory.json
-  envs/epidemic/  SEIRV simulator (pure stdlib), locked eval, sealed holdout
+  envs/           strategy (Kraken SOL/USDC), tokenomics, epidemic (SEIRV); pure stdlib
   static/         the demo page (plain HTML/CSS/JS, no build step)
+agent/payments/cosign.py  human co-sign queue and audit log
 agent/routes/sealed.py    HTTP API under /sealed/api
+agent/routes/cosign.py    HTTP API under /api/cosign
 agent/commands/sealed.py  python -m agent sealed run|anchor|verify
 ```
 
 | Endpoint | What it does |
 | --- | --- |
 | `GET /sealed` | Demo page: replays the frozen run (seal, search, reveal, verify) in about 45 s |
-| `POST /sealed/api/runs` | Starts a live run, `{"env": "epidemic", "iterations": 8, "proposer": "gemini", "anchor": true}`, and returns 202 `{"run_id"}` |
+| `POST /sealed/api/runs` | Starts a live run, `{"env": "strategy", "iterations": 8, "proposer": "gemini", "anchor": true}`, and returns 202 `{"run_id"}` |
 | `GET /sealed/api/runs/{id}` | The run record as it grows; `/bundle` downloads it |
 | `POST /sealed/api/runs/{id}/anchor` | Retries pending devnet memos once the wallet is funded |
-| `POST /sealed/api/verify` | `{"record": <bundle>}` returns the re-hash report, fetching the on-chain memos when they are confirmed |
+| `POST /sealed/api/verify` | `{"record": <bundle>}` returns the re-hash report, including the audit chain, fetching on-chain memos when confirmed |
 | `GET /sealed/api/demo`, `/sealed/api/envs` | The frozen demo run and the plug-ins |
+| `GET /api/cosign/pending`, `POST /api/cosign/{id}/approve` or `/reject`, `GET /api/cosign/audit` | The human co-sign queue |
 
 Hashes and memos (SPEC: `agent/sealed/SPEC.md`):
 - `commitment = sha256({v, run_id, env, code_sha256, dev_seeds, holdout_commitment})`, where `holdout_commitment = sha256({salt, holdout})`.
@@ -52,41 +75,38 @@ Hashes and memos (SPEC: `agent/sealed/SPEC.md`):
 ## AI capabilities
 
 - **An LLM as the research proposer.** Gemini (`agent/ai/gemini.py`, JSON mode) reads the goal, the domain handbook, the candidate's JSON schema, the champion with its dev score breakdown and the last six experiments. It returns a one-line falsifiable hypothesis, a strategy (`continue`, `pivot` or `widen`) and a full candidate. It is told to change one idea at a time.
-- **An external oracle, not an LLM judge.** Keep and revert decisions use the locked simulator score on dev seeds. The final verdict uses the sealed holdout and a fixed gate. No model grades its own work.
+- **An external oracle, not an LLM judge.** Keep and revert decisions use the locked score on dev data. The final verdict uses the sealed holdout and a fixed gate.
 - **Robustness.** Proposals are data validated against a JSON schema, never code. Each evaluation has a 10 s timeout. A bad, over-budget or failed proposal becomes an `INVALID` iteration and the loop carries on.
 - **The same service also answers the AI Race tasks:** respond, extract, use_tools, answer_from_source, converse and run_workflow (`agent/race/`).
 
 ## How it was verified
 
-**End to end through the HTTP API on the live service** (`POST /sealed/api/runs`, proposer `gemini`, 8 iterations, anchoring on). The run is `20261025T125119Z-epidemic-d428`, and it is now the cached demo in `agent/sealed/demo/epidemic_demo.json`.
+**End to end through the HTTP API on the live service** (`POST /sealed/api/runs`, proposer `gemini`, 8 iterations, anchoring on), shown on the epidemic plug-in. That run is `20261025T125119Z-epidemic-d428` and is the frozen demo in `agent/sealed/demo/epidemic_demo.json`.
 
-- **Sealed first.** The commitment `26cea50b…7f530a` was sealed at 12:51:19 UTC. The baseline was scored at 12:51:20 and iteration 1 at 12:51:35. The devnet memo is honestly marked "pending on-chain: agent wallet not funded".
-- **The loop improves on the dev seeds.** The score is thousand hospital-days averted per GBP 1m, net of penalties. It rose from 17.59 (naive baseline) to 25.68 (+46%), with 8 of 8 proposals kept.
-- **Overfitting is caught.** The holdout rejected 6 of the 8 kept candidates as `OVERFIT`, including the dev champion #8: it scored 25.68 on dev but 17.73 on the holdout, a 31% drop against a 30% limit. Under 1.4x transmissibility it collapses to 10.89, below the naive baseline's 14.70, because Gemini had cut the surge ICU beds to zero and raised the closure triggers.
-- **A final candidate passes.** #3 (school closures may run 21 days) scored 22.79 on dev and 17.93 on the holdout, a 21% gap. It holds above the naive baseline under every shift and is `GENERALISES - selected`. Its holdout mean beats the dev champion's, although its dev score is lower.
-- **Verify.** `POST /sealed/api/verify` on the downloaded bundle gives code, commitment and result hash all matching (`67e94902…1cc438f`). On the page, "Tamper one number" changes `school_close_max_days` from 21 to 22 on #3, and only the result hash fails.
-- **Other runs give the same pattern.**
-  - Two more Gemini runs each had at least one candidate rejected on the holdout.
-  - The scripted replay (`--proposer scripted`) goes 17.59 to 28.03 on dev. Its dev champion collapses to -8.75 under 1.4x transmissibility and is rejected, and #4 is selected.
-- **Tests.** `PYTHONPATH=. .venv/bin/python -m pytest -q tests` runs offline with no keys. It covers the harness, prereg and verify, the epidemic env, the routes and the integration checks, and the starter and race tests still pass.
+- **Sealed first.** The commitment `26cea50b…7f530a` was sealed at 12:51:19 UTC, before the baseline (12:51:20) and iteration 1 (12:51:35). The devnet memo is honestly marked "pending on-chain: agent wallet not funded".
+- **The loop improves on dev, and overfitting is caught.** The dev score rose from 17.59 to 25.68 (+46%), the holdout rejected 6 of the 8 kept candidates as `OVERFIT`, including the dev champion (25.68 on dev, 17.73 on holdout), and a candidate that holds above the naive baseline under every shift was selected.
+- **Verify.** `POST /sealed/api/verify` on the downloaded bundle gives code, commitment and result hash all matching. On the page, "Tamper one number" changes one candidate field and only the result hash fails.
+- **Strategy headline.** The dip-buyer (103.3 dev, 91.0 holdout) is rejected as `OVERFIT`; the trend filter with staking (91.0, 95.6) is selected.
+- **Tests.** `PYTHONPATH=. .venv/bin/python -m pytest -q tests` runs offline with no keys: harness, prereg and verify, audit chain, co-sign, all three plug-ins, routes and the starter and race tests.
 - **The page in a real browser.** Chromium via Playwright, at 1280 and 390 px, light and dark, with no console errors and no horizontal scroll.
 
 **Known limits:**
 - Until the wallet is funded the memos are pending and verification compares against the recorded commitment only. `python -m agent sealed anchor <run_id> --freeze` upgrades a run once it is funded.
-- The simulator is a calibrated stand-in, not a forecast.
+- The simulators are calibrated stand-ins, and a backtest is not a forecast.
 - The holdout file ships in the repo, so the seal proves the test did not change during the run, not that the author never looked at it.
 
 ## Run Sealed
 
 ```bash
 python -m agent serve                     # then open http://localhost:3000/sealed (PORT in .env)
-python -m agent sealed run --env epidemic --proposer gemini --iterations 8          # live run in the terminal
-python -m agent sealed run --env epidemic --proposer scripted --iterations 8 --no-anchor   # offline replay
+python -m agent sealed run --env strategy --proposer gemini --iterations 8          # live run in the terminal
+python -m agent sealed run --env strategy --proposer scripted --iterations 8 --no-anchor   # offline replay
 python -m agent sealed anchor <run_id> --freeze   # retry pending memos (after funding) and refresh the demo
 python -m agent sealed verify <run_id>            # re-hash a stored run against its memos
 ```
 
 For real on-chain memos, fund the agent wallet (`python -m agent wallets` shows it) with devnet SOL and USDC, then run `sealed anchor`.
+
 
 ---
 
