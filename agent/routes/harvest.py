@@ -1,6 +1,7 @@
 """Harvest JSON API under /harvest/api/* incl. the external agent API (SPEC.md section 11, addendum R1). Owner: market-engine.
 
 GET  /harvest/api/state?since=<seq>   markets, recent trades (newer than seq), leaderboard, fund, users, insight
+     ?lite=1: the same without leaderboard, forecasts and world-model text (~10 kB gzipped; what pollers use)
 GET  /harvest/api/markets[/{qid}]     live and soft markets          GET /harvest/api/replay   frozen ReplayResult
 GET  /harvest/api/prices              price fixture                  GET /harvest/api/leaderboard
 GET  /harvest/api/fund                Resilience Fund allocation     GET /harvest/api/geo      map regions and arcs
@@ -266,6 +267,54 @@ def state_view(book: LiveBook, since: int | None) -> dict[str, Any]:
     }
 
 
+LITE_TRADES = 40  # newest bets in a lite poll without `since`
+LITE_TRADES_SINCE = 60  # most bets a lite poll with `since` returns
+LITE_HISTORY = 40  # price points kept per market: the sparklines are 300 px wide
+LITE_RATIONALE = 240
+
+
+def _thin_history(history: list[list[Any]], keep: int = LITE_HISTORY) -> list[list[Any]]:
+    """At most `keep` points spread evenly over the history, first and last included, prices to 4 places."""
+    if len(history) > keep:
+        history = [history[round(i * (len(history) - 1) / (keep - 1))] for i in range(keep)]
+    return [[h[0], round(h[1], 4)] for h in history]
+
+
+def lite_market(view: dict[str, Any]) -> dict[str, Any]:
+    """A market for pollers: no per-agent forecasts (clients keep the ones from their last full load), thin history."""
+    out = {k: v for k, v in view.items() if k not in ("agent_forecasts", "history")}
+    out["history"] = _thin_history(view.get("history") or [])
+    return out
+
+
+def lite_trade(trade: dict[str, Any]) -> dict[str, Any]:
+    rationale = trade.get("rationale")
+    return {**trade, "rationale": rationale[:LITE_RATIONALE]} if isinstance(rationale, str) and len(rationale) > LITE_RATIONALE else trade
+
+
+def state_view_lite(book: LiveBook, since: int | None) -> dict[str, Any]:
+    """What the polling pages redraw from: the full state minus the leaderboard, forecasts and world-model text.
+
+    The full /state is ~600 kB (~115 kB gzipped) because of the leaderboard and per-agent forecasts; every live page
+    polling it from a laptop on venue wifi would saturate the uplink. Pages load the full state once, then poll this,
+    and merge it over the last full load.
+    """
+    trades = book.trades
+    recent = [t for t in trades if t["seq"] > since][-LITE_TRADES_SINCE:] if since is not None else trades[-LITE_TRADES:]
+    return {
+        "lite": True,
+        "personas": [{k: p.get(k) for k in ("id", "name", "color")} for p in book.personas],
+        "markets": [lite_market(book.market_view(q)) for q in book.markets],
+        "recent_trades": [lite_trade(t) for t in recent],
+        "seq": trades[-1]["seq"] if trades else 0,
+        "fund": fund_view(book),
+        "users": book.users(),
+        "agents": sum(1 for tid, t in book.traders.items() if t["kind"] == "external" and not byo.is_byo(tid)),
+        "human_models": sum(1 for tid in book.traders if byo.is_byo(tid)),
+        "ledger_head": {"seq": book.ledger_head[0], "hash": book.ledger_head[1]},
+    }
+
+
 def holdout_questions(result: dict[str, Any] | None) -> list[dict[str, Any]]:
     """Holdout questions with what a human may see before answering (no outcome, no final price)."""
     out = []
@@ -457,19 +506,20 @@ def follow_feed(book: LiveBook, follower: str, limit: int) -> list[dict[str, Any
 
 def register(app: FastAPI) -> None:  # noqa: C901 - one flat list of routes
     @app.get("/harvest/api/state")
-    async def state(since: int | None = None) -> JSONResponse:
+    async def state(since: int | None = None, lite: bool = False) -> JSONResponse:
         ledger.anchorer.ensure_ticker()
         _ensure_house_agents()
         book = await asyncio.to_thread(_book)
         with book.lock:
-            body = state_view(book, since)
+            body = state_view_lite(book, since) if lite else state_view(book, since)
         return JSONResponse(body, headers=NO_STORE)
 
     @app.get("/harvest/api/markets")
-    async def markets() -> JSONResponse:
+    async def markets(lite: bool = False) -> JSONResponse:
         book = await asyncio.to_thread(_book)
         with book.lock:
-            return JSONResponse({"markets": [book.market_view(q) for q in book.markets]}, headers=NO_STORE)
+            views = [book.market_view(q) for q in book.markets]
+            return JSONResponse({"markets": [lite_market(v) for v in views] if lite else views}, headers=NO_STORE)
 
     @app.get("/harvest/api/markets/{qid}")
     async def market_detail(qid: str) -> JSONResponse:

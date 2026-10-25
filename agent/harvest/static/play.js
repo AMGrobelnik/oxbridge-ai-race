@@ -154,10 +154,16 @@
       btn.disabled = false;
     }
   }
+  let marketsFullAt = 0;
   async function pollMarkets() {
+    if (document.hidden) return;
     try {
-      const r = await api("/harvest/api/markets");
-      markets = r.markets;
+      if (!markets.length || Date.now() - marketsFullAt > H.FULL_MS) {
+        markets = (await api("/harvest/api/markets")).markets;
+        marketsFullAt = Date.now();
+      } else {
+        markets = H.mergeMarkets(markets, (await api("/harvest/api/markets?lite=1")).markets);
+      }
       renderMarkets();
     } catch (_) { /* retry next tick */ }
   }
@@ -342,7 +348,7 @@
       H.registerTraders(s.leaderboard);
     } catch (_) { /* avatars fall back */ }
     await pollMarkets();
-    setInterval(pollMarkets, 5000);
+    setInterval(pollMarkets, H.POLL_MS);
   }
 
   me = load();

@@ -456,6 +456,16 @@ window.H = (() => {
     t._h = setTimeout(() => t.classList.remove("on"), ms);
   }
 
-  return { el, svg, api, pct, cr, signed, b3, short, ago, riskColor, initTheme, isDark, registerPersonas, registerTraders, trader, avatar,
+  // ---- polling: the full payload on first load and every FULL_MS, the small ?lite=1 payload in between, merged over it
+  const FULL_MS = 60000, POLL_MS = 5000;
+  function mergeMarkets(prev, lite) {
+    const old = new Map((prev || []).map((m) => [m.qid, m]));
+    return lite.map((m) => ({ ...old.get(m.qid), ...m }));
+  }
+  function mergeLite(prev, lite) {
+    return { ...prev, ...lite, personas: prev.personas, leaderboard: prev.leaderboard, insight: prev.insight, markets: mergeMarkets(prev.markets, lite.markets) };
+  }
+
+  return { FULL_MS, POLL_MS, mergeMarkets, mergeLite, el, svg, api, pct, cr, signed, b3, short, ago, riskColor, initTheme, isDark, registerPersonas, registerTraders, trader, avatar,
     personas, COMMODITY, shortTitle, rationaleFor, lineChart, tween, feedItem, Flow, riskMap, renderFund, toast, MONO };
 })();

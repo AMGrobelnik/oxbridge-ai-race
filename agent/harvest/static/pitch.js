@@ -101,6 +101,6 @@
     }
   }
   tick();
-  setInterval(tick, 1500);
+  setInterval(() => { if (!document.hidden) tick(); }, 5000);
   window.addEventListener("resize", tick);
 })();

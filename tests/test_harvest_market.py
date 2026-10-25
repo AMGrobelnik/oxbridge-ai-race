@@ -217,6 +217,38 @@ def test_state_and_since(client):
         assert client.get(path).status_code == 200, path
 
 
+def test_lite_state_is_small_and_keeps_what_pollers_draw(client):
+    """Pollers (every live page, every 5 s) read ?lite=1: bounded trades and history, gzipped under 15 kB."""
+    import gzip
+    import json
+    import random
+
+    tok = client.post("/harvest/api/join", json={"nickname": "Ana"}).json()["token"]
+    book = market.live_book()
+    rng = random.Random(1)
+    for qid, m in book.markets.items():  # a heavy book: long history, many agents with long rationales
+        m["history"] = [(i, rng.random()) for i in range(400)]
+        book.agent_forecasts[qid] = [{"persona_id": f"p{i}", "name": f"Persona {i}", "color": "#d9480f", "p_yes": rng.random(),
+                                      "rationale": "x" * 600, "source": "llm", "at": None} for i in range(30)]
+    client.post("/harvest/api/bet", json={"token": tok, "qid": "it-drought-2027", "side": "YES", "spend": 20})
+    for _ in range(120):
+        book.trades.append({**book.trades[-1], "seq": book.trades[-1]["seq"] + 1, "rationale": "r" * 900})
+    full = client.get("/harvest/api/state").content
+    lite_resp = client.get("/harvest/api/state?lite=1")
+    lite = lite_resp.json()
+    assert len(gzip.compress(lite_resp.content)) < 15_000 and len(full) > 2 * len(lite_resp.content)
+    assert not {"leaderboard", "insight"} & set(lite) and lite["lite"] is True
+    assert len(lite["recent_trades"]) == routes.LITE_TRADES and lite["seq"] == book.trades[-1]["seq"]
+    assert all(len(t["rationale"]) <= routes.LITE_RATIONALE for t in lite["recent_trades"])
+    assert all("agent_forecasts" not in m and len(m["history"]) <= routes.LITE_HISTORY for m in lite["markets"])
+    assert {m["qid"]: m["p_yes"] for m in lite["markets"]} == {m["qid"]: m["p_yes"] for m in json.loads(full)["markets"]}
+    assert {"id", "name", "color"} == set(lite["personas"][0])
+    since = lite["seq"] - 3
+    assert [t["seq"] for t in client.get(f"/harvest/api/state?lite=1&since={since}").json()["recent_trades"]] == [lite["seq"] - 2, lite["seq"] - 1, lite["seq"]]
+    slim = client.get("/harvest/api/markets?lite=1").json()["markets"]
+    assert all("agent_forecasts" not in m for m in slim) and "agent_forecasts" in client.get("/harvest/api/markets").json()["markets"][0]
+
+
 def test_r1_external_agent_flow(client):
     doc = client.get("/harvest/api/agents").json()
     assert any(e["path"] == "/harvest/api/agents/register" for e in doc["endpoints"])

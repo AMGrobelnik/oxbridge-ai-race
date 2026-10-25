@@ -466,9 +466,17 @@
   }
 
   // ---------------------------------------------------------------- polling
+  let fullAt = 0;
   async function poll() {
+    if (document.hidden) { setTimeout(poll, H.POLL_MS); return; }
     try {
-      const s = await api(seq == null ? "/harvest/api/state" : `/harvest/api/state?since=${seq}`);
+      let s;
+      if (state == null || Date.now() - fullAt > H.FULL_MS) {
+        s = await api(seq == null ? "/harvest/api/state" : `/harvest/api/state?since=${seq}`);
+        fullAt = Date.now();
+      } else {
+        s = H.mergeLite(state, await api(`/harvest/api/state?lite=1&since=${seq}`));
+      }
       const first = state == null;
       state = s;
       H.registerPersonas(s.personas);
@@ -488,7 +496,7 @@
     } catch (e) {
       console.warn("state poll failed", e);
     }
-    setTimeout(poll, 2500);
+    setTimeout(poll, H.POLL_MS);
   }
 
   async function boot() {

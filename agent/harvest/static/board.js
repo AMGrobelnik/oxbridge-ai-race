@@ -70,9 +70,18 @@
       if (t.trader.startsWith("user:")) H.toast(`${H.trader(t.trader).name} bet ${cr(t.spend)} on ${t.side}: ${H.shortTitle(marketsById.get(t.qid))}`, 3500);
     }, i * 380));
   }
+  let last = null, fullAt = 0;
   async function poll() {
+    if (document.hidden) { setTimeout(poll, H.POLL_MS); return; }
     try {
-      const s = await api(seq == null ? "/harvest/api/state" : `/harvest/api/state?since=${seq}`);
+      let s;
+      if (last == null || Date.now() - fullAt > H.FULL_MS) {
+        s = await api(seq == null ? "/harvest/api/state" : `/harvest/api/state?since=${seq}`);
+        fullAt = Date.now();
+      } else {
+        s = H.mergeLite(last, await api(`/harvest/api/state?lite=1&since=${seq}`));
+      }
+      last = s;
       const first = seq == null;
       H.registerPersonas(s.personas);
       H.registerTraders(s.leaderboard);
@@ -91,7 +100,7 @@
     } catch (e) {
       console.warn("poll failed", e);
     }
-    setTimeout(poll, 2000);
+    setTimeout(poll, H.POLL_MS);
   }
   (async () => {
     geo = await api("/harvest/api/geo").catch(() => null);

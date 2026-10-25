@@ -907,7 +907,7 @@ requestAnimationFrame(loop);
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const fmt = n => Math.round(n).toLocaleString('en-US');
   const set = (k, v) => document.querySelectorAll(`[data-k="${k}"]`).forEach(el => { el.textContent = v; });
-  const FEED = '/harvest/api/landing', POLL_MS = 2500, FEED_ROWS = 6;
+  const FEED = '/harvest/api/landing', POLL_MS = 5000, FEED_ROWS = 6;
   const C = {yes: '#2e6b3c', no: '#b4372a'};
   const ZOOM = 1.12;
   let G = null, seq = 0, since = 0, M = {}, names = {}, colors = {}, queue = [], lastFocus = 0;
@@ -1072,8 +1072,8 @@ requestAnimationFrame(loop);
   }
   async function poll() {
     try {
-      const r = await fetch(`${FEED}?since=${since}`, {cache: 'no-store'});
-      if (r.ok) {
+      const r = document.hidden ? null : await fetch(`${FEED}?since=${since}`, {cache: 'no-store'});
+      if (r && r.ok) {
         const d = await r.json();
         Object.assign(names, d.names || {});
         for (const [q, p] of Object.entries(d.prices || {})) if (M[q]) M[q].p_yes = p;
@@ -1085,7 +1085,7 @@ requestAnimationFrame(loop);
         fresh.forEach((t, i) => queue.push([performance.now() + i * gap, t]));
       }
     } catch (e) { /* the next poll retries */ }
-    setTimeout(poll, document.hidden ? POLL_MS * 4 : POLL_MS);
+    setTimeout(poll, POLL_MS);
   }
   (function drain() {
     const now = performance.now();

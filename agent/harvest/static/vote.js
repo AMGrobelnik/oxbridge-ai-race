@@ -112,5 +112,5 @@
   $("no").addEventListener("click", () => bet("NO"));
   guest();
   tick();
-  setInterval(tick, 3000);
+  setInterval(() => { if (!document.hidden) tick(); }, 5000);
 })();

@@ -18,7 +18,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 
 HOT_PATHS = frozenset({
     "/harvest/api/state", "/harvest/api/leaderboard", "/harvest/api/swarm", "/harvest/api/landing",
-    "/harvest/api/news", "/harvest/api/markets", "/harvest/api/fund", "/harvest/api/season",
+    "/harvest/api/news", "/harvest/api/markets", "/harvest/api/fund", "/harvest/api/season", "/pitch/api/state",
 })
 MAX_ENTRIES = 512
 GZIP_MIN_BYTES = 1024

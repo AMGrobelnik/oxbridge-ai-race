@@ -23,5 +23,5 @@
     } catch (e) { /* the counter is optional */ }
   }
   tick();
-  setInterval(tick, 10000);
+  setInterval(() => { if (!document.hidden) tick(); }, 10000);
 })();

@@ -400,7 +400,7 @@
     window.addEventListener("pagehide", () => clearInterval(dTimer));
     async function tick() {
       try {
-        const s = await api("/state");
+        const s = await api("/state?lite=1");
         const names = new Map(s.personas.map((p) => [p.id, p.name]));
         const titles = new Map(s.markets.map((m) => [m.qid, m.title]));
         const ext = new Map();
