@@ -46,6 +46,7 @@ p{margin:0}
 .bar .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:16px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font:400 22px/1 var(--f-display);opacity:0;transform:translateY(-6px);transition:opacity .4s,transform .4s}
 .bar.solid .brand{opacity:1;transform:none}
+.brand{gap:7px;color:var(--ink,#14190f)}.brand .mk{width:32px;height:32px;margin-top:-4px}.brand i{font-style:italic;color:#8a6517}
 .mini{writing-mode:vertical-rl;font:800 11px/1 var(--f-jp);letter-spacing:.05em;color:var(--soil);border-left:1px solid var(--line-strong,#c9cebf);padding-left:6px}
 .bar nav{display:flex;gap:28px;font-size:14px;color:var(--stalk)}
 .bar nav a{text-decoration:none;transition:color .2s}
@@ -256,7 +257,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
 <header class="bar" id="bar">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="Crophecy home"><span class="mini" aria-hidden="true">クロ</span>Crophecy</a>
+    <a class="brand" href="#top" aria-label="Crophecy home"><img class="mk" src="/frontend/assets/crophecy-mark.svg" alt="" width="32" height="32"><span>Crop<i>hecy</i></span></a>
     <nav aria-label="Sections">
       <a href="#how">How it works</a>
       <a href="#theory">Your theory</a>

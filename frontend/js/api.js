@@ -646,7 +646,7 @@
 .cr-croppy .cr-page{padding:16px;max-width:none}.cr-croppy .sec-head{margin-bottom:10px;position:relative}.cr-croppy h2{font-size:18px}.cr-croppy .sec-head p{font-size:13px;margin-top:4px}.cr-croppy .cr-log{max-height:40vh;min-height:140px}
 .cr-x-close{position:absolute;right:-4px;top:-6px;border:0;background:none;font-size:22px;cursor:pointer;color:var(--muted)}
 .cr-modal{position:fixed;inset:0;z-index:90;background:rgba(20,25,15,.45);display:grid;place-items:center;padding:16px}.cr-card{background:#fbfcf9;border-radius:16px;padding:22px;width:min(400px,100%)}.cr-card p{color:var(--muted);margin:6px 0 14px}.cr-card form{display:flex;gap:8px}
-@media (max-width:760px){.cr-croppy-btn{bottom:84px}.cr-croppy{bottom:136px}}
+@media (max-width:760px){.cr-croppy-btn{bottom:84px;padding:9px 14px;font-size:13px}.cr-croppy{bottom:130px}}
 .cr-follow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.cr-bal{color:var(--muted);margin:4px 0 10px}`;
     const st = document.createElement("style"); st.textContent = css; document.head.append(st);
   }

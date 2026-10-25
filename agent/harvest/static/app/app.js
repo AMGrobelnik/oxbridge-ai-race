@@ -106,7 +106,7 @@
     const page = document.body.dataset.page;
     const top = document.getElementById("top");
     top.replaceChildren(h("div", { class: "bar" },
-      h("a", { class: "brand", href: "/app" }, "🌾 The Crophecy"),
+      h("a", { class: "brand", href: "/app", "aria-label": "Crophecy" }, h("img", { src: "/frontend/assets/crophecy-mark.svg", alt: "", width: 30, height: 30 }), h("span", {}, "Crop", h("i", {}, "hecy"))),
       h("nav", {}, NAV.filter((n) => n[2] !== "home").map(([href, label, id]) => h("a", { href, class: (id === page || (id === "markets" && page === "market")) ? "on" : "" }, label))),
       h("span", { class: "badge", id: "badge", title: "Play credits only. They have no monetary value and cannot be bought or cashed out." }, badgeText())));
   }
