@@ -398,6 +398,7 @@
     loadDebate(debates, "", 6);
     const dTimer = setInterval(() => { if (!document.hidden) loadDebate(debates, "", 6); }, 20000);
     window.addEventListener("pagehide", () => clearInterval(dTimer));
+    let n = 0;
     async function tick() {
       try {
         const s = await api("/state?lite=1");
@@ -410,6 +411,7 @@
           h("a", { href: `/app/market/${encodeURIComponent(t.qid)}` }, titles.get(t.qid) || t.qid), h("span", { class: "muted small" }, ` · ${ago(t.at)}`),
           t.rationale ? h("div", { class: "muted", style: "font-size:15px;margin-top:4px" }, t.rationale) : null)));
       } catch (e) { feed.replaceChildren(failure(e)); }
+      if (n++ % 6) return;  // headlines change slowly: every 30 s, not every poll
       try { news.replaceChildren(...newsItems(await api("/news?limit=8"))); } catch (e) { news.replaceChildren(h("p", { class: "muted" }, e.status === 404 ? "News is coming soon." : e.message)); }
     }
     tick();

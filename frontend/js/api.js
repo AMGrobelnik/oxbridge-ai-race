@@ -15,7 +15,7 @@
 (() => {
   const API = "/harvest/api";
   const KEY = "harvest-player"; // the player saved by /harvest/play and /app, so one login works everywhere
-  const POLL_MS = 3000;
+  const POLL_MS = 5000;
   const HOOKS = window.CROPHECY_HOOKS || [];
   const PERSONA_CODES = { "agronomist": "AGRO", "adaptation-optimist": "ADPT", "macro-dollar": "MACR", "efficient-market-skeptic": "SKEP",
     "geopolitics-hawk": "HAWK", "climate-pessimist": "CLIM", "land-grab-realist": "LAND", "crowd-follower": "CRWD" };
@@ -249,6 +249,7 @@
     setText("[data-vol]", money(vol)); setText("[data-bets]", String(bets)); setText("[data-fund]", money(FUND));
   }
   async function poll() {
+    if (document.hidden) { setTimeout(poll, POLL_MS); return; }
     try {
       const body = await call(`/site?since=${S.seq}`);
       for (const t of body.recent_trades || []) pushTrade(t);
@@ -260,7 +261,7 @@
       setText("[data-vol]", money(vol)); setText("[data-v24]", money(vol)); setText("[data-v24n]", `+${bets} since you arrived`);
       renderFund(); paintLedger();
     } catch (e) { console.warn("crophecy poll", e); }
-    setTimeout(poll, document.hidden ? POLL_MS * 4 : POLL_MS);
+    setTimeout(poll, POLL_MS);
   }
 
   // ---------------------------------------------------------------- static copy that carried demo numbers
