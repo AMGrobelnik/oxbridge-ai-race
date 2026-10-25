@@ -327,6 +327,88 @@
 "rationale": "Strategic reserves and resilient floor pricing make a drop below 101.6 highly improbable in an unstable trade environment."
 }
 ],
+"07572dd03e9d3743665ae7850ab159f0067eb38d8a507f4f8a1259c46c2a5066": [
+{
+"p_yes": 0.25,
+"qid": "wheat-up10-6m@2025-12",
+"rationale": "Prices are down over the past year, showing no drought-driven upward trend to propel a 10% gain."
+},
+{
+"p_yes": 0.35,
+"qid": "wheat-down10-3m@2025-12",
+"rationale": "Downward trend over the year persists without heat-driven support, making further softening plausible."
+},
+{
+"p_yes": 0.02,
+"qid": "wheat-above300-6m@2025-12",
+"rationale": "No heat-driven momentum supports an extreme near-doubling in price without a prior upward trend."
+},
+{
+"p_yes": 0.45,
+"qid": "maize-up10-6m@2025-12",
+"rationale": "Modest upward trajectory over recent months points to heat pressure, making a 10% gain possible."
+},
+{
+"p_yes": 0.08,
+"qid": "maize-above250-3m@2025-12",
+"rationale": "A 22% spike in three months exceeds normal heat-driven appreciation without prior explosive momentum."
+},
+{
+"p_yes": 0.52,
+"qid": "olive-up15-6m@2025-12",
+"rationale": "Rising prices over the past year signal persistent Mediterranean drought pressure, driving further gains."
+},
+{
+"p_yes": 0.48,
+"qid": "olive-above7000-6m@2025-12",
+"rationale": "Drought-driven momentum from the prior year supports continued appreciation toward this threshold."
+},
+{
+"p_yes": 0.12,
+"qid": "olive-down10-3m@2025-12",
+"rationale": "With prices rising over the past year due to heat drivers, a sharp 10% drop is unlikely."
+},
+{
+"p_yes": 0.22,
+"qid": "coffee-up10-6m@2025-12",
+"rationale": "Prices have already spiked hard to near 120; supply response dictates partial mean reversion rather than new highs."
+},
+{
+"p_yes": 0.88,
+"qid": "coffee-above300-3m@2025-12",
+"rationale": "Mean reversion after the spike should be partial, keeping prices comfortably above 87.2."
+},
+{
+"p_yes": 0.2,
+"qid": "cocoa-up15-6m@2025-12",
+"rationale": "Persistent declines over the past year indicate no drought-induced supply squeeze to fuel a 15% rally."
+},
+{
+"p_yes": 0.42,
+"qid": "cocoa-below5000-6m@2025-12",
+"rationale": "Without summer heat stress boosting prices, continued downward drift remains a distinct possibility."
+},
+{
+"p_yes": 0.22,
+"qid": "sugar-up10-6m@2025-12",
+"rationale": "Down trending index over the year shows an absence of drought impact, limiting upside potential."
+},
+{
+"p_yes": 0.68,
+"qid": "sunoil-up10-6m@2025-12",
+"rationale": "Consistent rising prices over the year indicate severe drought impacts, expecting strong further rises."
+},
+{
+"p_yes": 0.86,
+"qid": "sunoil-above1600-3m@2025-12",
+"rationale": "With steady upward momentum driven by heat stress, prices should remain well above 110.6."
+},
+{
+"p_yes": 0.15,
+"qid": "rice-above500-6m@2025-12",
+"rationale": "Down over the year despite a recent bump; reaching above 100.9 requires an unprecedented surge."
+}
+],
 "07d31e10a5d6c9d12cfa4ef3591eabc472d11e879f0248e741689882c8ec0e27": [
 {
 "p_yes": 0.12,
@@ -7543,6 +7625,88 @@
 "rationale": "Steady corridor stress and compounding political friction favor continued ascent beyond 143.2."
 }
 ],
+"8d9f8cf2fd0d7172e1f2c9bd78708a8347605b1fc90cc46a350b345c63a49cc6": [
+{
+"p_yes": 0.52,
+"qid": "wheat-up10-6m@2026-03",
+"rationale": "Year-over-year gains point to persistent drought-driven price increases, supporting another 10% climb despite the recent rapid ascent."
+},
+{
+"p_yes": 0.28,
+"qid": "wheat-down10-3m@2026-03",
+"rationale": "Rising annual trend indicates ongoing summer heat stress, though the recent sharp spike creates some risk of partial supply-side mean reversion."
+},
+{
+"p_yes": 0.04,
+"qid": "wheat-above300-6m@2026-03",
+"rationale": "A jump past 167 would require an extreme, unprecedented supply collapse far beyond typical heat-driven inflation."
+},
+{
+"p_yes": 0.45,
+"qid": "maize-up10-6m@2026-03",
+"rationale": "Prices have trended upward over the past year amid southern European warmth, making further steady gains likely."
+},
+{
+"p_yes": 0.12,
+"qid": "maize-above250-3m@2026-03",
+"rationale": "Gains have been steady rather than explosive; reaching 120.3 within three months exceeds the typical heat shock pace."
+},
+{
+"p_yes": 0.36,
+"qid": "olive-up15-6m@2026-03",
+"rationale": "A solid upward annual trajectory signals continued drought pressure, but reaching +15% requires intensified summer heat."
+},
+{
+"p_yes": 0.35,
+"qid": "olive-above7000-6m@2026-03",
+"rationale": "Ongoing drought conditions favor continued upward drift, though clearing 131.8 remains a moderate hurdle."
+},
+{
+"p_yes": 0.12,
+"qid": "olive-down10-3m@2026-03",
+"rationale": "With drought driving a steady rise over the past year, a sudden sharp plunge below 102.9 is improbable."
+},
+{
+"p_yes": 0.25,
+"qid": "coffee-up10-6m@2026-03",
+"rationale": "Prices trended downward over the last year, indicating heat stress is not currently tightening this market."
+},
+{
+"p_yes": 0.72,
+"qid": "coffee-above300-3m@2026-03",
+"rationale": "Recent stabilization above 80 suggests prices will hold above 74.2 over the next quarter."
+},
+{
+"p_yes": 0.22,
+"qid": "cocoa-up15-6m@2026-03",
+"rationale": "Severe year-long collapse shows no sign of heat-driven tightness, making a sustained rebound unlikely."
+},
+{
+"p_yes": 0.88,
+"qid": "cocoa-below5000-6m@2026-03",
+"rationale": "The commodity is deeply depressed and lacking drought-induced upward momentum, keeping it well below 61.9."
+},
+{
+"p_yes": 0.2,
+"qid": "sugar-up10-6m@2026-03",
+"rationale": "Falling trajectory over the last year indicates ample supply rather than summer drought shortages."
+},
+{
+"p_yes": 0.48,
+"qid": "sunoil-up10-6m@2026-03",
+"rationale": "A consistent rise over the past year reflects ongoing climate pressure, supporting further upside toward 130."
+},
+{
+"p_yes": 0.84,
+"qid": "sunoil-above1600-3m@2026-03",
+"rationale": "Heat and drought fundamentals underpin the current level, making a drop below 108.8 very unlikely."
+},
+{
+"p_yes": 0.07,
+"qid": "rice-above500-6m@2026-03",
+"rationale": "The full-year trend is negative; reaching nearly 120 from 91.9 requires a massive supply shock not supported by the data."
+}
+],
 "98fe82c30c1c270be5eb2502a4cb7b4e7e0b4119465bd9565e8b9ec1610493ca": [
 {
 "p_yes": 0.6,
@@ -8935,6 +9099,88 @@
 "p_yes": 0.86,
 "qid": "rice-above500-6m@2024-09",
 "rationale": "Stable cultivation across diversified regions ensures steady production, keeping prices well above the 82.4 floor."
+}
+],
+"c1ef81e51176c576a5ad5cfc37e4f1141103c8d1a40634550309af23324a6c78": [
+{
+"p_yes": 0.22,
+"qid": "wheat-up10-6m@2025-09",
+"rationale": "Prices fell over the past year, showing no drought-driven upward momentum, making a 10% rebound unlikely."
+},
+{
+"p_yes": 0.42,
+"qid": "wheat-down10-3m@2025-09",
+"rationale": "Downward drift persists without summer heat pressure driving it up, making further drops moderately likely."
+},
+{
+"p_yes": 0.02,
+"qid": "wheat-above300-6m@2025-09",
+"rationale": "A nearly 100% surge without any prior heat-driven rally is essentially out of the question."
+},
+{
+"p_yes": 0.32,
+"qid": "maize-up10-6m@2025-09",
+"rationale": "Showed only modest net annual gains after an earlier peak; a break past 117.5 faces headwinds."
+},
+{
+"p_yes": 0.04,
+"qid": "maize-above250-3m@2025-09",
+"rationale": "Reaching 136.1 in three months requires an extreme sudden shock not supported by current trajectory."
+},
+{
+"p_yes": 0.24,
+"qid": "olive-up15-6m@2025-09",
+"rationale": "Despite a minor recent uptick, the annual trend is deeply negative rather than drought-inflated."
+},
+{
+"p_yes": 0.16,
+"qid": "olive-above7000-6m@2025-09",
+"rationale": "A sustained climb above 78.4 contradicts the overarching downward trajectory seen across the past year."
+},
+{
+"p_yes": 0.28,
+"qid": "olive-down10-3m@2025-09",
+"rationale": "Prices have stabilized slightly above 60 recently, though lack of drought support leaves downside open."
+},
+{
+"p_yes": 0.26,
+"qid": "coffee-up10-6m@2025-09",
+"rationale": "Having spiked hard already toward 147, supply response and partial mean reversion cap further major gains."
+},
+{
+"p_yes": 0.88,
+"qid": "coffee-above300-3m@2025-09",
+"rationale": "Mean reversion is only partial; heat-driven baseline keeps prices firmly above 107.6 over three months."
+},
+{
+"p_yes": 0.19,
+"qid": "cocoa-up15-6m@2025-09",
+"rationale": "Following an extreme spike to 166, supply has responded and mean reversion continues downward."
+},
+{
+"p_yes": 0.17,
+"qid": "cocoa-below5000-6m@2025-09",
+"rationale": "While mean reversion is active after the spike, a collapse below 77.9 exceeds typical partial pullback."
+},
+{
+"p_yes": 0.2,
+"qid": "sugar-up10-6m@2025-09",
+"rationale": "Consistent annual decline indicates no southern European drought impulse to drive a 10% gain."
+},
+{
+"p_yes": 0.62,
+"qid": "sunoil-up10-6m@2025-09",
+"rationale": "Steady annual rise without a blowout spike suggests drought heat continues to push prices higher."
+},
+{
+"p_yes": 0.74,
+"qid": "sunoil-above1600-3m@2025-09",
+"rationale": "With prices steadily ascending over the last year, crossing 124.6 in three months is highly probable."
+},
+{
+"p_yes": 0.03,
+"qid": "rice-above500-6m@2025-09",
+"rationale": "Protracted, severe decline throughout the year rules out a sudden 43% leap to 90.1."
 }
 ],
 "c28e2aba3622dca225b24d82a97670114fb6fd4547366f7367ebeb160f037ac0": [
