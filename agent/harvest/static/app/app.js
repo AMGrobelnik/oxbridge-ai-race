@@ -234,7 +234,7 @@
   async function drawStats(node) {
     try {
       const c = await api("/waitlist/count");
-      node.textContent = `${c.pilots} ${c.pilots === 1 ? "pilot" : "pilots"}, ${c.waitlist} on the waitlist`;
+      node.textContent = `${c.pilots} ${c.pilots === 1 ? "pilot" : "pilots"}`;
     } catch (_) { node.textContent = ""; }
   }
   function home() {
@@ -615,8 +615,20 @@
 
   // ------------------------------------------------------------ boot
   const PAGES = { home, markets, market: marketPage, live, theory, board: leaderboard, scenario: () => {} }; // scenario: scenario.js
-  renderChrome();
-  (PAGES[document.body.dataset.page] || (() => {}))(); // other pages (replay, impact) bring their own script
-  refreshBalance();
-  loadCroppy();
+  // A login link (/app#login=<token>) signs this browser in as an existing account; the fragment never reaches a server.
+  async function claimLogin() {
+    const m = /^#login=([A-Za-z0-9_-]{16,64})$/.exec(location.hash);
+    if (!m) return;
+    history.replaceState(null, "", location.pathname + location.search);
+    try {
+      const info = await api(`/me?token=${encodeURIComponent(m[1])}`);
+      save({ token: m[1], user_id: info.user_id, username: info.username, nickname: info.nickname, type: info.type, credits: info.balance });
+    } catch (_) { /* unknown token: stay signed out */ }
+  }
+  claimLogin().finally(() => {
+    renderChrome();
+    (PAGES[document.body.dataset.page] || (() => {}))(); // other pages (replay, impact) bring their own script
+    refreshBalance();
+    loadCroppy();
+  });
 })();

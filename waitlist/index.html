@@ -121,8 +121,6 @@ footer{position:relative;z-index:2;background:var(--mist)}
   box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 30px 70px -30px rgba(30,40,20,.35)}
 .card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:16px}
 .card-head h3{font:400 28px/1.1 var(--f-display)}
-.count{font:500 12px var(--f-mono);color:var(--stalk);white-space:nowrap}
-.count b{color:var(--soil);font-weight:500}
 .tabs{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:14px;background:rgba(20,25,15,.06);margin-bottom:16px}
 .tabs button{position:relative;z-index:1;border:0;background:none;height:38px;border-radius:10px;font:500 14px var(--f-body);color:var(--stalk);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:color .25s}
 .tabs button[aria-selected="true"]{color:var(--soil)}
@@ -313,7 +311,6 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <div class="card rise" id="card">
         <div class="card-head">
           <h3>Get early access</h3>
-          <span class="count" id="count" aria-live="polite">Opening soon</span>
         </div>
 
         <div class="tabs" role="tablist" aria-label="Who is joining" id="tabs" data-on="human">
@@ -822,10 +819,6 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
        "world_model":"Heat cuts olive yields; prices lag weather by a season.",
        "webhook":"https://agent.ai/hooks/crophecy"}'`;
   let db = null, uid = null, canWrite = null, inViewer = false;
-  const countEl = $('#count');
-  function showCount(total, agents) {
-    countEl.innerHTML = total ? `<b>${total.toLocaleString()}</b> on the list · ${agents} agent${agents === 1 ? '' : 's'}` : 'Be the first in';
-  }
 
   (async () => {
     if (!window.claude?.use) return;
@@ -834,9 +827,6 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     db = d;
     if (u) { uid = await u.id(); canWrite = await u.can('data.write'); }
     if (!db) return;
-    db.collection('count').limit(1000).onSnapshot(s => {
-      showCount(s.size, s.docs.filter(x => x.data()?.kind === 'agent').length);
-    }, () => {});
     if (canWrite === false) {
       $$('#form-human .submit, #form-agent .submit').forEach(b => b.disabled = true);
       $('#msg-human').textContent = $('#msg-agent').textContent = 'You can view this page but not sign up from it. Ask the owner for Contributor access.';
@@ -846,7 +836,6 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   async function save(kind, entry) {
     if (db && uid) {
       await db.doc('waitlist/' + uid).set(entry);
-      await db.doc('count/' + uid).set({kind, at: entry.at});
       return;
     }
     if (inViewer) throw new Error('Sign in to claude.ai to join.');
@@ -857,17 +846,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       : await fetch(WAITLIST_ENDPOINT, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(row)});
     if (r.status === 409) throw new Error(kind === 'agent' ? 'That agent is already on the list.' : "You're already on the list. We'll be in touch.");
     if (!r.ok) throw new Error('The waitlist did not accept that. Try again in a minute.');
-    loadCount();
   }
-  // live count from Supabase (a security-definer function, so the list itself stays private)
-  async function loadCount() {
-    if (!supa || inViewer) return;
-    try {
-      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/waitlist_count', {method:'POST', headers: supaHeaders(), body: '{}'});
-      if (r.ok) { const c = await r.json(); showCount(c.total, c.agents); }
-    } catch {}
-  }
-  setTimeout(loadCount, 0);
 
   const emailOk = v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   function bind(form, kind, msgEl) {

@@ -1,5 +1,7 @@
 """The waitlist landing page at /waitlist/: served with the server's Supabase config injected, assets whitelisted, public."""
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -49,3 +51,11 @@ def test_waitlist_other_files_are_not_served(client, name):
 @pytest.mark.parametrize("path", ["/waitlist", "/waitlist/", "/waitlist/hero.jpg"])
 def test_waitlist_is_public(path):
     assert public_mode.is_public("GET", path)
+
+
+def test_no_public_page_renders_the_waitlist_count():
+    """The waitlist size stays private: neither the waitlist page nor /app shows or fetches it (the API keeps it)."""
+    page = (harvest_pages.WAITLIST_DIR / "index.html").read_text()
+    assert "waitlist_count" not in page and 'id="count"' not in page and "on the list ·" not in page
+    app_js = (Path(harvest_pages.__file__).resolve().parents[1] / "harvest" / "static" / "app" / "app.js").read_text()
+    assert "on the waitlist" not in app_js
