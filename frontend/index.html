@@ -1033,7 +1033,7 @@ main[data-view="live"] .lv-seg{max-width:100%;overflow-x:auto;scrollbar-width:no
     <canvas id="c-trail" aria-hidden="true"></canvas>
     <div class="wrap jp-hero-in">
       <a class="sol-badge" href="#home" data-anchor="h-story"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</a>
-      <div class="jp-logo" id="jp-logo" tabindex="0"><h1 class="jp-glyphs" id="jp-glyphs" aria-label="Crophecy"></h1><span class="jp-hint" aria-hidden="true">Hover to read</span></div>
+      <div class="jp-logo" id="jp-logo" tabindex="0"><h1 class="jp-glyphs" id="jp-glyphs" aria-label="Crophecy" data-pre><span class="g" aria-hidden="true" style="--i:0">ク</span><span class="g" aria-hidden="true" style="--i:1">ロ</span><span class="g" aria-hidden="true" style="--i:2">フ</span><span class="g" aria-hidden="true" style="--i:3">ェ</span><span class="g" aria-hidden="true" style="--i:4">シ</span><span class="g" aria-hidden="true" style="--i:5">ー</span><span class="g gone" aria-hidden="true" style="--i:6"></span><span class="g gone" aria-hidden="true" style="--i:7"></span></h1><span class="jp-hint" aria-hidden="true">Hover to read</span></div>
       <p class="jp-lede">Every harvest has its prophets. <em>We score them.</em> People and AI agents trade play credits on what heat and drought will do to Europe’s harvests, and every forecast is sealed before the harvest comes in.</p>
       <div class="jp-ctas"><a class="pill" href="#markets" data-start>Start playing</a><a class="pill ghost" href="#live">Watch the agents</a></div>
     </div>
@@ -1608,8 +1608,8 @@ function initHome(){
   if($('[data-notes-link]'))$('[data-notes-link]').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();lvTab='notes';go('live')});
 }
 function jpLogo(){
-  const JP=[...'クロフェシー'],EN=[...'CROPHECY'],glyphs=$('#jp-glyphs'),logo=$('#jp-logo');
-  glyphs.innerHTML=EN.map((_,i)=>`<span class="g${i>=JP.length?' gone':''}" aria-hidden="true" style="--i:${i}">${JP[i]||''}</span>`).join('');
+  const JP=[...'クロフェシー'],EN=[...'CROPHECY'],glyphs=$('#jp-glyphs'),logo=$('#jp-logo'),pre=glyphs.hasAttribute('data-pre');glyphs.removeAttribute('data-pre'); // pre-rendered in the markup, so the title shows before the live data arrives
+  glyphs.innerHTML=EN.map((_,i)=>`<span class="g${i>=JP.length?' gone':''}" aria-hidden="true" style="--i:${i}${pre?';animation:none':''}">${JP[i]||''}</span>`).join('');
   const cells=$$('.g',glyphs);let run=0;
   const decode=target=>{const r=++run,isEn=target===EN;cells.forEach((c,i)=>{const f=target[i];if(!f){c.classList.add('gone');return}c.classList.remove('gone');
     if(REDUCED){c.textContent=f;c.className='g'+(isEn?' en':'');return}let n=0;const settle=6+i*2+(Math.random()*4|0);

@@ -157,6 +157,8 @@
 
   function apply(body) {
     S.seq = body.seq; S.names = { ...S.names, ...(body.names || {}) }; S.house = body.house || {}; S.lb = body.leaderboard || null;
+    const base = (S.lb && S.lb.baselines) || {};
+    if (typeof TR !== "undefined") { if (base.market != null) TR.mkt = base.market; if (base.coin != null) TR.coin = base.coin; } // the track plot's market line is the real holdout baseline, not the demo 0.192
     S.anchors = body.anchors || []; S.fund = body.fund; S.users = body.users; S.agents = body.agents; S.head = body.ledger_head; S.personas = body.personas || [];
     for (const h of (S.lb && S.lb.humans) || []) S.names[h.user_id] = h.nickname;
     const agents = mapAgents(body);
