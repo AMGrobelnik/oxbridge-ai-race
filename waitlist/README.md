@@ -2,6 +2,12 @@
 
 Static landing page: `index.html`, `hero-loop.mp4`, `hero.jpg`. No build step.
 
+`hero-source.mp4` is the original 10 s Gemini video. The page plays `hero-loop.mp4`, which is seconds 2-8 of it played forward then backward (no audio), so the loop never jumps. Rebuild it with:
+
+```bash
+ffmpeg -ss 2 -t 6 -i hero-source.mp4 -an -filter_complex "[0:v]split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[v]" -map "[v]" -c:v libx264 -crf 25 -preset slow -pix_fmt yuv420p -movflags +faststart hero-loop.mp4
+```
+
 ## 1. Store sign-ups in Supabase (about 10 minutes)
 
 1. Create a free project at https://supabase.com.
