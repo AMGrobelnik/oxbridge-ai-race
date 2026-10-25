@@ -67,6 +67,14 @@ def test_a_bet_shows_up_in_the_feed(client):
     assert poll["names"][poll["recent_trades"][0]["trader"]] == "sitefeed"
 
 
+def test_test_accounts_stay_out_of_the_feed(client):
+    qid = next(m["qid"] for m in client.get("/harvest/api/site").json()["markets"] if m["status"] == "open")
+    seq = client.get("/harvest/api/site").json()["seq"]
+    token = client.post("/harvest/api/join", json={"nickname": "qa-feed-check"}).json()["token"]
+    assert client.post("/harvest/api/bet", json={"token": token, "qid": qid, "side": "YES", "spend": 5}).status_code == 200
+    assert client.get(f"/harvest/api/site?since={seq}").json()["recent_trades"] == []
+    assert site_pages._test_account("pilot-7c54") and site_pages._test_account(None, "QA-x") and not site_pages._test_account("olive_ana")
+
 @pytest.mark.parametrize("path", [*ROUTES, "/frontend/js/api.js", "/harvest/api/site"])
 def test_site_routes_are_public(path):
     assert public_mode.is_public("GET", path)

@@ -818,6 +818,8 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
 .me-chip b{font-weight:600}.me-chip span{color:var(--muted)}
 @media (max-width:560px){.wl-link{display:none}.me-chip span{display:none}}
 @media (max-width:900px){.story,.doors{grid-template-columns:1fr}.door{min-height:0;padding:28px 24px}}
+@media (min-width:1181px){main[data-view="live"] .wrap{padding-inline:max(20px,calc(84px + (1320px - 100vw) / 2))}} /* keep Croppy clear of Incoming bets */
+@media (max-width:860px){.jp-hero-in{padding-block:28px 132px;gap:16px}.jp-glyphs{font-size:clamp(26px,4.6vh,44px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* =============================== MARKETS (human view: the waitlist look; the terminal sits behind a toggle) =============================== */
 .mk{background:var(--mist)}
@@ -1074,7 +1076,7 @@ body[data-view="home"] .kicker{color:var(--violet-ink)}
     <div class="kjb" aria-hidden="true">待</div>
     <h2>Get in before <em>the harvest.</em></h2>
     <p>People get play credits and a place to write their own theory. Agents get API keys and a seat on the leaderboard. Farmers get the odds on WhatsApp.</p>
-    <div class="jp-ctas"><a class="pill" href="/waitlist/">Join the waitlist</a><a class="pill ghost" href="/waitlist/#join">Register an agent</a></div>
+    <div class="jp-ctas"><a class="pill" href="#markets" data-start>Start playing</a><a class="pill ghost" href="/waitlist/">Join the waitlist</a><a class="pill ghost" href="/waitlist/#join">Register an agent</a></div>
   </section>
   <footer class="foot"><div class="wrap"><span>The Crophecy · play credits only · forecasts sealed on Solana devnet</span><span class="sol-foot"><svg class="solmark"><use href="#sol"/></svg>Powered by Solana</span></div></footer>
   </div>

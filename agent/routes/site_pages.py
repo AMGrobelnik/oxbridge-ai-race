@@ -28,7 +28,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from agent.harvest import ledger
+from agent.harvest import accounts, ledger
 from agent.routes import harvest as api
 
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
@@ -130,11 +130,18 @@ def _persona(trader: str) -> str:
     return trader.removeprefix("agent:").split("--")[0]
 
 
+def _test_account(*handles: Any) -> bool:
+    """Our own QA, verify and pilot accounts (data/test_accounts.json) and any qa- handle: kept out of the public feeds."""
+    return any(h and (accounts.is_test(str(h)) or str(h).lower().startswith("qa-")) for h in handles)
+
+
 def site_view(book: Any, since: int | None) -> dict[str, Any]:
     """The page feed (see the module docstring); house traders are grouped by persona. Call with book.lock held."""
     trades = book.trades
     full = since is None
+    hidden = {tid for tid, info in book.traders.items() if info.get("kind") == "human" and _test_account(info.get("username"), info.get("nickname"), info.get("name"))}
     recent = trades[-60:] if full else [t for t in trades if t["seq"] > since][-POLL_TRADES:]
+    recent = [t for t in recent if t["trader"] not in hidden]
     traders = {t["trader"] for t in trades if t["trader"].startswith("agent:")}
     house: dict[str, dict[str, Any]] = {pid: {} for pid in sorted({str(p["id"]).split("--")[0] for p in book.personas} | {_persona(t) for t in traders})}
     at = {int(t["seq"]): t["at"] for t in trades} if full else {}
@@ -182,7 +189,7 @@ def _by_persona(world_models: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def leaderboard_digest(book: Any) -> dict[str, Any]:
     lb = api.leaderboard_view(book)
-    humans = sorted(lb.get("humans", []), key=lambda h: -(h.get("pnl") or 0))[:20]
+    humans = sorted((h for h in lb.get("humans", []) if not _test_account(h.get("username"), h.get("nickname"))), key=lambda h: -(h.get("pnl") or 0))[:20]
     wm = lb.get("world_models", [])
     return {"by_persona": lb.get("by_persona") or _by_persona(wm), "baselines": lb.get("baselines", {}), "humans": humans, "insight": lb.get("insight"),
             "house_models": sum(1 for w in wm if w.get("origin") == "house"), "n_holdout": max((int(w.get("n_ci") or 0) for w in wm), default=0),
