@@ -269,15 +269,15 @@ def state_view(book: LiveBook, since: int | None) -> dict[str, Any]:
 
 LITE_TRADES = 40  # newest bets in a lite poll without `since`
 LITE_TRADES_SINCE = 60  # most bets a lite poll with `since` returns
-LITE_HISTORY = 40  # price points kept per market: the sparklines are 300 px wide
+LITE_HISTORY = 30  # price points kept per market: the sparklines are 300 px wide
 LITE_RATIONALE = 240
 
 
 def _thin_history(history: list[list[Any]], keep: int = LITE_HISTORY) -> list[list[Any]]:
-    """At most `keep` points spread evenly over the history, first and last included, prices to 4 places."""
+    """At most `keep` points spread evenly over the history, first and last included, prices to 3 places."""
     if len(history) > keep:
         history = [history[round(i * (len(history) - 1) / (keep - 1))] for i in range(keep)]
-    return [[h[0], round(h[1], 4)] for h in history]
+    return [[h[0], round(h[1], 3)] for h in history]
 
 
 def lite_market(view: dict[str, Any]) -> dict[str, Any]:
@@ -288,8 +288,10 @@ def lite_market(view: dict[str, Any]) -> dict[str, Any]:
 
 
 def lite_trade(trade: dict[str, Any]) -> dict[str, Any]:
-    rationale = trade.get("rationale")
-    return {**trade, "rationale": rationale[:LITE_RATIONALE]} if isinstance(rationale, str) and len(rationale) > LITE_RATIONALE else trade
+    out = {k: round(v, 4) if isinstance(v, float) else v for k, v in trade.items()}
+    if isinstance(out.get("rationale"), str):
+        out["rationale"] = out["rationale"][:LITE_RATIONALE]
+    return out
 
 
 def state_view_lite(book: LiveBook, since: int | None) -> dict[str, Any]:
