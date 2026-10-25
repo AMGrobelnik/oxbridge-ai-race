@@ -32,10 +32,10 @@ class AgentTest(unittest.TestCase):
         self.assertEqual(response.media_type, "application/json")
         self.assertEqual(json.loads(bytes(response.body))["modules"], modules)
 
-    def test_home_sends_browsers_to_the_waitlist_landing(self) -> None:
+    def test_home_is_the_landing_page_for_browsers(self) -> None:
         response = get_home("text/html,application/xhtml+xml,*/*;q=0.8")
-        self.assertEqual(response.status_code, 307)
-        self.assertEqual(response.headers["location"], "/waitlist/")
+        self.assertEqual(response.media_type, "text/html")
+        self.assertIn(b'id="g-live"', bytes(response.body))
 
     def test_every_route_file_loaded(self) -> None:
         paths = {getattr(route, "path", None) for route in app.routes}
