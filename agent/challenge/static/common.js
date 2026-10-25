@@ -45,19 +45,20 @@ function store(key, value) {
 
 const SHORT_SHIFT = { base: "plain 2026 data", crash: "SOL crash", usdc_depeg: "USDC depeg", fee_spike: "5x fees", vol_spike: "vol spike" };
 
-/* Why an entry was rejected, rebuilt from its per-shift scores and the sealed gate (one short line). */
-function failReason(entry, baseline, gate) {
-  if (gate && entry.relative_gap > gate.max_relative_gap) {
-    return `${Math.round(entry.relative_gap * 100)}% below visible`;
-  }
-  const per = entry.per_shift || {};
-  let worst = null;
-  for (const id of Object.keys(per)) {
-    const gap = per[id] - (baseline[id] ?? -Infinity);
-    if (gap < -1e-9 && (worst === null || gap < worst.gap)) worst = { id, gap };
-  }
-  if (worst) return `fails ${SHORT_SHIFT[worst.id] || worst.id} (${signed(worst.gap)} vs naive)`;
-  return "failed the sealed gate";
+/* Name plus one short line for a leaderboard row or an Overfit wall row (edge over the baseline). */
+function entryWho(e, wall) {
+  const who = el("div", "who");
+  const info = RULE_INFO[e.params.rule] || { name: e.params.rule };
+  const line = wall ? `breaks under ${SHORT_SHIFT[e.worst_shift] || e.worst_shift}` : `${info.name} · visible edge ${signed(e.visible_edge)}`;
+  who.append(el("b", "", e.nickname), el("span", "", line));
+  return who;
+}
+
+function entryVal(e, wall) {
+  const val = el("div", `val num${wall ? " red" : ""}`);
+  if (wall) val.append(document.createTextNode(`${signed(e.visible_edge)}→${signed(e.sealed_edge)}`), el("small", "", `edge lost ${fmt(e.edge_drop)}`));
+  else val.append(document.createTextNode(signed(e.mean_edge)), el("small", "", `sealed edge · ${fmt(e.sealed_score)}`));
+  return val;
 }
 
 function bumpCounter(id, value) {

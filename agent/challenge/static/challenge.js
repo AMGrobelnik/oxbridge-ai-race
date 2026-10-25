@@ -95,11 +95,12 @@ async function scoreNow() {
 
 function showDev(data) {
   const base = state.config.baseline_scores.dev_score;
-  $("dev").textContent = fmt(data.dev_score);
-  const delta = data.dev_score - base;
-  const chip = $("dev-delta");
-  chip.textContent = `${signed(delta)} vs baseline`;
-  chip.className = `chip ${delta > 0.05 ? "up" : delta < -0.05 ? "down" : "flat"}`;
+  const edge = data.dev_score - base;
+  const big = $("dev");
+  big.textContent = signed(edge);
+  big.className = `big num ${edge > 0.05 ? "pos" : edge < -0.05 ? "neg" : ""}`;
+  $("dev-delta").textContent = `score ${fmt(data.dev_score)} vs ${fmt(base)}`;
+  $("dev-delta").className = "chip flat";
   const b = data.breakdown;
   const cells = [
     [`${signed(b.return_pct)}%`, "return"],
@@ -162,9 +163,19 @@ async function seal() {
   }
 }
 
+const OUTCOME = {
+  GENERALISES: { stamp: "GENERALISES", cls: "gen" },
+  OVERFIT: { stamp: "OVERFIT", cls: "over" },
+  FAILS: { stamp: "FAILS THE SEAL", cls: "over" },
+};
+
+function edgeClass(v) { return v > 0.05 ? "pos" : v < -0.05 ? "neg" : ""; }
+
 function renderReveal(data) {
   const r = data.result;
-  const gen = r.verdict === "GENERALISES";
+  const gen = r.outcome === "GENERALISES";
+  const look = OUTCOME[r.outcome] || OUTCOME.FAILS;
+  const labels = r.shift_labels;
   const box = $("reveal");
   box.replaceChildren();
   box.classList.remove("hidden", "reveal");
@@ -172,45 +183,55 @@ function renderReveal(data) {
   box.classList.add("reveal");
 
   const head = el("div", "verdict-head");
-  head.append(el("span", `stamp ${gen ? "gen" : "over"}`, gen ? "GENERALISES" : "OVERFIT"));
-  head.append(el("span", "rankbadge", gen ? (data.rank ? `#${data.rank} on the leaderboard` : "Generalises") : "Added to the Overfit wall"));
+  head.append(el("span", `stamp ${look.cls}`, look.stamp));
+  const sub = gen ? (data.rank ? `#${data.rank} on the leaderboard` : "Beats the baseline everywhere")
+    : r.outcome === "OVERFIT" ? "Added to the Overfit wall" : "Never had an edge to lose";
+  head.append(el("span", `rankbadge ${gen ? "" : "red"}`, sub));
   box.append(head);
 
+  // Edge over the naive 50/50 baseline: visible (2025) vs sealed (weakest 2026 scenario).
   const flow = el("div", "flow");
-  const left = el("div", "side"); left.append(el("small", "", "Visible 2025"), el("b", "", fmt(r.dev_score)));
-  const right = el("div", "side"); right.append(el("small", "", "Sealed 2026 + stress"), el("b", "", fmt(r.sealed_score)));
-  const change = -r.relative_gap * 100;
-  const arrow = el("span", `arrow chip ${change >= 0 ? "up" : "down"}`, `→ ${signed(change)}%`);
-  flow.append(left, arrow, right);
+  const left = el("div", "side");
+  left.append(el("small", "", "Visible edge 2025"), el("b", edgeClass(r.visible_edge), signed(r.visible_edge)), el("em", "", `score ${fmt(r.dev_score)}`));
+  const right = el("div", "side");
+  right.append(el("small", "", "Sealed edge 2026 + stress"), el("b", edgeClass(r.sealed_edge), signed(r.sealed_edge)), el("em", "", `weakest: ${labels[r.worst_shift_id] || r.worst_shift_id}`));
+  const change = r.sealed_edge - r.visible_edge;
+  // The arrow takes the verdict's colour or stays grey: green only on GENERALISES, red only on a
+  // failing verdict, so a red verdict never sits next to a green up-arrow (or the reverse).
+  const tone = gen ? (change > 0.05 ? "up" : "flat") : (change < -0.05 ? "down" : "flat");
+  flow.append(left, el("span", `arrow chip ${tone}`, `→ ${signed(change)}`), right);
   box.append(flow);
+  box.append(el("p", "rawline", `Edge = score minus the naive 50/50 buy-and-hold baseline. Raw scores: visible ${fmt(r.dev_score)} vs ${fmt(r.baseline_dev_score)}, sealed mean ${fmt(r.sealed_score)} (mean edge ${signed(r.mean_edge)}).`));
 
   const reasons = el("ul", "reasons");
-  if (gen) reasons.append(el("li", "ok", "Held up on unseen 2026 windows and matched or beat the naive baseline in every stress test."));
-  for (const reason of r.reasons) reasons.append(el("li", "", reason));
+  if (gen) {
+    reasons.append(el("li", "ok", "Held up on unseen 2026 windows and matched or beat the baseline in every stress test."));
+  } else if (r.outcome === "OVERFIT") {
+    reasons.append(el("li", "", `Your ${signed(r.visible_edge)} visible edge collapsed to ${signed(r.sealed_edge)} under ${labels[r.worst_shift_id] || r.worst_shift_id}: it was fitted to 2025, not a real edge.`));
+  } else {
+    const names = r.losing_shifts.map((id) => labels[id] || id).join(", ");
+    reasons.append(el("li", "", `Doesn't beat buy-and-hold under: ${names}.`));
+  }
   box.append(reasons);
 
   const shifts = el("div", "shifts");
-  const values = Object.values(r.per_shift).concat(Object.values(r.baseline_per_shift));
-  const lo = Math.min(...values) - 6;
-  const hi = Math.max(...values) + 2;
-  const at = (v) => `${Math.max(2, ((v - lo) / (hi - lo)) * 100)}%`;
-  for (const id of Object.keys(r.per_shift)) {
-    const mine = r.per_shift[id];
-    const base = r.baseline_per_shift[id];
+  const span = Math.max(1, ...Object.values(r.edges).map(Math.abs), Math.abs(r.visible_edge));
+  for (const id of Object.keys(r.edges)) {
+    const edge = r.edges[id];
     const row = el("div", "shift");
     const lbl = el("div", "lbl");
-    lbl.append(el("span", "", r.shift_labels[id] || id), el("b", "", `${fmt(mine)} vs ${fmt(base)}`));
-    const bar = el("div", "bar");
-    const fill = el("i", mine >= base - 1e-9 ? "good" : "bad");
+    lbl.append(el("span", "", labels[id] || id), el("b", edgeClass(edge), signed(edge)));
+    const bar = el("div", "ebar");
+    const fill = el("i", edge >= -1e-9 ? "good" : "bad");
+    const w = `${(Math.min(Math.abs(edge), span) / span) * 50}%`;
+    if (edge >= 0) fill.style.left = "50%"; else fill.style.right = "50%";
     fill.style.width = "0%";
-    const tick = el("u");
-    tick.style.left = at(base);
-    bar.append(fill, tick);
+    bar.append(fill, el("u"));
     row.append(lbl, bar);
     shifts.append(row);
-    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = at(mine); }));
+    requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = w; }));
   }
-  shifts.append(el("div", "legend", "Bars: your sealed score. White tick: the naive 50/50 baseline."));
+  shifts.append(el("div", "legend", "Edge over the baseline in each sealed scenario. Right of the line: you beat it."));
   box.append(shifts);
 
   const c = el("div", "chainline mono");
@@ -223,7 +244,9 @@ function renderReveal(data) {
   const share = el("button", "btn primary", "Share");
   share.addEventListener("click", async () => {
     const url = state.config.public_url;
-    const text = gen ? `My strategy beat the seal: ${fmt(r.sealed_score)} on unseen 2026 data. Can yours?` : `The seal caught my strategy overfitting (${fmt(r.dev_score)} → ${fmt(r.sealed_score)}). Can you beat it?`;
+    const text = gen ? `My strategy beat the seal: ${signed(r.sealed_edge)} over buy-and-hold on unseen 2026 data. Can yours?`
+      : r.outcome === "OVERFIT" ? `The seal caught me overfitting: ${signed(r.visible_edge)} edge in 2025, ${signed(r.sealed_edge)} on sealed 2026. Can you beat it?`
+      : "My strategy failed the seal. Can you beat it?";
     try {
       if (navigator.share) await navigator.share({ title: "Beat the Seal", text, url });
       else { await navigator.clipboard.writeText(`${text} ${url}`); toast("Link copied"); }
@@ -249,19 +272,13 @@ function renderList() {
   const rows = wall ? st.overfit_wall : st.leaderboard;
   if (!rows.length) {
     const li = el("li", "empty");
-    li.append(el("b", "", wall ? "Nobody has overfit yet" : "No sealed winners yet"), document.createTextNode(wall ? "Push the visible score hard and see what happens." : "Be the first strategy to survive the seal."));
+    li.append(el("b", "", wall ? "Nobody has overfit yet" : "No sealed winners yet"), document.createTextNode(wall ? "Push your visible edge as high as it goes and see what happens." : "Be the first strategy to survive the seal."));
     list.append(li);
     return;
   }
   rows.forEach((e, i) => {
     const li = el("li", `row${e.nick_sha256 === state.myNick ? " me" : ""}`);
-    const who = el("div", "who");
-    const info = RULE_INFO[e.params.rule] || { name: e.params.rule };
-    who.append(el("b", "", e.nickname), el("span", "", wall ? failReason(e, state.config.baseline_scores.per_shift, state.config.gate) : `${info.name} · visible ${fmt(e.dev_score)}`));
-    const val = el("div", `val num${wall ? " red" : ""}`);
-    if (wall) val.append(document.createTextNode(`${fmt(e.dev_score)}→${fmt(e.sealed_score)}`), el("small", e.drop < 0 ? "up" : "", `${signed(-e.drop)} sealed`));
-    else val.append(document.createTextNode(fmt(e.sealed_score)), el("small", "", "sealed"));
-    li.append(el("span", "pos", i + 1), who, val);
+    li.append(el("span", "pos", i + 1), entryWho(e, wall), entryVal(e, wall));
     list.append(li);
   });
 }

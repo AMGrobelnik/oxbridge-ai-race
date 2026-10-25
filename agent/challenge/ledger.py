@@ -2,7 +2,8 @@
 head is anchored on Solana devnet in batches as `sealed:v1:challenge:<count>:<chainhead>`.
 
 entry hash = sha256(canonical_json({"v": 1, "seq", "prev", "nick_sha256", "params",
-"dev_score", "sealed_score", "verdict", "at"})), with prev = GENESIS for seq 1. A memo for
+"dev_score", "sealed_score", "verdict", "outcome", "at"})), with prev = GENESIS for seq 1.
+verdict is the sealed gate's; outcome (GENERALISES | OVERFIT | FAILS) is what the reveal shows. A memo for
 count N commits to all N submissions, so a pending batch is superseded by the next one.
 
 Storage is one SQLite file (CHALLENGE_DB, default <repo>/.challenge/challenge.sqlite3, gitignored).
@@ -43,8 +44,14 @@ CREATE TABLE IF NOT EXISTS submissions (
   dev_score REAL NOT NULL,
   sealed_score REAL NOT NULL,
   verdict TEXT NOT NULL,
+  outcome TEXT NOT NULL,
   relative_gap REAL NOT NULL,
   drop_score REAL NOT NULL,
+  visible_edge REAL NOT NULL,
+  sealed_edge REAL NOT NULL,
+  mean_edge REAL NOT NULL,
+  edge_drop REAL NOT NULL,
+  worst_shift TEXT NOT NULL,
   per_shift TEXT NOT NULL,
   prev TEXT NOT NULL,
   hash TEXT NOT NULL
@@ -73,7 +80,7 @@ def now_iso() -> str:
 
 
 def entry_hash(entry: dict[str, Any]) -> str:
-    keys = ("seq", "prev", "nick_sha256", "params", "dev_score", "sealed_score", "verdict", "at")
+    keys = ("seq", "prev", "nick_sha256", "params", "dev_score", "sealed_score", "verdict", "outcome", "at")
     return sha256_json({"v": 1, **{k: entry[k] for k in keys}})
 
 
@@ -105,8 +112,14 @@ def _public(row: sqlite3.Row) -> dict[str, Any]:
         "dev_score": row["dev_score"],
         "sealed_score": row["sealed_score"],
         "verdict": row["verdict"],
+        "outcome": row["outcome"],
         "relative_gap": row["relative_gap"],
         "drop": row["drop_score"],
+        "visible_edge": row["visible_edge"],
+        "sealed_edge": row["sealed_edge"],
+        "mean_edge": row["mean_edge"],
+        "edge_drop": row["edge_drop"],
+        "worst_shift": row["worst_shift"],
         "per_shift": json.loads(row["per_shift"]),
         "prev": row["prev"],
         "hash": row["hash"],
@@ -127,16 +140,20 @@ def append(*, nickname: str, nick_sha256: str, params: dict[str, Any], result: d
                 "dev_score": float(result["dev_score"]),
                 "sealed_score": float(result["sealed_score"]),
                 "verdict": result["verdict"],
+                "outcome": result["outcome"],
                 "at": now_iso(),
             }
             entry["hash"] = entry_hash(entry)
             conn.execute(
-                "INSERT INTO submissions (seq, at, nickname, nick_sha256, params, dev_score, sealed_score, verdict,"
-                " relative_gap, drop_score, per_shift, prev, hash) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO submissions (seq, at, nickname, nick_sha256, params, dev_score, sealed_score, verdict, outcome,"
+                " relative_gap, drop_score, visible_edge, sealed_edge, mean_edge, edge_drop, worst_shift, per_shift, prev, hash)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     entry["seq"], entry["at"], nickname, nick_sha256, json.dumps(params, sort_keys=True),
-                    entry["dev_score"], entry["sealed_score"], entry["verdict"], float(result["relative_gap"]),
-                    float(result["drop"]), json.dumps(result["per_shift"], sort_keys=True), entry["prev"], entry["hash"],
+                    entry["dev_score"], entry["sealed_score"], entry["verdict"], entry["outcome"], float(result["relative_gap"]),
+                    float(result["drop"]), float(result["visible_edge"]), float(result["sealed_edge"]), float(result["mean_edge"]),
+                    float(result["edge_drop"]), result["worst_shift_id"], json.dumps(result["per_shift"], sort_keys=True),
+                    entry["prev"], entry["hash"],
                 ),
             )
             conn.execute("COMMIT")
@@ -166,12 +183,13 @@ def leaderboard(limit: int = LEADERBOARD_SIZE) -> list[dict[str, Any]]:
 
 
 def overfit_wall(limit: int = WALL_SIZE) -> list[dict[str, Any]]:
-    """Each player's biggest dev -> sealed collapse among OVERFIT entries, biggest first."""
+    """Each player's biggest edge collapse (visible edge minus sealed edge) among true OVERFIT
+    outcomes, biggest first. FAILS entries never had an edge to lose, so they are not here."""
     sql = """
       SELECT * FROM (
-        SELECT *, ROW_NUMBER() OVER (PARTITION BY nick_sha256 ORDER BY drop_score DESC, seq ASC) AS rn
-        FROM submissions WHERE verdict = 'OVERFIT'
-      ) WHERE rn = 1 ORDER BY drop_score DESC, seq ASC LIMIT ?"""
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY nick_sha256 ORDER BY edge_drop DESC, seq ASC) AS rn
+        FROM submissions WHERE outcome = 'OVERFIT'
+      ) WHERE rn = 1 ORDER BY edge_drop DESC, seq ASC LIMIT ?"""
     with connect() as conn:
         return [_public(r) for r in conn.execute(sql, (limit,))]
 
@@ -185,7 +203,8 @@ def stats() -> dict[str, Any]:
     with connect() as conn:
         row = conn.execute(
             "SELECT COUNT(*) AS sealed, COUNT(DISTINCT nick_sha256) AS players,"
-            " SUM(verdict = 'GENERALISES') AS generalises, SUM(verdict = 'OVERFIT') AS overfit FROM submissions"
+            " SUM(outcome = 'GENERALISES') AS generalises, SUM(outcome = 'OVERFIT') AS overfit,"
+            " SUM(outcome = 'FAILS') AS fails FROM submissions"
         ).fetchone()
         head = conn.execute("SELECT hash FROM submissions ORDER BY seq DESC LIMIT 1").fetchone()
         anchor = conn.execute("SELECT * FROM anchors ORDER BY id DESC LIMIT 1").fetchone()
@@ -195,6 +214,7 @@ def stats() -> dict[str, Any]:
         "sealed": row["sealed"] or 0,
         "generalises": row["generalises"] or 0,
         "overfit": row["overfit"] or 0,
+        "fails": row["fails"] or 0,
         "chain_head": head["hash"] if head else GENESIS,
         "genesis": GENESIS,
         "last_anchor": _anchor_public(anchor) if anchor else None,
@@ -263,7 +283,7 @@ def verify(*, rescore_last: int = 0) -> dict[str, Any]:
 
         for e in entries[-rescore_last:]:
             result = game.reveal(e["params"])
-            ok = abs(result["dev_score"] - e["dev_score"]) < 1e-6 and abs(result["sealed_score"] - e["sealed_score"]) < 1e-6 and result["verdict"] == e["verdict"]
+            ok = abs(result["dev_score"] - e["dev_score"]) < 1e-6 and abs(result["sealed_score"] - e["sealed_score"]) < 1e-6 and result["verdict"] == e["verdict"] and result["outcome"] == e["outcome"]
             rescored.append({"seq": e["seq"], "match": ok})
             if not ok:
                 reasons.append(f"submission {e['seq']} does not re-score to its recorded result")
@@ -277,7 +297,7 @@ def verify(*, rescore_last: int = 0) -> dict[str, Any]:
         "anchors": anchor_checks,
         "rescored": rescored,
         "reasons": reasons,
-        "hash_rule": 'sha256(canonical_json({"v":1,"seq","prev","nick_sha256","params","dev_score","sealed_score","verdict","at"}))',
+        "hash_rule": 'sha256(canonical_json({"v":1,"seq","prev","nick_sha256","params","dev_score","sealed_score","verdict","outcome","at"}))',
     }
 
 

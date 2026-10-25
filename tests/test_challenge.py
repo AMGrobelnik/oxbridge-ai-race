@@ -19,6 +19,10 @@ from agent.server import app
 BASE = game.environment().baseline()
 GENERALISES = {**BASE, "risk_on_sol_weight": 0.4, "staked_share": 1.0, "rebalance_band": 0.2}
 OVERFIT = {**BASE, "rule": "mean_reversion", "risk_on_sol_weight": 1.0, "risk_off_sol_weight": 0.2, "stop_loss_pct": 10, "lookback_days": 10}
+# Below the baseline already on 2025 and loses to it in sealed scenarios: no edge to lose, so FAILS.
+FAILS = {**BASE, "rule": "mean_reversion", "risk_on_sol_weight": 1, "risk_off_sol_weight": 0, "stop_loss_pct": 8, "lookback_days": 6, "entry_threshold_pct": 2}
+# What a hill-climb on the visible score converges to: a huge 2025 edge that the seal wipes out.
+MAX_VISIBLE = {**BASE, "lookback_days": 16, "risk_on_sol_weight": 0, "risk_off_sol_weight": 1, "staked_share": 1, "rebalance_band": 0, "stop_loss_pct": 20}
 
 
 @pytest.fixture(autouse=True)
@@ -141,6 +145,47 @@ def test_reveal_scores_dev_and_sealed_with_the_sealed_gate():
     overfit = game.reveal(OVERFIT)
     assert overfit["verdict"] == "OVERFIT" and overfit["reasons"] and overfit["drop"] > 0
     assert game.reveal(OVERFIT) == overfit  # deterministic
+
+
+def test_edges_are_measured_against_the_baseline():
+    r = game.reveal(GENERALISES)
+    base = game.baseline_scores()
+    assert r["visible_edge"] == pytest.approx(r["dev_score"] - base["dev_score"], abs=1e-3)
+    assert r["edges"] == {s: pytest.approx(r["per_shift"][s] - base["per_shift"][s], abs=1e-3) for s in r["per_shift"]}
+    assert r["sealed_edge"] == min(r["edges"].values()) and r["worst_shift_id"] in r["edges"]
+    assert r["edge_drop"] == pytest.approx(r["visible_edge"] - r["sealed_edge"], abs=1e-3)
+    assert game.reveal(BASE)["visible_edge"] == 0 and game.reveal(BASE)["sealed_edge"] == 0
+
+
+def test_outcome_is_picked_by_cause():
+    assert game.reveal(GENERALISES)["outcome"] == "GENERALISES"
+    over = game.reveal(OVERFIT)
+    assert over["outcome"] == "OVERFIT" and over["visible_edge"] > 0
+    fails = game.reveal(FAILS)
+    # The confusing case: raw score rises 2025 -> 2026, but it never beat the baseline.
+    assert fails["verdict"] == "OVERFIT" and fails["sealed_score"] > fails["dev_score"]
+    assert fails["outcome"] == "FAILS" and fails["visible_edge"] < 0 and fails["losing_shifts"]
+
+
+def test_a_max_visible_score_strategy_overfits_dramatically():
+    r = game.reveal(MAX_VISIBLE)
+    assert r["outcome"] == "OVERFIT"
+    assert r["visible_edge"] > 15 and r["sealed_edge"] < 0
+
+
+@pytest.mark.parametrize(
+    ("verdict", "visible", "sealed", "gap", "expected"),
+    [
+        ("GENERALISES", 3.0, 0.5, -0.01, "GENERALISES"),
+        ("OVERFIT", 3.0, -0.5, 0.0, "OVERFIT"),   # edge lost 3.5 > 2
+        ("OVERFIT", 1.0, -0.5, 0.0, "FAILS"),     # edge lost 1.5: a small miss, not a collapse
+        ("OVERFIT", 1.0, 0.5, 0.06, "OVERFIT"),   # the gate's gap rule on a positive visible edge
+        ("OVERFIT", -2.0, -9.0, 0.10, "FAILS"),   # never had an edge
+        ("OVERFIT", 0.0, -5.0, 0.0, "FAILS"),
+    ],
+)
+def test_classify(verdict, visible, sealed, gap, expected):
+    assert game.classify(verdict=verdict, visible_edge=visible, sealed_edge=sealed, relative_gap=gap) == expected
 
 
 def test_dev_report_matches_the_plugin():
@@ -325,14 +370,16 @@ def test_leaderboard_wall_and_counters(client):
     submit(client, "Alice", BASE)
     submit(client, "alice", GENERALISES)  # same player (case-folded), better sealed score
     submit(client, "Bob", OVERFIT)
+    submit(client, "Dan", FAILS)
     res = submit(client, "<b>Carol</b>", GENERALISES).json()
     assert res["nickname"] == "bCarolb" and res["rank"] in (1, 2)
     state = client.get("/challenge/api/stats").json()
-    assert state["stats"]["players"] == 3 and state["stats"]["sealed"] == 4
-    assert state["stats"]["generalises"] == 3 and state["stats"]["overfit"] == 1
+    assert state["stats"]["players"] == 4 and state["stats"]["sealed"] == 5
+    assert state["stats"]["generalises"] == 3 and state["stats"]["overfit"] == 1 and state["stats"]["fails"] == 1
     board = state["leaderboard"]
     assert all(e["verdict"] == "GENERALISES" for e in board)
     assert [e["nickname"] for e in board].count("alice") + [e["nickname"] for e in board].count("Alice") == 1
     assert board == sorted(board, key=lambda e: -e["sealed_score"])
-    assert [e["nickname"] for e in state["overfit_wall"]] == ["Bob"]
+    assert [e["nickname"] for e in state["overfit_wall"]] == ["Bob"]  # Dan FAILS: not an overfit
+    assert state["overfit_wall"][0]["edge_drop"] > 2
     assert state["stats"]["chain_head"] == ledger.all_entries()[-1]["hash"]

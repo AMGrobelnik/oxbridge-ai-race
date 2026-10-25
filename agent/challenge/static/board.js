@@ -12,18 +12,11 @@ function rowsInto(list, entries, wall) {
     list.append(li);
     return;
   }
-  const cfg = board.config;
   entries.slice(0, 8).forEach((e, i) => {
     const fresh = !board.first && !board.seen.has(`${wall ? "w" : "l"}${e.seq}`);
     board.seen.add(`${wall ? "w" : "l"}${e.seq}`);
     const li = el("li", `row${fresh ? " fresh" : ""}`);
-    const who = el("div", "who");
-    const info = RULE_INFO[e.params.rule] || { name: e.params.rule };
-    who.append(el("b", "", e.nickname), el("span", "", wall ? failReason(e, cfg.baseline_scores.per_shift, cfg.gate) : `${info.name} · visible ${fmt(e.dev_score)}`));
-    const val = el("div", `val num${wall ? " red" : ""}`);
-    if (wall) val.append(document.createTextNode(`${fmt(e.dev_score)}→${fmt(e.sealed_score)}`), el("small", e.drop < 0 ? "up" : "", `${signed(-e.drop)} on the seal`));
-    else val.append(document.createTextNode(fmt(e.sealed_score)), el("small", "", "sealed"));
-    li.append(el("span", "pos", i + 1), who, val);
+    li.append(el("span", "pos", i + 1), entryWho(e, wall), entryVal(e, wall));
     list.append(li);
   });
 }
@@ -53,8 +46,8 @@ function renderTicker(recent) {
   t.replaceChildren();
   for (const e of recent.slice(0, 3)) {
     const li = el("li");
-    const gen = e.verdict === "GENERALISES";
-    li.append(el("span", "", e.nickname), el("span", gen ? "v-gen" : "v-over", `${gen ? "GENERALISES" : "OVERFIT"} ${fmt(e.sealed_score)}`));
+    const gen = e.outcome === "GENERALISES";
+    li.append(el("span", "", e.nickname), el("span", gen ? "v-gen" : "v-over", `${e.outcome} ${signed(gen ? e.mean_edge : e.sealed_edge)}`));
     t.append(li);
   }
 }

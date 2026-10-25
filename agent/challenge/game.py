@@ -25,6 +25,7 @@ NICK_MAX = 24
 SENTENCE_MAX = 200
 NICK_EXTRA_CHARS = set(" _-.!+'")
 PARSE_TIMEOUT_S = 15.0
+OVERFIT_EDGE_DROP = 2.0  # points of edge over the baseline lost between visible and sealed
 
 logger = logging.getLogger("agent")
 
@@ -153,29 +154,62 @@ def _baseline_holdout() -> tuple[tuple[str, float], ...]:
     return tuple(_holdout_scores(environment().baseline()).items())
 
 
+@lru_cache(maxsize=1)
+def _baseline_dev() -> float:
+    return float(environment().dev_report(environment().baseline())["score"])
+
+
 def baseline_scores() -> dict[str, Any]:
-    base = environment().baseline()
-    return {"dev_score": environment().dev_report(base)["score"], "per_shift": dict(_baseline_holdout())}
+    per_shift = dict(_baseline_holdout())
+    return {"dev_score": _baseline_dev(), "per_shift": per_shift, "sealed_score": round(sum(per_shift.values()) / len(per_shift), 4)}
+
+
+def classify(*, verdict: str, visible_edge: float, sealed_edge: float, relative_gap: float) -> str:
+    """What the reveal says, by cause. GENERALISES is the sealed gate's pass. OVERFIT needs a
+    real collapse: a positive visible edge that the seal wipes out (the gate's gap rule, or an
+    edge drop over OVERFIT_EDGE_DROP to a weakest-scenario edge below zero). Anything else that
+    fails the gate never had an edge to lose: FAILS (loses to the baseline in a sealed scenario)."""
+    if verdict == "GENERALISES":
+        return "GENERALISES"
+    gap_rule = relative_gap > environment().spec["gate"]["max_relative_gap"]
+    if visible_edge > 0 and (gap_rule or (sealed_edge < 0 and visible_edge - sealed_edge > OVERFIT_EDGE_DROP)):
+        return "OVERFIT"
+    return "FAILS"
 
 
 def reveal(params: Candidate) -> dict[str, Any]:
-    """Dev score, sealed holdout score per shift, and the sealed gate's verdict vs the baseline."""
+    """Dev and sealed scores, framed as edge over the naive 50/50 baseline, plus the sealed
+    gate's verdict and the outcome shown to the player (classify)."""
     dev = environment().dev_report(params)
     per_shift = _holdout_scores(params)
     baseline = dict(_baseline_holdout())
     labels = shift_labels()
-    outcome = gate.judge(dev["score"], per_shift, baseline, environment().spec["gate"], {**labels, "base": "plain 2026 data"})
+    judged = gate.judge(dev["score"], per_shift, baseline, environment().spec["gate"], {**labels, "base": "plain 2026 data"})
+    edges = {s: round(per_shift[s] - baseline[s], 4) for s in per_shift}
+    worst = min(edges, key=lambda s: edges[s])
+    visible_edge = round(dev["score"] - _baseline_dev(), 4)
+    sealed_edge = edges[worst]
+    outcome = classify(verdict=judged.verdict, visible_edge=visible_edge, sealed_edge=sealed_edge, relative_gap=judged.relative_gap)
     return {
         "dev_score": dev["score"],
         "breakdown": dev["breakdown"],
-        "sealed_score": round(outcome.holdout_mean, 4),
+        "sealed_score": round(judged.holdout_mean, 4),
         "per_shift": per_shift,
         "baseline_per_shift": baseline,
+        "baseline_dev_score": _baseline_dev(),
         "shift_labels": labels,
-        "verdict": outcome.verdict,
-        "reasons": outcome.reasons,
-        "relative_gap": round(outcome.relative_gap, 6),
-        "drop": round(dev["score"] - outcome.holdout_mean, 4),
+        "verdict": judged.verdict,
+        "outcome": outcome,
+        "reasons": judged.reasons,
+        "relative_gap": round(judged.relative_gap, 6),
+        "drop": round(dev["score"] - judged.holdout_mean, 4),
+        "edges": edges,
+        "visible_edge": visible_edge,
+        "sealed_edge": sealed_edge,
+        "mean_edge": round(judged.holdout_mean - sum(baseline.values()) / len(baseline), 4),
+        "edge_drop": round(visible_edge - sealed_edge, 4),
+        "worst_shift_id": worst,
+        "losing_shifts": [s for s in edges if edges[s] < -1e-9],
     }
 
 

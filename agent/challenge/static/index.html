@@ -39,6 +39,7 @@
     <p id="parse-note" class="parse-note">Say it in one sentence and Gemini sets the sliders, or tune them yourself.</p>
     <div class="rules" id="rules" role="group" aria-label="Rule"></div>
     <div id="sliders"></div>
+    <p class="tip"><b>Your edge</b> is your score minus the naive 50/50 buy-and-hold baseline. Push it as high as it goes on 2025, then seal it: the seal decides whether it was skill or 2025 luck.</p>
     <button id="reset" class="reset">Reset to the naive 50/50 baseline</button>
     <div class="breakdown" id="breakdown"></div>
   </section>
@@ -64,7 +65,7 @@
 <div class="scorebar">
   <div class="inner">
     <div class="devscore">
-      <small>Visible score (2025)</small>
+      <small>Visible edge (2025)</small>
       <span class="big num" id="dev">--</span><span class="chip flat" id="dev-delta">vs baseline</span>
     </div>
     <button class="btn primary seal-btn" id="seal"><svg><use href="#lock"/></svg>Seal &amp; reveal</button>
