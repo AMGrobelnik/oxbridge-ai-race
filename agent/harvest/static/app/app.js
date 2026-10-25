@@ -430,12 +430,15 @@
   // ------------------------------------------------------------ follow and copy (play credits only)
   // id is a trader id: agent:<persona> for house agents, ext:/byo:/user: ids for accounts.
   let follows = null; // Map trader id -> {copy, fraction, cap, ...}, loaded once per page
-  async function loadFollows() {
+  let followsLoading = null; // one shared request however many rows ask
+  function loadFollows() {
     const me = load();
-    if (!me || !me.token) return new Map();
-    if (follows) return follows;
-    try { follows = new Map((await api(`/follow?token=${encodeURIComponent(me.token)}`)).following.map((f) => [f.agent, f])); } catch (_) { follows = new Map(); }
-    return follows;
+    if (!me || !me.token) return Promise.resolve(new Map());
+    if (follows) return Promise.resolve(follows);
+    followsLoading = followsLoading || api(`/follow?token=${encodeURIComponent(me.token)}`)
+      .then((r) => new Map(r.following.map((f) => [f.agent, f]))).catch(() => new Map())
+      .then((m) => { follows = m; followsLoading = null; return m; });
+    return followsLoading;
   }
   function followControls(id) {
     const me = load();
