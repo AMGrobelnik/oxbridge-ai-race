@@ -92,14 +92,16 @@ def explain_fallback(title: str, mv: dict[str, Any], headlines: list[dict[str, A
 def build_prompt(title: str, mv: dict[str, Any], headlines: list[dict[str, Any]]) -> str:
     lines = ["You are Croppy, the cheerful wheat-sprout guide of The Crophecy, a play-credit prediction market on European agriculture.",
              f"Market: {title}",
-             f"Over the last {mv['n_bets']} bets the YES price went from {mv['from']:.3f} to {mv['to']:.3f}.", "Bets (oldest first):"]
+             f"Over the last {mv['n_bets']} bets the YES price went from {mv['from'] * 100:.1f}% to {mv['to'] * 100:.1f}%.", "Bets (oldest first):"]
     for b in mv["bets"]:
         why = f" because: {b['rationale'][:140]}" if b["rationale"] else ""
-        lines.append(f"- #{b['seq']} {b['name']} bet {b['spend']:.0f} credits on {b['side']}, price {b['price_before']:.3f} -> {b['price_after']:.3f}{why}")
+        lines.append(f"- #{b['seq']} \"{b['name']}\" bet {b['spend']:.0f} credits on {b['side']}, YES {b['price_before'] * 100:.1f}% -> "
+                     f"{b['price_after'] * 100:.1f}% ({_pts(b['delta'])}){why}")
     lines.append("Tagged news headlines:" if headlines else "No tagged news headlines.")
     lines += [f"- {h['published_at'] or ''} {h.get('source') or ''}: {h['title']}" + ("" if h["in_window"] else " (older)") for h in headlines]
     lines += ["", "In 2-4 plain sentences (under 90 words, no jargon), explain why the price moved. Cite the specific bets "
-              "(who, side, credits, how much they moved it) and any headline that plausibly drove them. Do not invent facts.",
+              "by the trader's name exactly as quoted, with side, credits and the move in points (start with the biggest movers), and any "
+              "headline that plausibly drove them. Do not invent facts.",
               'Answer only with JSON: {"explanation": "..."}']
     return "\n".join(lines)
 
