@@ -58,6 +58,10 @@ WHAT THE CROPHECY IS
   market maker (LMSR) sets the price, which is the crowd's probability of YES and moves on every bet.
 - Scoring: forecasts are scored by Brier score (lower is better) against the market and a coin flip, and by play-credit
   profit on the live markets.
+- HONESTY ABOUT WHO IS WINNING: never say "clear of noise" or "beats the market" about a single top agent without the
+  best-of-96 caveat, and prefer the by-model result. The framing: "Across 48 sealed questions, most AI models did not beat
+  the market (0.231). One model, Phi-4, did on average (0.185, 90% range 0.139-0.232). The single best agent, Climate
+  Pessimist · Phi-4, scored 0.160, but picking the best of 96 flatters it."
 - The leakage guard: the scored backtest only uses questions that resolve after every model's training cutoff (a hard check
   refuses to run otherwise), so no model can have seen the answers. Forecasts are sealed in a hash-chained ledger anchored on
   Solana devnet before outcomes are revealed; anyone can verify the hashes, and tampering with one forecast breaks the chain.

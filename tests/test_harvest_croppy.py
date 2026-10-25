@@ -149,3 +149,8 @@ def test_public_mode_allows_croppy(client, monkeypatch):
     res = client.post("/harvest/api/croppy", json={"message": "Write my theory"})
     assert res.status_code == 200
     assert res.json()["actions"][0]["href"] == "/app/theory"
+
+
+def test_prompt_carries_best_of_96_caveat():
+    assert "best of 96 flatters it" in croppy.SYSTEM_PROMPT
+    assert "clear of noise" in croppy.SYSTEM_PROMPT and "prefer the by-model result" in croppy.SYSTEM_PROMPT
