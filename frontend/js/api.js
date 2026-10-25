@@ -509,9 +509,11 @@
     const me = await ensurePlayer(); if (!me) return;
     const a = AGENTS[ai];
     try {
-      const r = await call("/follow", { token: me.token, agent: a.id, follow: true, copy });
+      // the backend follows one house persona run (book.personas ids, e.g. crowd-follower--phi-4); the page shows the persona
+      const pid = (S.personas.find((x) => x.id === a.id) || S.personas.find((x) => String(x.id).split("--")[0] === a.id) || { id: a.id }).id;
+      const r = await call("/follow", { token: me.token, agent: pid, follow: true, copy });
       msgEl.textContent = copy ? `Copying ${a.n}: each of its bets places a small bet for you too.` : `Following ${a.n}.`;
-      if (r && r.following) msgEl.textContent += ` (${r.agent})`;
+      if (r && r.following && r.following.name) msgEl.textContent += ` Run: ${r.following.name}.`;
     } catch (e) {
       const notYet = (e.status === 404 && /^Not found/.test(e.message)) || e.status === 403 || /admin/i.test(e.message);
       msgEl.textContent = notYet ? "Follow and copy are being switched on; try again shortly." : e.message;
