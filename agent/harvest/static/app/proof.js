@@ -38,7 +38,9 @@
   const css = `
     .race { position:relative; margin:12px 0 4px; }
     .race .r { position:absolute; top:0; left:0; right:0; height:40px; display:flex; align-items:center; gap:10px; transition:transform .6s ease, opacity .4s; }
-    .race .nm { width:220px; flex:none; font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .race .nm { width:220px; flex:none; font-weight:600; font-size:15px; line-height:1.2; min-width:0; }
+    .race .nm span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .race .nm small { display:block; font-weight:400; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .race .track { flex:1 1 auto; height:26px; background:var(--soft); border-radius:6px; overflow:hidden; }
     .race .fill { height:100%; border-radius:6px; }
     .race .v { width:118px; flex:none; text-align:right; font-weight:800; font-variant-numeric:tabular-nums; font-size:15px; }
@@ -53,7 +55,8 @@
     table.t th:first-child, table.t td:first-child { text-align:left; }
     .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-1px; }
     .stat { font-size:44px; font-weight:800; line-height:1.05; }
-    @media (max-width:520px) { table.t { font-size:14px; } table.t th, table.t td { padding:6px 3px; } .race .nm { width:120px; font-size:12px; } .race .v { width:92px; font-size:13px; } }`;
+    @media (max-width:520px) { table.t { font-size:14px; } table.t th, table.t td { padding:6px 3px; } .race .nm { width:132px; font-size:13px; } .race .nm small { font-size:11px; } .race .v { width:92px; font-size:13px; }
+      svg.chart { font-size:19px; } }`;
   document.head.append(h("style", {}, css));
 
   // ------------------------------------------------------------ s. tournament replay
@@ -72,7 +75,10 @@
     const rows = new Map(agents.map((a) => {
       const fill = h("div", { class: "fill", style: `background:${a.color || "#2b8a3e"}` });
       const v = h("div", { class: "v" });
-      const r = h("div", { class: "r" }, h("div", { class: "nm", title: a.name }, a.name), h("div", { class: "track" }, fill), v);
+      // "European Commission DG AGRI (narrative) · Phi-4": the persona on one line and the AI under it, so rows that
+      // share a persona stay tell-apart when the name is cut
+      const [who, model] = String(a.name).replace(/ \(narrative\)/, "").split(" · ");
+      const r = h("div", { class: "r" }, h("div", { class: "nm", title: a.name }, h("span", {}, who), model ? h("small", {}, model) : null), h("div", { class: "track" }, fill), v);
       return [a.id, { r, fill, v }];
     }));
     const race = h("div", { class: "race", style: `height:${TOP * ROW}px` }, [...rows.values()].map((x) => x.r));
@@ -111,7 +117,8 @@
     }
     chart.append(s("line", { x1: 46, x2: 626, y1: Y(0.25), y2: Y(0.25), stroke: "#c92a2a", "stroke-dasharray": "4 4" }),
       s("text", { x: 624, y: Y(0.25) - 4, "text-anchor": "end", fill: "#c92a2a" }, "coin flip 0.25"));
-    steps.forEach((st, i) => { if (i % 2 === 0 || i === n - 1) chart.append(s("text", { x: X(i), y: 234, "text-anchor": i === n - 1 ? "end" : "middle", fill: "#6b6b6b" }, st.cutoff)); });
+    const narrow = window.matchMedia("(max-width: 520px)").matches, every = narrow ? 4 : 2; // fewer date labels where the text is big
+    steps.forEach((st, i) => { if ((i % every === 0 && n - 1 - i >= every) || i === n - 1) chart.append(s("text", { x: X(i), y: 234, "text-anchor": i === n - 1 ? "end" : "middle", fill: "#6b6b6b" }, st.cutoff)); });
     const lines = new Map(agents.map((a) => [a.id, star.has(a.id) ? s("polyline", { fill: "none", stroke: a.color || "#2b8a3e", "stroke-width": 2.5 })
       : s("polyline", { fill: "none", stroke: "#ced4da", "stroke-width": 1, opacity: 0.6 })]));
     const marketLine = s("polyline", { fill: "none", stroke: "#1a1a1a", "stroke-width": 2, "stroke-dasharray": "6 3" });
@@ -249,16 +256,16 @@
 
   // ------------------------------------------------------------ n. calibration (under the leaderboard)
   function reliability(c) {
-    const W = 360, P = 40, S = W - P - 12;
+    const W = 380, P = 58, S = W - P - 24;
     const X = (p) => P + p * S, Y = (p) => 10 + (1 - p) * S;
-    const svg = s("svg", { class: "chart", viewBox: `0 0 ${W} ${W + 12}`, style: "max-width:420px", role: "img", "aria-label": "Reliability diagram" });
+    const svg = s("svg", { class: "chart", viewBox: `0 0 ${W} ${Y(0) + 46}`, style: "max-width:460px;margin:0 auto;font-size:13px", role: "img", "aria-label": "Reliability diagram" });
     for (let v = 0; v <= 1.0001; v += 0.2) {
       svg.append(s("line", { x1: X(v), x2: X(v), y1: Y(0), y2: Y(1), stroke: "#eee" }), s("line", { x1: X(0), x2: X(1), y1: Y(v), y2: Y(v), stroke: "#eee" }),
         s("text", { x: X(v), y: Y(0) + 16, "text-anchor": "middle", fill: "#6b6b6b" }, pct(v)), s("text", { x: P - 6, y: Y(v) + 4, "text-anchor": "end", fill: "#6b6b6b" }, pct(v)));
     }
     svg.append(s("line", { x1: X(0), y1: Y(0), x2: X(1), y2: Y(1), stroke: "#adb5bd", "stroke-dasharray": "5 4" }),
-      s("text", { x: X(0.5), y: W + 10, "text-anchor": "middle", fill: "#1a1a1a" }, "forecast probability"),
-      s("text", { x: 12, y: Y(0.5), transform: `rotate(-90 12 ${Y(0.5)})`, "text-anchor": "middle", fill: "#1a1a1a" }, "how often it happened"));
+      s("text", { x: X(0.5), y: Y(0) + 38, "text-anchor": "middle", fill: "#1a1a1a" }, "forecast probability"),
+      s("text", { x: 14, y: Y(0.5), transform: `rotate(-90 14 ${Y(0.5)})`, "text-anchor": "middle", fill: "#1a1a1a" }, "how often it happened"));
     const color = c.agent.color || "#2b8a3e", maxN = Math.max(...c.bins.map((b) => b.n), 1);
     const pts = c.bins.filter((b) => b.n);
     svg.append(s("polyline", { points: pts.map((b) => `${X(b.mean_p)},${Y(b.freq)}`).join(" "), fill: "none", stroke: color, "stroke-width": 2 }));
@@ -293,7 +300,7 @@
     const featured = sum.agents.filter((a, i) => i < 10 || a.id === "market" || a.id === "consensus");
     const rest = sum.agents.filter((a) => !featured.includes(a));
     box.replaceChildren(h("h2", {}, "Calibration: when they say 70%, does it happen 70% of the time?"),
-      h("p", { class: "muted small" }, `Every resolved backtest forecast (${sum.agents[0].n} per agent), grouped into ${sum.bins} probability bins. Pick a forecaster (sorted by ECE, best first):`),
+      h("p", { class: "muted small" }, `Every resolved backtest forecast, dev and holdout quarters together (${sum.agents[0].n} per agent), grouped into ${sum.bins} probability bins. The leaderboard above scores only the sealed holdout, so its Brier scores differ from these. Pick a forecaster (sorted by ECE, best first):`),
       chips, detail,
       h("h3", {}, "Best calibrated, plus the market and the consensus"), calTable(featured),
       rest.length > 0 && h("details", {}, h("summary", {}, `All ${sum.agents.length} forecasters`), calTable(rest)));

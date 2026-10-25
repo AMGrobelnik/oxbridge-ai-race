@@ -44,7 +44,8 @@
     const enso = slider("enso", "El Niño", spec.enso, (v) => (v === 0 ? "neutral" : `${v > 0 ? "+" : ""}${v}`));
     const status = h("p", { class: "muted small" });
     const results = h("div");
-    const presets = h("div", { class: "chips" }, Object.entries(spec.presets || {}).map(([name, p]) => h("button", { class: "chip", onclick: () => apply(p) }, name)));
+    const presets = h("div", { class: "chips" }, Object.entries(spec.presets || {}).map(([name, p]) => h("button", { class: "chip", "data-preset": name, onclick: () => apply(p, name) }, name)));
+    const markPreset = (name) => presets.querySelectorAll(".chip").forEach((c) => c.classList.toggle("on", c.dataset.preset === name));
     main.replaceChildren(
       h("h1", {}, "What if?"),
       h("p", { class: "lead" }, "Move the sliders to imagine a hotter, drier or El Niño year. The AI agents re-forecast every live market under your scenario, each through its own world model."),
@@ -59,7 +60,8 @@
       for (const r of spec.regions) t[r] = Number(inputs[`t-${r}`].inp.value);
       return { temp_anomaly: t, rain_pct: Number(inputs.rain.inp.value), enso: Number(inputs.enso.inp.value) };
     }
-    function apply(p) {
+    function apply(p, name) {
+      markPreset(name);
       for (const r of spec.regions) inputs[`t-${r}`].inp.value = (p.temp_anomaly || {})[r] || 0;
       inputs.rain.inp.value = p.rain_pct || 0;
       inputs.enso.inp.value = p.enso || 0;
@@ -68,13 +70,16 @@
     }
     let timer = null, seq = 0, retry = null;
     function schedule(ms = 450) { clearTimeout(timer); timer = setTimeout(run, ms); }
+    Object.values(inputs).forEach((x) => x.inp.addEventListener("input", () => markPreset(null))); // a hand-moved slider is no preset
     async function run(isRetry) {
       const my = ++seq;
       clearTimeout(retry);
       status.replaceChildren(h("span", { class: "spin" }), "The agents are re-forecasting under your scenario…");
+      results.style.opacity = "0.45"; // the old numbers stay visible but read as stale until the new ones land
       try {
         const r = await call("/scenario", body());
         if (my !== seq) return;
+        results.style.opacity = "";
         draw(r);
         if (r.llm_pending && !isRetry) retry = setTimeout(() => run(true), 4000);
       } catch (e) { if (my === seq) status.replaceChildren(h("span", { class: "err" }, e.message)); }
@@ -82,7 +87,8 @@
     function draw(r) {
       const who = r.source === "llm" ? `AI agents (${r.llm_model || "LLM"}) on the most exposed markets, world-model rules on the rest`
         : "world-model rules (the AI agents are busy; try again in a moment for their own words)";
-      status.textContent = `${r.markets.length} live markets re-forecast in ${(r.elapsed_ms / 1000).toFixed(1)} s by ${who}.`;
+      const took = r.elapsed_ms >= 100 ? ` in ${(r.elapsed_ms / 1000).toFixed(1)} s` : "";  // a cached answer took no time: say nothing about speed
+      status.textContent = `${r.markets.length} live markets re-forecast${took} by ${who}.`;
       results.replaceChildren(...r.markets.map((m) => {
         const lo = Math.min(m.baseline, m.scenario), hi = Math.max(m.baseline, m.scenario);
         const cls = Math.abs(m.delta) < 0.005 ? "" : m.delta > 0 ? "up" : "down";
@@ -97,7 +103,8 @@
           (m.rationales || []).filter((x) => Math.abs(x.delta) >= 0.005).map((x) => h("p", { class: "r" }, h("b", {}, `${x.name} (${pts(x.delta)}): `), x.text)));
       }));
     }
-    apply(Object.values(spec.presets || {})[0] || {});
+    const first = Object.keys(spec.presets || {})[0];
+    apply(first ? spec.presets[first] : {}, first);
   }
   boot();
 })();

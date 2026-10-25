@@ -43,8 +43,9 @@
     if (note) note.textContent = lb.interval ? lb.interval.note : "";
     const hum = document.getElementById("hum");
     hum.innerHTML = "";
+    const tests = new Set((lb.accounts || []).filter((a) => a.category === "test").map((a) => a.id)); // our own QA accounts
     const rows = lb.world_models.filter((m) => m.pnl_live != null && m.origin !== "human-model").map((m) => ({ id: m.origin === "house" || m.origin === "narrative" ? `agent:${m.persona_id}` : m.persona_id, name: m.name, v: m.pnl_live }))
-      .concat(lb.humans.map((h) => ({ id: h.user_id, name: h.nickname, v: h.pnl || 0, human: true })));
+      .concat(lb.humans.filter((h) => !tests.has(h.user_id)).map((h) => ({ id: h.user_id, name: h.nickname, v: h.pnl || 0, human: true })));
     rows.sort((a, b) => b.v - a.v);
     const humans = rows.filter((r) => r.human);
     const show = rows.slice(0, 2).concat(humans.filter((h) => rows.indexOf(h) >= 2).slice(0, 2));

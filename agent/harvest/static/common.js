@@ -265,7 +265,8 @@ window.H = (() => {
           const t = id === "ext:*" ? { name: "Outside agents", color: "#495057", mono: "EX" } : id === "user:*" ? { name: "Humans (QR)", color: "var(--ink)", mono: "YOU" } : trader(id);
           svg("rect", { x: lx - 4, y: y - 9, width: 8, height: 18, rx: 3, fill: t.color }, this.gNodes);
           const tx = svg("text", { x: lx - 12, y: y + 4, "text-anchor": "end", class: "node-label" }, this.gNodes);
-          tx.textContent = t.name;
+          tx.textContent = this._clip(String(t.name).replace(/ \(narrative\)/, ""), 24); // long names ran off the left edge
+          if (tx.textContent !== t.name) svg("title", {}, tx).textContent = t.name;
         });
         const rs = (Hh - 20) / Math.max(1, this.right.length);
         this.right.forEach((m, i) => {

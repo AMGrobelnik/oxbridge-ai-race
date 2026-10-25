@@ -15,14 +15,18 @@
     return n;
   }
   const pts = (d) => `${d > 0 ? "+" : ""}${(d * 100).toFixed(1)} pts`;
+  const betRow = (b) => h("div", { class: "feed-item" }, h("span", { class: "tag " + b.side.toLowerCase() }, b.side), h("b", {}, b.name),
+    ` bet ${Math.round(b.spend)} credits, ${Math.round(b.price_before * 100)}% → ${Math.round(b.price_after * 100)}% (${pts(b.delta)})`,
+    h("span", { class: "muted small" }, ` · ledger bet #${b.seq}`));
   function render(out, r) {
     const mv = r.move;
+    const topSeqs = new Set(mv.top.map((b) => b.seq));
+    const rest = (mv.bets || []).filter((b) => !topSeqs.has(b.seq));
     out.replaceChildren(h("div", { class: "card" },
       h("b", {}, "🌾 Croppy: "), r.explanation,
-      mv.top.length ? [h("h2", { style: "font-size:18px;margin:14px 0 6px" }, "The bets that moved it"),
-        ...mv.top.map((b) => h("div", { class: "feed-item" }, h("span", { class: "tag " + b.side.toLowerCase() }, b.side), h("b", {}, b.name),
-          ` bet ${Math.round(b.spend)} credits, ${Math.round(b.price_before * 100)}% → ${Math.round(b.price_after * 100)}% (${pts(b.delta)})`,
-          h("span", { class: "muted small" }, ` · ledger bet #${b.seq}`)))] : null,
+      mv.top.length ? [h("h2", { style: "font-size:18px;margin:14px 0 6px" }, "The bets that moved it most"),
+        ...mv.top.map(betRow),
+        rest.length ? h("details", { style: "margin-top:6px" }, h("summary", { class: "small", style: "cursor:pointer" }, `The other ${rest.length} bets Croppy read`), ...rest.map(betRow)) : null] : null,
       r.news.length ? [h("h2", { style: "font-size:18px;margin:14px 0 6px" }, r.news.some((n) => n.in_window) ? "Headlines in the window" : "Latest tagged headlines"),
         ...r.news.map((n) => h("div", { class: "feed-item" }, n.url ? h("a", { href: n.url, target: "_blank", rel: "noopener" }, n.title) : n.title,
           h("span", { class: "muted small" }, ` · ${n.source || ""} ${String(n.published_at || "").slice(0, 10)}`)))] : null));
@@ -37,6 +41,8 @@
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
         render(out, data);
+        // on a phone the answer lands below the fold: bring its start into view
+        if (out.getBoundingClientRect().top > window.innerHeight * 0.6) out.scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (e) { out.replaceChildren(h("p", { class: "err" }, e.message)); }
       btn.disabled = false;
     } }, "Why did this move?");

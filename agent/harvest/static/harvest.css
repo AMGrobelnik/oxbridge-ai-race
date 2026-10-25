@@ -252,7 +252,8 @@ footer.foot { padding: 30px 0 40px; color: var(--faint); font-size: 12.5px; }
   .stats { grid-template-columns: repeat(4, 1fr); }
   .stat:nth-child(4n) { border-right: 0; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .live-grid, .lb-grid, .seal, .mapfund { grid-template-columns: 1fr; }
+  .live-grid, .lb-grid, .seal, .mapfund { grid-template-columns: minmax(0, 1fr); } /* minmax: a wide table must not widen the page */
+  .lb-grid > .panel { overflow-x: auto; }
   .sm { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .how { grid-template-columns: repeat(2, 1fr); }
 }
@@ -266,6 +267,8 @@ footer.foot { padding: 30px 0 40px; color: var(--faint); font-size: 12.5px; }
   .stat:nth-child(2n) { border-right: 0; }
   .cards, .sm, .how, .aud { grid-template-columns: 1fr; }
   .alloc .row { grid-template-columns: 110px 1fr 54px; }
+  .flow { overflow: hidden; }
+  .pill { white-space: normal; max-width: 100%; }
 }
 
 /* honest error bars: 90% bootstrap interval whisker over the Brier bar */

@@ -4,7 +4,7 @@
 (() => {
   const KEY = "harvest-player"; // shared with /harvest/play
   const API = "/harvest/api";
-  const CROPPY_SCRIPTS = ["/harvest/static/croppy.js?v=2"];
+  const CROPPY_SCRIPTS = ["/harvest/static/croppy.js?v=3"];
   const GROUPS = {
     "Grains": ["wheat", "durum wheat", "maize", "feed maize", "rice"],
     "Oils": ["olive oil", "sunflower oil", "sunflower"],
@@ -99,8 +99,9 @@
     ["/app/disagreement", "Disagreement", "disagreement"], ["/app/farmer", "Farmer", "farmer"], ["/app/season", "Season", "season"],
     ["/app/developers", "Developers", "developers"]];
   function badgeText() {
-    const me = load();
-    return me && me.token ? `${me.username ? "@" + me.username : me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits` : "Free play credits · no real money";
+    const me = load(), phone = window.matchMedia("(max-width: 520px)").matches; // a phone header has room for one short line
+    if (me && me.token) return phone ? `${Math.round(me.credits ?? 1000)} credits` : `${me.username ? "@" + me.username : me.nickname || "You"} · ${Math.round(me.credits ?? 1000)} play credits`;
+    return phone ? "No real money" : "Free play credits · no real money";
   }
   function renderChrome() {
     const page = document.body.dataset.page;
@@ -109,6 +110,8 @@
       h("a", { class: "brand", href: "/app", "aria-label": "Crophecy" }, h("img", { src: "/frontend/assets/crophecy-mark.svg", alt: "", width: 30, height: 30 }), h("span", {}, "Crop", h("i", {}, "hecy"))),
       h("nav", {}, NAV.filter((n) => n[2] !== "home").map(([href, label, id]) => h("a", { href, class: (id === page || (id === "markets" && page === "market")) ? "on" : "" }, label))),
       h("span", { class: "badge", id: "badge", title: "Play credits only. They have no monetary value and cannot be bought or cashed out." }, badgeText())));
+    const nav = top.querySelector("nav"), on = nav && nav.querySelector("a.on");
+    if (on && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = Math.max(0, on.offsetLeft - nav.offsetLeft - 40);
   }
   async function refreshBalance() {
     const me = load();
@@ -121,13 +124,9 @@
     } catch (e) { if (e.status === 401) save(null); }
     document.getElementById("badge").textContent = badgeText();
   }
-  async function loadCroppy() {
-    for (const src of CROPPY_SCRIPTS) {
-      try {
-        const r = await fetch(src, { method: "HEAD" });
-        if (r.ok) { document.body.append(h("script", { src, defer: true })); return; }
-      } catch (_) { /* no Croppy here */ }
-    }
+  function loadCroppy() {
+    if (window.__croppyLoaded || document.querySelector('script[src^="/harvest/static/croppy.js"]')) return;
+    document.body.append(h("script", { src: CROPPY_SCRIPTS[0], defer: true }));
   }
 
   // ------------------------------------------------------------ join (username dialog on first use)
@@ -205,7 +204,7 @@
       } }, "Approve") : null;
       return h("div", { class: "row" },
         h("span", { class: "q" }, d.qid ? h("a", { href: `/app/market/${encodeURIComponent(d.qid)}` }, d.question) : d.question,
-          h("span", { class: "sub" }, `${d.kind} · ${d.region} · ${d.crop} · ${d.status}${d.deadline ? ` · by ${d.deadline}` : ""} · ${d.resolution_source}`),
+          h("span", { class: "sub" }, `${d.region} · ${d.crop} · ${d.status === "draft" ? "awaiting review" : d.status}${d.deadline ? ` · would resolve by ${d.deadline}` : ""} · ${d.resolution_source}`),
           d.why ? h("span", { class: "sub" }, d.why) : null, out),
         approve);
     }) : [h("p", { class: "muted" }, "Nothing proposed yet. The news agent drafts new markets from fresh headlines every 15 minutes.")]));
@@ -269,15 +268,17 @@
       const hits = list.filter((m) => (group === "All" || cropGroup(m.crop) === group)
         && (!query || `${m.title} ${m.region} ${m.crop}`.toLowerCase().includes(query)));
       rows.replaceChildren(...(hits.length ? hits.map((m) => {
-        const views = agentViews(m), yes = views.filter((v) => v.p_yes > 0.5).length;
+        const views = agentViews(m).filter((v) => v.source !== "fallback");
+        const avg = views.length ? views.reduce((a, v) => a + v.p_yes, 0) / views.length : null;
         return h("a", { class: "row", href: `/app/market/${encodeURIComponent(m.qid)}` },
-          h("span", { class: "q" }, m.title, h("span", { class: "sub" }, `${m.region} · ${m.crop}` + (views.length ? ` · agents: ${yes} of ${views.length} say YES` : ""))),
+          h("span", { class: "q" }, m.title, h("span", { class: "sub" }, `${m.region} · ${m.crop}` + (avg != null ? ` · ${views.length} AI agents average ${pct(avg)}` : ""))),
           h("span", { class: "pct" }, pct(m.p_yes), h("small", {}, "YES")));
       }) : [h("p", { class: "muted" }, "No markets match.")]));
     }
     draw();
     const draftsBox = h("div");
-    show(h("h1", {}, "Markets"), search, chips, rows, h("h2", {}, "Proposed by the news agent"), draftsBox);
+    show(h("h1", {}, "Markets"), search, chips, rows, h("h2", {}, "Proposed by the news agent"),
+      h("p", { class: "muted small" }, "New questions the news agent drafted from today's headlines. A person reviews each one before it opens for betting."), draftsBox);
     loadDrafts(draftsBox);
   }
 
@@ -285,13 +286,21 @@
     const qid = decodeURIComponent(location.pathname.replace(/^\/app\/market\//, ""));
     show(spinner("Loading…"));
     let m, state;
-    try { m = await api(`/markets/${encodeURIComponent(qid)}`); state = await api("/state?since=999999999"); } catch (e) { show(h("h1", {}, "Market not found"), failure(e), h("a", { class: "btn", href: "/app/markets" }, "Back to markets")); return; }
+    for (let attempt = 0; ; attempt++) {
+      try { [m, state] = await Promise.all([api(`/markets/${encodeURIComponent(qid)}`), api("/state?since=999999999")]); break; } catch (e) {
+        if (e.status === 404) { show(h("h1", {}, "Market not found"), h("p", { class: "muted" }, "There is no market with this address."), h("a", { class: "btn", href: "/app/markets" }, "Back to markets")); return; }
+        if (attempt < 2) { show(spinner("Still loading…")); await new Promise((r) => setTimeout(r, 2000)); continue; }
+        show(h("h1", {}, "This market didn't load"), h("p", { class: "muted" }, "The server is busy or restarting. Try again in a few seconds."),
+          h("div", { class: "actions" }, h("button", { class: "btn primary", onclick: () => location.reload() }, "Try again"), h("a", { class: "btn", href: "/app/markets" }, "Back to markets")));
+        return;
+      }
+    }
     let spend = 25;
     const priceBox = h("div"), result = h("div"), position = h("div"), resBox = h("div"), debateBox = h("div");
     const yesBtn = h("button", { class: "btn yes", onclick: () => bet("YES") }, "YES");
     const noBtn = h("button", { class: "btn no", onclick: () => bet("NO") }, "NO");
     const amounts = h("div", { class: "amounts" });
-    const drawAmounts = () => amounts.replaceChildren(...[10, 25, 50, 100].map((a) => h("button", { class: "chip" + (a === spend ? " on" : ""), onclick: () => { spend = a; drawAmounts(); } }, `${a} credits`)));
+    const drawAmounts = () => amounts.replaceChildren(...[1, 10, 25, 50, 100].map((a) => h("button", { class: "chip" + (a === spend ? " on" : ""), onclick: () => { spend = a; drawAmounts(); } }, `${a} ${a === 1 ? "credit" : "credits"}`)));
     const drawPrice = () => priceBox.replaceChildren(
       h("div", { class: "hero-pct" }, pct(m.p_yes)),
       h("div", { class: "muted" }, "chance of YES, according to the market"),
@@ -312,13 +321,12 @@
       let me;
       try { me = await ensurePlayer(); } catch (_) { return; }
       yesBtn.disabled = noBtn.disabled = true;
-      const before = m.p_yes;
       try {
         const r = await api("/bet", { token: me.token, qid, side, spend });
         m = { ...m, ...r.market, agent_forecasts: m.agent_forecasts, history: r.market.history || m.history };
         drawPrice();
         result.replaceChildren(h("div", { class: "card good" }, h("b", {}, `You bet ${spend} credits on ${side}. `),
-          `The YES price moved from ${pct(before)} to ${pct(r.market.p_yes)}. You have ${Math.round(r.balance)} credits left.`));
+          `Your bet moved the YES price from ${pct(r.trade.price_before)} to ${pct(r.trade.price_after)}. You have ${Math.round(r.balance)} credits left.`));
         me.credits = r.balance; save(me); document.getElementById("badge").textContent = badgeText();
         drawPosition();
       } catch (e) {
@@ -393,7 +401,7 @@
   }
 
   async function live() {
-    const feed = h("div"), news = h("div"), debates = h("div");
+    const feed = h("div", {}, spinner("Loading the latest bets…")), news = h("div", {}, spinner("Loading headlines…")), debates = h("div", {}, spinner("Loading debates…"));
     show(h("h1", {}, "Live"), h("p", { class: "muted small" }, "Updates every few seconds."), h("h2", {}, "Latest bets"), feed, h("h2", {}, "Agent debates"), debates, h("h2", {}, "News"), news);
     loadDebate(debates, "", 6);
     const dTimer = setInterval(() => { if (!document.hidden) loadDebate(debates, "", 6); }, 20000);
@@ -503,7 +511,9 @@
     async function run() {
       if (text.value.trim().length < 20) { out.replaceChildren(h("p", { class: "err" }, "Write at least a couple of sentences first.")); return; }
       go.disabled = true;
-      out.replaceChildren(spinner("Testing your theory on 48 past questions with the answers hidden. This takes about 20 seconds…"));
+      const t0 = Date.now(), wait = spinner("Testing your theory on 48 past questions with the answers hidden. This takes 20 to 40 seconds… 0 s");
+      out.replaceChildren(wait);
+      const tick = setInterval(() => { wait.lastChild.textContent = wait.lastChild.textContent.replace(/\d+ s$/, `${Math.round((Date.now() - t0) / 1000)} s`); }, 1000);
       const me = load();
       try {
         const r = await api("/byo", { name: (me && me.nickname ? `${me.nickname}'s theory` : "My theory"), world_model: text.value, token: me && me.token ? me.token : undefined });
@@ -517,6 +527,7 @@
         if ((r.field || []).length) out.append(h("h2", {}, "How everyone scored"), ...r.field.map((f, i) => h("div", { class: "rank" },
           h("span", { class: "n" }, i + 1), h("span", { class: "nm" }, f.name), h("span", { class: "sc" }, b3(f.brier)))));
       } catch (e) { out.replaceChildren(failure(e)); }
+      clearInterval(tick);
       go.disabled = false;
     }
     show(h("h1", {}, "Write your theory"),
@@ -581,7 +592,7 @@
     const cutoff = (m) => { if (!m) return ""; const [y, mo] = m.split("-"); return new Date(+y, +mo - 1, 1).toLocaleString("en-GB", { month: "short", year: "numeric" }); };
     show(h("h1", {}, "Leaderboard"),
       lb.cutoff_line ? h("p", { class: "card good" }, lb.cutoff_line) : null,
-      h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden. Lower score is better; 0.25 is a coin flip. The grey range shows how sure we are: when ranges overlap, it is too close to call.`),
+      h("p", { class: "muted" }, `Scored on ${lb.interval.n_questions} past questions with the answers hidden (the sealed holdout). Lower score is better; 0.25 is a coin flip. The small range under each score shows how sure we are: when two ranges overlap, it is too close to call.`),
       (lb.by_model || []).length ? [h("h2", {}, "Which AI reads farming best"),
         h("p", { class: "muted small" }, "Each AI runs every persona; its score is the average over them."),
         h("div", { class: "rank" }, h("span", { class: "n" }, "–"), h("span", { class: "nm" }, "The market"), h("span", { class: "sc" }, b3(lb.baselines.market))),

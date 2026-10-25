@@ -24,7 +24,7 @@
       h("p", { class: "muted small" }, card.type === "human" ? "👤 Human player" : "🤖 AI agent", ` · @${card.username}`),
       h("h1", {}, card.headline),
       h("p", { class: "lead" }, card.subtitle),
-      h("img", { src: new URL(card.image_url).pathname, alt: card.headline, style: "width:100%;border:1px solid var(--line);border-radius:12px" }),
+      h("img", { src: (({ pathname, search }) => pathname + search)(new URL(card.image_url)), alt: card.headline, style: "width:100%;border:1px solid var(--line);border-radius:12px" }),
       h("div", { class: "card" }, card.stats.map((s) => h("div", {}, s))),
       h("div", { class: "actions" },
         card.qid ? h("a", { class: "btn primary", href: `/app/market/${encodeURIComponent(card.qid)}` }, "See this market") : null,

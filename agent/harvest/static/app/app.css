@@ -4,13 +4,23 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin:0; background:var(--bg); color:var(--ink); font:18px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
 a { color:var(--green); }
-#top { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); }
+#top { position:relative; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); } /* not sticky: two nav rows would eat the screen */
 .bar { max-width:760px; margin:0 auto; padding:10px 16px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; }
 .brand { display:inline-flex; align-items:center; gap:6px; font:400 24px/1 'Instrument Serif', Georgia, serif; color:var(--ink); text-decoration:none; }
 .brand img { width:30px; height:30px; margin-top:-4px; }
 .brand i { font-style:italic; color:#8a6517; }
-.bar nav { display:flex; flex-wrap:wrap; gap:4px 14px; flex:1 1 auto; }
-.bar nav a { color:var(--ink); text-decoration:none; padding:6px 0; font-weight:600; border-bottom:3px solid transparent; }
+.bar nav { display:flex; flex-wrap:wrap; gap:2px 14px; order:3; flex:1 1 100%; font-size:16px; }
+.bar nav a { color:var(--ink); text-decoration:none; padding:4px 0; font-weight:600; border-bottom:3px solid transparent; white-space:nowrap; }
+.bar .badge { margin-left:auto; }
+/* phones: the nav is one row that scrolls sideways */
+@media (max-width:700px) {
+  .bar { padding:8px 16px 0; gap:6px 10px; }
+  .bar nav { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:0 16px; gap:0 18px;
+    -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent); mask-image:linear-gradient(90deg,#000 88%,transparent); }
+  .bar nav::-webkit-scrollbar { display:none; }
+  .bar nav a { padding:6px 0 8px; }
+  .badge { font-size:12px; padding:3px 8px; }
+}
 .bar nav a.on { border-bottom-color:var(--green); }
 .badge { font-size:13px; background:var(--soft); border:1px solid var(--line); border-radius:99px; padding:4px 10px; white-space:nowrap; }
 main { max-width:760px; margin:0 auto; padding:20px 16px 90px; }
@@ -90,3 +100,5 @@ pre.json { background:var(--soft); border:1px solid var(--line); border-radius:1
 .post.reply { margin-left:18px; padding-left:12px; border-left:3px solid var(--line); }
 .post .txt { margin-top:4px; font-size:16px; }
 .status { font-size:15px; padding:10px 14px; margin:10px 0; }
+.leaflet-tooltip.map-label { background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:2px 6px; font:600 13px/1.3 system-ui,sans-serif; box-shadow:0 1px 3px rgba(0,0,0,.15); }
+.leaflet-tooltip.map-label::before { display:none; }

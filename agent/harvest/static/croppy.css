@@ -9,7 +9,7 @@
 .croppy-fab *, .croppy-panel * { box-sizing: border-box; }
 .croppy-fab { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(var(--croppy-lift, 0px) + 16px + env(safe-area-inset-bottom, 0px));
   z-index: 2147483000; width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--c-leaf); background: var(--c-mist);
-  box-shadow: var(--c-shadow); cursor: pointer; display: block; padding: 0; margin: 0; overflow: hidden; transition: transform .15s ease, bottom .2s ease; }
+  box-shadow: var(--c-shadow); cursor: pointer; display: block; padding: 0; margin: 0; overflow: hidden; transition: transform .25s ease, bottom .2s ease; }
 .croppy-fab:hover { transform: translateY(-2px) scale(1.04); }
 .croppy-fab img { display: block; width: 100%; height: 100%; border-radius: 50%; animation: croppy-bob 2.8s ease-in-out infinite; transform-origin: 50% 90%; }
 .croppy-fab:focus-visible, .croppy-panel button:focus-visible, .croppy-panel input:focus-visible, .croppy-panel a:focus-visible { outline: 2px solid var(--c-wheat); outline-offset: 2px; }
@@ -44,7 +44,8 @@
 .croppy-form button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 12px; border: 0; background: var(--c-leaf); color: #fff; cursor: pointer; margin: 0; }
 .croppy-form button:hover { background: var(--c-leaf2); }
 .croppy-form button:disabled { opacity: .5; cursor: default; }
+.croppy-fab.croppy-tucked { transform: translateX(calc(100% + 24px)); }
 @media (max-width: 520px) {
-  .croppy-fab { width: 52px; height: 52px; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(var(--croppy-lift, 0px) + 12px + env(safe-area-inset-bottom, 0px)); }
+  .croppy-fab { width: 46px; height: 46px; right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(var(--croppy-lift, 0px) + 12px + env(safe-area-inset-bottom, 0px)); }
   .croppy-panel { right: 12px; bottom: calc(var(--croppy-lift, 0px) + 74px + env(safe-area-inset-bottom, 0px)); height: min(540px, calc(100dvh - var(--croppy-lift, 0px) - 96px)); }
 }

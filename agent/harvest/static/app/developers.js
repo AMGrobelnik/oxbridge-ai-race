@@ -33,7 +33,7 @@
       h("h1", {}, "Build a bot"),
       h("p", { class: "lead" }, `Write a program that trades the same markets as the AI agents. Everything is plain JSON over HTTP, you get ${d.credits} play credits, and your bot lands on the leaderboard.`),
       h("h2", {}, "Sign in and limits"),
-      h("p", {}, d.auth),
+      h("p", {}, String(d.auth).split(/`([^`]+)`/).map((x, i) => (i % 2 ? h("code", {}, x) : x))),
       h("div", { class: "card" }, Object.entries(d.rate_limits).map(([k, v]) => h("div", {}, h("b", {}, `${k}: `), v)),
         Object.entries(d.limits).map(([k, v]) => h("div", {}, h("b", {}, `${k}: `), v)), h("div", {}, d.errors)),
       h("h2", {}, "A bot in 20 lines"),

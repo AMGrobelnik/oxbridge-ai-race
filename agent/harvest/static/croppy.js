@@ -12,7 +12,7 @@
 
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "/harvest/static/croppy.css?v=3";
+  css.href = "/harvest/static/croppy.css?v=4";
   document.head.appendChild(css);
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -105,6 +105,7 @@
 
   function toggle(open) {
     panel.hidden = !open;
+    if (open) fab.classList.remove("croppy-tucked");
     fab.setAttribute("aria-expanded", String(open));
     if (open) { if (!log.childElementCount) greet(); input.focus(); }
   }
@@ -135,6 +136,17 @@
   window.addEventListener("load", schedulePlace);
   setTimeout(place, 1500);
   setTimeout(place, 5000); // bars that slide in late
+  // On a phone the button would sit on whatever scrolls under it (prices, slider values): it slides off while you
+  // scroll down to read, and comes back when you scroll up or reach the end of the page.
+  const phone = window.matchMedia("(max-width: 520px)");
+  let lastY = window.scrollY;
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY, dy = y - lastY;
+    if (Math.abs(dy) < 8) return;
+    lastY = y;
+    const atEnd = y + innerHeight >= document.documentElement.scrollHeight - 80;
+    fab.classList.toggle("croppy-tucked", phone.matches && panel.hidden && dy > 0 && y > 60 && !atEnd);
+  }, { passive: true });
   openTab();
   window.Croppy = { open: () => toggle(true), ask };
 })();

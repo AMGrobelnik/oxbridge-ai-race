@@ -106,8 +106,10 @@
       maxZoom: 10, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
     for (const r of d.regions) {
-      L.circleMarker([r.lat, r.lng], { radius: 14 + 18 * r.stress, color: "#222", weight: 1, fillColor: stressColor(r.stress), fillOpacity: 0.8 })
-        .addTo(map).bindTooltip(`${r.region}: ${r.level} (${r.markets.length} markets)`).on("click", () => select(r));
+      // a permanent white label beside each circle: the map's own place names under a dark circle were unreadable
+      L.circleMarker([r.lat, r.lng], { radius: 14 + 18 * r.stress, color: "#222", weight: 1, fillColor: stressColor(r.stress), fillOpacity: 0.6 })
+        .addTo(map).bindTooltip(`${r.region} · ${r.level}`, { permanent: true, direction: "right", offset: [10 + 18 * r.stress, 0], className: "map-label" })
+        .on("click", () => select(r));
     }
     map.fitBounds(d.regions.map((r) => [r.lat, r.lng]), { padding: [30, 30] });
     select(d.regions[0]);
