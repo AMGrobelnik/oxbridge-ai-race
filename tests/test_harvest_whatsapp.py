@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import pytest
 from fastapi.testclient import TestClient
 
-from agent.harvest import farmer_chat, market
+from agent.harvest import advisor, farmer_chat, market
 from agent.routes import public_mode
 from agent.routes import whatsapp as wa
 from agent.server import app
@@ -43,6 +43,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(market, "load_soft_specs", lambda: [])
     wa.chat_limiter.reset()
     wa.sender_limiter.reset()
+    advisor.forget_all()
     market.reset_live_book()
     yield
     market.reset_live_book()
@@ -88,7 +89,7 @@ def test_confidence_from_forecaster_agreement():
 
 def test_in_app_chat_route_and_page(client):
     r = client.post("/harvest/api/farmer/chat", json={"message": "maize Spain"})
-    assert r.status_code == 200 and r.json()["crop"] == "maize" and "Chance:" in r.json()["reply"]
+    assert r.status_code == 200 and r.json()["crop"] == "maize" and "Our forecasters put" in r.json()["reply"]
     assert client.post("/harvest/api/farmer/chat", json={}).status_code == 422
     page = client.get("/app/farmer/chat")
     assert page.status_code == 200 and "In-app assistant" in page.text and "/harvest/api/farmer/chat" in page.text
@@ -101,7 +102,7 @@ def _twilio_form(body: str) -> dict[str, str]:
 def test_twilio_webhook_returns_twiml(client):
     r = client.post("/harvest/api/whatsapp/twilio", data=_twilio_form("Will wheat go up in France?"))
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
-    assert r.text.startswith('<?xml version="1.0" encoding="UTF-8"?><Response><Message>') and "Chance:" in r.text
+    assert r.text.startswith('<?xml version="1.0" encoding="UTF-8"?><Response><Message>') and "Our forecasters put" in r.text
     assert "&amp;" in r.text  # the link's query is XML-escaped
 
 
@@ -128,9 +129,9 @@ def test_twilio_signature_over_public_url_behind_proxy(client, monkeypatch):
     form = _twilio_form("wheat France")
     url = "https://crophecy.bid/harvest/api/whatsapp/twilio"
     r = _signed_post(client, url, form)  # no forwarded headers at all: the crophecy.bid default
-    assert r.status_code == 200 and "Chance:" in r.text
+    assert r.status_code == 200 and "Our forecasters put" in r.text
     r = _signed_post(client, url, form, headers={"Host": "crophecy.bid", "X-Forwarded-Proto": "https"})
-    assert r.status_code == 200 and "Chance:" in r.text
+    assert r.status_code == 200 and "Our forecasters put" in r.text
 
 
 def test_twilio_signature_from_forwarded_host_and_proto(client, monkeypatch):
@@ -194,7 +195,7 @@ def test_meta_webhook_answers_without_sending(client):
     r = client.post("/harvest/api/whatsapp/meta", json=_meta_payload("maize Spain"))
     body = r.json()
     assert r.status_code == 200 and body["sent"] is False
-    assert body["replies"][0]["to"] == "15550001111" and "Chance:" in body["replies"][0]["text"]
+    assert body["replies"][0]["to"] == "15550001111" and "Our forecasters put" in body["replies"][0]["text"]
     assert client.post("/harvest/api/whatsapp/meta", json={"object": "x", "entry": [{"changes": [{"value": {"statuses": []}}]}]}).json()["replies"] == []
 
 

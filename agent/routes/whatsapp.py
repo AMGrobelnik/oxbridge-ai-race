@@ -1,7 +1,11 @@
 """The farmer assistant on WhatsApp and in the app (agent/harvest/farmer_chat.py answers all of them).
 
-POST /harvest/api/farmer/chat {message} -> {reply, crop, region, probability, confidence, link}: the in-app chat.
-POST /harvest/api/whatsapp/twilio: Twilio WhatsApp webhook (form POST), answers with TwiML. When TWILIO_AUTH_TOKEN is
+Answers come from the grounded farm advisor (agent/harvest/advisor.py).
+POST /harvest/api/farmer/chat {message, session?} -> {reply, intents, crop, region, probability, confidence, link, source,
+  model, latency_ms}: the in-app chat; `session` keys the short follow-up memory.
+POST /harvest/api/whatsapp/twilio: Twilio WhatsApp webhook (form POST), answers with TwiML when the answer is ready within
+  WHATSAPP_INLINE_S (default 8 s); otherwise it replies "Thinking..." at once and sends the full answer through the
+  Twilio REST API to the same sender (never anyone else). When TWILIO_AUTH_TOKEN is
   set, the X-Twilio-Signature header must match the public URL (TWILIO_WEBHOOK_URL, the forwarded scheme and host,
   PUBLIC_BASE_URL or https://crophecy.bid), not the local one cloudflared forwards to.
 GET  /harvest/api/whatsapp/meta: Meta WhatsApp Cloud API verify handshake against WHATSAPP_VERIFY_TOKEN.
@@ -27,12 +31,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 
 from agent.challenge.ratelimit import RateLimiter
-from agent.harvest import farmer_chat
+from agent.harvest import advisor, farmer_chat
 from agent.routes import harvest as api
-from agent.routes.challenge import public_base_url
 
 PAGE = Path(__file__).resolve().parent.parent / "harvest" / "static" / "app" / "farmer-chat.html"
 GRAPH_URL = "https://graph.facebook.com/v21.0/{phone_id}/messages"
+TWILIO_MESSAGES_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+THINKING = "Thinking… (a few seconds)"
 MAX_FORM = 16_000
 NO_STORE = {"Cache-Control": "no-store"}
 logger = logging.getLogger(__name__)
@@ -109,8 +114,53 @@ async def meta_send(to: str, text: str) -> None:
         logger.warning("WhatsApp Cloud API send failed: %s", type(exc).__name__)
 
 
-def _answer(text: str, request: Request) -> dict[str, Any]:
-    return farmer_chat.reply(text, base_url=public_base_url(request))
+def inline_s() -> float:
+    try:
+        return float(os.environ.get("WHATSAPP_INLINE_S") or 8)
+    except ValueError:
+        return 8.0
+
+
+def _base() -> str:
+    return os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/") or advisor.DEFAULT_BASE
+
+
+def _answer(text: str, request: Request, sender: str | None = None) -> dict[str, Any]:
+    return advisor.advise(text, sender=sender, base_url=_base())
+
+
+async def twilio_send(to: str, text: str) -> bool:
+    """Send one WhatsApp message through the Twilio REST API. Only ever called with the sender of an inbound message."""
+    sid, token, from_ = (os.environ.get(k, "") for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_WHATSAPP_FROM"))
+    if not (sid and token and from_ and to.startswith("whatsapp:")):
+        logger.warning("Twilio REST send skipped: credentials or a WhatsApp sender missing")
+        return False
+    from_ = from_ if from_.startswith("whatsapp:") else f"whatsapp:{from_}"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(TWILIO_MESSAGES_URL.format(sid=sid), data={"From": from_, "To": to, "Body": text}, auth=(sid, token))
+    except httpx.HTTPError as exc:
+        logger.warning("Twilio REST send failed: %s", type(exc).__name__)
+        return False
+    if resp.status_code >= 400:
+        logger.warning("Twilio REST send failed with HTTP %s", resp.status_code)
+        return False
+    return True
+
+
+async def _send_when_ready(job: "asyncio.Future[dict[str, Any]]", to: str) -> None:
+    try:
+        text = (await job)["reply"]
+    except Exception:  # noqa: BLE001 - the advisor itself failed: still answer the farmer
+        logger.exception("farm advisor failed for a WhatsApp message")
+        text = "Sorry, I couldn't work that out just now. Please ask again in a minute."
+    await twilio_send(to, text)
+
+
+def _spawn(coro: Any) -> None:
+    task = asyncio.get_running_loop().create_task(coro)
+    _background.add(task)
+    task.add_done_callback(_background.discard)
 
 
 def register(app: FastAPI) -> None:
@@ -128,7 +178,9 @@ def register(app: FastAPI) -> None:
         message = farmer_chat.clean_text(data.get("message"))
         if not message:
             return api._error("message is required", 422)
-        return JSONResponse(await asyncio.to_thread(_answer, message, request), headers=NO_STORE)
+        session = str(data.get("session") or "")[:64]
+        out = await asyncio.to_thread(_answer, message, request, f"app:{session}" if session else None)
+        return JSONResponse(out, headers=NO_STORE)
 
     @app.post("/harvest/api/whatsapp/twilio", response_model=None)
     async def twilio_route(request: Request) -> Response:
@@ -138,10 +190,15 @@ def register(app: FastAPI) -> None:
         params = dict(parse_qsl(raw.decode("utf-8", "replace"), keep_blank_values=True))
         if not twilio_ok(request, params):
             return PlainTextResponse("Bad signature.", status_code=403)
-        if sender_limiter.hit(params.get("From") or "anon"):
-            text = "You're sending messages quickly; please wait a minute and ask again."
-        else:
-            text = (await asyncio.to_thread(_answer, params.get("Body", ""), request))["reply"]
+        sender = params.get("From") or ""
+        if sender_limiter.hit(sender or "anon"):
+            return Response(twiml("You're sending messages quickly; please wait a minute and ask again."), media_type="application/xml")
+        job = asyncio.ensure_future(asyncio.to_thread(_answer, params.get("Body", ""), request, sender or None))
+        try:
+            text = (await asyncio.wait_for(asyncio.shield(job), inline_s()))["reply"]
+        except TimeoutError:
+            _spawn(_send_when_ready(job, sender))  # the full answer follows through the REST API, to this sender only
+            text = THINKING
         return Response(twiml(text), media_type="application/xml")
 
     @app.get("/harvest/api/whatsapp/meta", response_model=None)
@@ -168,10 +225,8 @@ def register(app: FastAPI) -> None:
         for sender, text in meta_messages(data):
             if sender_limiter.hit(sender):
                 continue
-            reply = (await asyncio.to_thread(_answer, text, request))["reply"]
+            reply = (await asyncio.to_thread(_answer, text, request, f"meta:{sender}"))["reply"]
             replies.append({"to": sender, "text": reply})
-            task = asyncio.get_running_loop().create_task(meta_send(sender, reply))
-            _background.add(task)
-            task.add_done_callback(_background.discard)
+            _spawn(meta_send(sender, reply))
         sending = bool(os.environ.get("WHATSAPP_TOKEN") and os.environ.get("WHATSAPP_PHONE_NUMBER_ID"))
         return JSONResponse({"ok": True, "sent": sending, "replies": replies}, headers=NO_STORE)

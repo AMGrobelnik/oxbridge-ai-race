@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Farm Assistant · The Crophecy</title>
+<title>Farm Advisor · The Crophecy</title>
 <style>
 :root { --ink:#1a1a1a; --muted:#6b6b6b; --line:#e3e3e3; --green:#2b8a3e; --bg:#fff; --soft:#f5f7f4; --me:#d3f9d8; }
 * { box-sizing: border-box; }
@@ -20,8 +20,10 @@ header .s { font-size: 13px; opacity: .9; }
 .me { align-self: flex-end; background: var(--me); border-top-right-radius: 4px; }
 .msg a { color: var(--green); }
 .typing { color: var(--muted); font-style: italic; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 8px; }
-.chips button { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+.meta { align-self: flex-start; font-size: 11px; color: var(--muted); margin: -4px 0 2px 6px; }
+.chips { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 0 16px 8px; scrollbar-width: thin; }
+.chips button { flex: none; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.chips button b { color: var(--green); font-weight: 600; margin-right: 4px; }
 form { display: flex; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--line); }
 input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px; font: inherit; }
 form button { border: 0; background: var(--green); color: #fff; border-radius: 999px; padding: 0 18px; font: inherit; font-weight: 600; cursor: pointer; }
@@ -35,7 +37,7 @@ form button { border: 0; background: var(--green); color: #fff; border-radius: 9
 <div class="phone">
   <header>
     <a href="/app/farmer" aria-label="Back to farmer mode">&larr;</a>
-    <div><div class="t">Crophecy farm assistant</div><div class="s">In-app chat · same answers as on WhatsApp</div></div>
+    <div><div class="t">Crophecy farm advisor</div><div class="s">Live markets, climate and news · same answers as on WhatsApp</div></div>
     <span class="badge">In-app assistant</span>
   </header>
   <div class="wa">
@@ -44,18 +46,30 @@ form button { border: 0; background: var(--green); color: #fff; border-radius: 9
   </div>
   <div id="log" aria-live="polite"></div>
   <div class="chips" id="chips"></div>
-  <form id="f"><input id="q" autocomplete="off" placeholder="Ask about a crop, e.g. maize Spain" aria-label="Your question" maxlength="400"><button>Send</button></form>
-  <p class="foot">Forecasts from The Crophecy's AI forecasters and players. Not financial advice. No betting.</p>
+  <form id="f"><input id="q" autocomplete="off" placeholder="Ask in any language, e.g. sell wheat now or store?" aria-label="Your question" maxlength="400"><button>Send</button></form>
+  <p class="foot">Grounded in The Crophecy's live markets, climate data and news. Not financial advice. No betting.</p>
 </div>
 <script>
 (() => {
   const log = document.getElementById("log"), form = document.getElementById("f"), input = document.getElementById("q");
-  const SAMPLES = ["Will wheat go up in France by harvest?", "maize Spain", "olive oil Greece", "help"];
+  const SAMPLES = [
+    ["Sell or store", "Should I sell my wheat now or store it until spring?"],
+    ["Prices", "Olive oil price outlook in Spain?"],
+    ["Drought", "What drought and heat risk should I expect in Italy this season?"],
+    ["Plant", "Is it worth planting rapeseed instead of wheat next season in northern France?"],
+    ["Inputs", "What happens to fertiliser prices if gas goes up?"],
+    ["CAP", "Any CAP money for heat adaptation?"],
+    ["Hedging", "How can I hedge my maize price?"],
+    ["Crowd", "What does the crowd think about cocoa?"],
+  ];
+  let session = "";
+  try { session = sessionStorage.getItem("farm-advisor") || ""; if (!session) { session = Math.random().toString(36).slice(2, 14); sessionStorage.setItem("farm-advisor", session); } }
+  catch (e) { session = Math.random().toString(36).slice(2, 14); }
   function add(text, who) {
     const div = document.createElement("div");
     div.className = "msg " + who;
     text.split(/(https?:\/\/\S+)/).forEach((part, i) => {
-      if (i % 2) { const a = document.createElement("a"); a.href = part; a.textContent = "Open in farmer mode"; div.append(a); }
+      if (i % 2) { const a = document.createElement("a"); a.href = part; a.textContent = part.replace(/^https?:\/\//, ""); div.append(a); }
       else div.append(part);
     });
     log.append(div);
@@ -68,22 +82,28 @@ form button { border: 0; background: var(--green); color: #fff; border-radius: 9
     add(text, "me");
     const wait = add("typing…", "bot typing");
     try {
-      const r = await fetch("/harvest/api/farmer/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
+      const r = await fetch("/harvest/api/farmer/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text, session }) });
       const d = await r.json();
       wait.remove();
       add(d.reply || d.error || "Sorry, something went wrong.", "bot");
+      if (d.latency_ms != null) {
+        const m = document.createElement("div");
+        m.className = "meta";
+        m.textContent = (d.source === "llm" ? "Gemini " + String(d.model || "").replace("gemini-", "") : d.source === "help" ? "help" : "offline answer") + " · " + (d.latency_ms / 1000).toFixed(1) + " s";
+        log.append(m);
+      }
     } catch (e) {
       wait.remove();
       add("Sorry, I couldn't reach the server. Please try again.", "bot");
     }
   }
-  SAMPLES.forEach((s) => {
+  SAMPLES.forEach(([label, q]) => {
     const b = document.createElement("button");
-    b.type = "button"; b.textContent = s; b.onclick = () => ask(s);
+    b.type = "button"; b.title = q; b.innerHTML = "<b></b>"; b.firstChild.textContent = label; b.append(q.length > 34 ? q.slice(0, 32) + "…" : q); b.onclick = () => ask(q);
     document.getElementById("chips").append(b);
   });
   form.onsubmit = (e) => { e.preventDefault(); const t = input.value; input.value = ""; ask(t); };
-  add("Hi! Ask me whether a crop's price will go up, for example \"wheat France\". I'll give you a chance, one reason and how sure the forecasters are.", "bot");
+  add("Hi! I'm your farm advisor. Ask me, in any language, about selling or storing grain, price outlooks, drought and heat risk, what to plant, fertiliser and energy costs, CAP money or hedging. I answer from our live forecasting markets, climate data and farm news.", "bot");
   const pre = new URLSearchParams(location.search).get("q");
   if (pre) ask(pre);
 })();

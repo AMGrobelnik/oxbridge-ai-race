@@ -29,8 +29,8 @@ def available() -> bool:
     return not forecaster.offline_env() and bool(os.environ.get("GEMINI_API_KEY")) and _state["calls"] < max_calls()
 
 
-def ask(prompt: str, timeout_s: float = 20.0) -> str:
-    """The model's JSON text for `prompt`."""
+def ask(prompt: str, timeout_s: float = 20.0, *, model_id: str | None = None) -> str:
+    """The model's JSON text for `prompt` (from `model_id`, else `model()`)."""
     from google import genai
     from google.genai import types
 
@@ -41,6 +41,6 @@ def ask(prompt: str, timeout_s: float = 20.0) -> str:
         if _state["client"] is None:
             _state["client"] = genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=types.HttpOptions(timeout=int(timeout_s * 1000)))
         client = _state["client"]
-    response = client.models.generate_content(model=model(), contents=prompt,
+    response = client.models.generate_content(model=model_id or model(), contents=prompt,
                                               config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.4))
     return response.text or ""
