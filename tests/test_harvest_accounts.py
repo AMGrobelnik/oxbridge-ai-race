@@ -247,3 +247,9 @@ def test_waitlist_falls_back_to_sqlite_when_supabase_is_down(client, supa):
     assert fake.requests and waitlist.local_count() == 1
     fake.down = False
     assert client.get("/harvest/api/waitlist/count").json()["count"] == 40  # Supabase answers again: it is the source
+
+
+def test_pages_version_their_static_assets(client):
+    html = client.get("/app/leaderboard").text
+    assert re.search(r'href="/harvest/static/app/app\.css\?v=[0-9a-f]{10}"', html)
+    assert re.search(r'src="/harvest/static/app/app\.js\?v=[0-9a-f]{10}"', html)

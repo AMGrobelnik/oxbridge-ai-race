@@ -9,6 +9,8 @@ replay price path of every live market.
 """
 
 import asyncio
+import functools
+import hashlib
 import json
 import os
 import re
@@ -172,9 +174,28 @@ def register(app: FastAPI) -> None:
         return JSONResponse({"url": f"{public_base_url(request)}/harvest/play"})
 
 
+_ASSET_REF = re.compile(r'(["\'])/harvest/static/([\w./-]+\.(?:css|js))\1')
+
+
+@functools.lru_cache(maxsize=256)
+def _asset_version(rel: str, mtime_ns: int) -> str:
+    """A short content hash; keyed on the mtime so a deploy that changes the file gets a new one."""
+    return hashlib.sha256((STATIC_DIR / rel).read_bytes()).hexdigest()[:10]
+
+
+def versioned(body: str) -> str:
+    """Appends ?v=<content hash> to every /harvest/static css and js reference, so the CDN never serves a stale copy after a deploy."""
+    def sub(m: re.Match[str]) -> str:
+        file = STATIC_DIR / m.group(2)
+        if not file.is_file():
+            return m.group(0)
+        return f"{m.group(1)}/harvest/static/{m.group(2)}?v={_asset_version(m.group(2), file.stat().st_mtime_ns)}{m.group(1)}"
+    return _ASSET_REF.sub(sub, body)
+
+
 def _page(app: FastAPI, path: str, name: str) -> None:
     @app.get(path, response_class=HTMLResponse, name=f"harvest-{name}")
     async def page() -> HTMLResponse:
         file = STATIC_DIR / name
         body = file.read_text() if file.exists() else "<!doctype html><title>The Crophecy</title><p>The Crophecy is being built.</p>"
-        return HTMLResponse(body, headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(versioned(body), headers={"Cache-Control": "no-cache"})
