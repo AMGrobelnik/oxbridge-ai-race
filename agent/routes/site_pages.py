@@ -34,7 +34,7 @@ from agent.routes import harvest as api
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 PAGE = FRONTEND_DIR / "index.html"
 ROUTES = ("/home", "/live", "/markets", "/market/{qid:path}", "/leaderboard", "/theory", "/farmer")
-API_JS = '<script src="/harvest/static/croppy.js" defer></script><script src="/frontend/js/api.js?v={v}"></script>'
+API_JS = '<script src="/harvest/static/croppy.js?v=2" defer></script><script src="/frontend/js/api.js?v={v}"></script>'
 HOOKS: tuple[tuple[str, str, re.Pattern[str], str], ...] = (
     ("boot", "crophecyBoot", re.compile(r"^go\(\(location\.hash\|\|'#(\w+)'\)\.slice\(1\),\{keep:true\}\);$", re.M),
      r"(window.crophecyBoot||(f=>f()))(()=>go((location.hash||'#\1').slice(1),{keep:true}));"),

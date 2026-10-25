@@ -4,7 +4,7 @@
 (() => {
   const KEY = "harvest-player"; // shared with /harvest/play
   const API = "/harvest/api";
-  const CROPPY_SCRIPTS = ["/harvest/static/croppy.js"];
+  const CROPPY_SCRIPTS = ["/harvest/static/croppy.js?v=2"];
   const GROUPS = {
     "Grains": ["wheat", "durum wheat", "maize", "feed maize", "rice"],
     "Oils": ["olive oil", "sunflower oil", "sunflower"],
