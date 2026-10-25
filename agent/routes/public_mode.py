@@ -26,8 +26,8 @@ from starlette.responses import Response
 from agent.challenge.ratelimit import RateLimiter, client_ip
 
 ADMIN_HEADER = "x-admin-token"
-PUBLIC_GET = re.compile(r"^/(?:|race|favicon\.ico|challenge(?:/.*)?|sealed(?:/.*)?|map(?:/static/[\w.-]+|/api/(?:state|ledger)|/verify)?)$")
-PUBLIC_POST = re.compile(r"^/(?:challenge/api/(?:score|parse|submit)|map/api/(?:onboard|reverify)|sealed/api/verify)$")
+PUBLIC_GET = re.compile(r"^/(?:|race|favicon\.ico|challenge(?:/.*)?|sealed(?:/.*)?|harvest(?:/.*)?|map(?:/static/[\w.-]+|/api/(?:state|ledger)|/verify)?)$")
+PUBLIC_POST = re.compile(r"^/(?:challenge/api/(?:score|parse|submit)|map/api/(?:onboard|reverify)|sealed/api/verify|harvest/api/(?:join|bet|forecast|verify|agents/register|agents/bet))$")
 SEALED_VERIFY = "/sealed/api/verify"
 VERIFIER = re.compile(r"^/agent-studio/v1/[A-Za-z0-9_/-]*$")
 SECURITY_HEADERS = {
