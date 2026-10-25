@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sealed Verify</title>
+<meta name="description" content="Crypto merchant map verified by AI mystery-shopper agents on a probe schedule sealed on Solana devnet.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<link rel="stylesheet" href="/map/static/map.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="seal" aria-hidden="true">&#9673;</span>
+    <div>
+      <h1>Sealed Verify</h1>
+      <p class="tag">Crypto merchants verified by AI mystery shoppers on a schedule sealed on Solana before it runs.</p>
+    </div>
+  </div>
+  <div class="legend" aria-label="Pin colours">
+    <span><i class="dot green"></i>verified &lt; 10 min</span>
+    <span><i class="dot amber"></i>stale / pending</span>
+    <span><i class="dot red"></i>failing</span>
+    <span><i class="dot grey"></i>unprobed</span>
+  </div>
+</header>
+<main class="layout">
+  <section class="mapwrap">
+    <div id="map" role="application" aria-label="Merchant map"></div>
+    <div class="maphint" id="maphint" hidden>Click the map to place your pin</div>
+  </section>
+  <aside class="panel">
+    <div class="counters">
+      <div><b id="c-merchants">–</b><span>merchants</span></div>
+      <div><b id="c-probes">–</b><span>probes</span></div>
+      <div><b id="c-onboarded">–</b><span>onboarded today</span></div>
+      <div><b id="c-passing" class="g">–</b><span>verified now</span></div>
+    </div>
+    <div class="card round" id="round">
+      <div class="card-h">Sealed probe schedule</div>
+      <div id="round-body" class="muted">Waiting for the first round…</div>
+    </div>
+    <details class="card onboard" id="onboard">
+      <summary>Add your merchant</summary>
+      <form id="onboard-form" autocomplete="off">
+        <label>Name<input name="name" required minlength="2" maxlength="48" placeholder="Queens' Lane Coffee"></label>
+        <label>Wallet address or x402 URL<input name="target" required maxlength="300" placeholder="Solana address, solana:… or https://…/paid"></label>
+        <label>Location<input name="place" maxlength="60" placeholder="Queens' Lane, Cambridge"></label>
+        <div class="coords"><span id="coords">Pin: click the map</span></div>
+        <button type="submit" class="btn primary">Add &amp; verify now</button>
+        <p class="formmsg" id="onboard-msg" role="status"></p>
+      </form>
+      <div id="onboard-result" hidden>
+        <div id="qr" class="qr" aria-label="Payment QR code"></div>
+        <a id="paylink" class="paylink" target="_blank" rel="noopener"></a>
+      </div>
+    </details>
+    <div class="card feed">
+      <div class="card-h">Live probe feed <a class="verify" href="/map/verify" target="_blank" rel="noopener">verify ledger &#8599;</a></div>
+      <ol id="feed" class="feedlist"></ol>
+    </div>
+  </aside>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="/map/static/map.js"></script>
+</body>
+</html>

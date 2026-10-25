@@ -5,8 +5,10 @@ from fastapi.testclient import TestClient
 
 from agent.challenge.ratelimit import RateLimiter
 from agent.routes import challenge as challenge_routes
+from agent.routes import merchants as map_routes
 from agent.routes import public_mode
 from agent.sealed import harness
+from agent.verify import prober
 from agent.server import app
 
 ADMIN = "test-admin-token"
@@ -16,7 +18,6 @@ BASE = {"rule": "hold", "lookback_days": 20, "entry_threshold_pct": 5, "risk_on_
 ADMIN_ROUTES = [
     ("POST", "/sealed/api/runs"),
     ("POST", "/sealed/api/runs/sample-epidemic-0001/anchor"),
-    ("POST", "/sealed/api/verify"),
     ("POST", "/sealed/api/guardrail/demo"),
     ("POST", "/api/cosign/cs_000000000000/approve"),
     ("POST", "/api/cosign/cs_000000000000/reject"),
@@ -42,6 +43,10 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("COSIGN_DIR", str(tmp_path / "cosign"))
     monkeypatch.setenv("SEALED_RUNS_DIR", str(tmp_path / "runs"))
     monkeypatch.setattr(public_mode, "request_limiter", RateLimiter(10_000))
+    monkeypatch.setattr(public_mode, "verify_limiter", RateLimiter(10_000))
+    monkeypatch.setattr(prober, "_service", prober.VerifyService(tmp_path / "verify", anchor_enabled=False))
+    for limiter in (map_routes.onboard_ip_limiter, map_routes.onboard_global_limiter, map_routes.reverify_ip_limiter, map_routes.reverify_merchant_limiter):
+        limiter.reset()
     for limiter in (challenge_routes.submit_limiter, challenge_routes.parse_limiter, challenge_routes.score_limiter):
         limiter.reset()
 
@@ -138,7 +143,44 @@ def test_guard_is_off_without_public_mode(client, monkeypatch):
         ("GET", "/challenges", False),
         ("GET", "/sealedx", False),
         ("PATCH", "/sealed", False),
+        ("GET", "/map", True),
+        ("GET", "/map/static/map.js", True),
+        ("GET", "/map/api/state", True),
+        ("GET", "/map/verify", True),
+        ("POST", "/map/api/onboard", True),
+        ("POST", "/map/api/reverify", True),
+        ("POST", "/sealed/api/verify", True),
+        ("GET", "/map/api/other", False),
+        ("POST", "/map/api/state", False),
+        ("DELETE", "/map", False),
+        ("GET", "/mapx", False),
+        ("POST", "/sealed/api/runs", False),
+        ("POST", "/sealed/api/verify/x", False),
     ],
 )
 def test_route_classification(method, path, public):
     assert public_mode.is_public(method, path) is public
+
+
+@pytest.mark.parametrize("path", ["/map", "/map/static/map.js", "/map/static/map.css", "/map/api/state", "/map/api/ledger", "/map/verify"])
+def test_public_map_reads_work(client, path):
+    res = client.get(path)
+    assert res.status_code == 200, (path, res.text[:200])
+    assert res.headers["x-content-type-options"] == "nosniff"
+
+
+def test_public_can_use_map_posts_without_admin_token(client):
+    # Validation answers (400/404), not the admin guard (401): no probe runs for these inputs.
+    res = client.post("/map/api/onboard", json={"name": "<b>", "target": "x", "lat": 0, "lng": 0})
+    assert res.status_code == 400 and "X-Admin-Token" not in res.text
+    assert client.post("/map/api/reverify", json={"merchant_id": "nope"}).status_code == 404
+
+
+def test_public_sealed_verify_is_open_and_capped(client, monkeypatch):
+    monkeypatch.setattr(public_mode, "verify_limiter", RateLimiter(2))
+    codes = [client.post("/sealed/api/verify", json={}, headers={"CF-Connecting-IP": "7.7.7.7"}).status_code for _ in range(3)]
+    assert codes == [400, 400, 429]
+    assert client.post("/sealed/api/verify", json={}, headers={"CF-Connecting-IP": "6.6.6.6"}).status_code == 400
+    # The admin routes next to it stay closed.
+    assert client.post("/sealed/api/runs", json={}).status_code == 401
+    assert client.post("/sealed/api/runs/sample-epidemic-0001/anchor", json={}).status_code == 401
