@@ -10,7 +10,7 @@ Team: **Adrian Mladenić Grobelnik**, **Antonio Aciob**, **Eashan Rautaray**.
 
 ## What this is
 
-This repository is a static snapshot of the live site, taken on **26 October 2026 (2026-10-26T12:35Z UTC)** while the live server is offline.
+This repository is a static snapshot of the live site, taken on **26 October 2026 (2026-10-26T17:57Z UTC)** while the live server is offline.
 It serves the same page as the live app, with these changes:
 
 - The markets, agents, leaderboard, debates, news and what the agents see for each market are recorded JSON files
@@ -19,8 +19,10 @@ It serves the same page as the live app, with these changes:
   are shortened). They drive the globe, the counters and the Incoming bets feed.
 - Croppy and the farm chat answer their suggested questions with replies recorded from the live app. Other questions
   get a short "Croppy is resting" note.
-- Betting, sign-up, follow and copy, and the theory backtest are paused. Each shows a note that links to the
-  waitlist. The WhatsApp chat is paused too.
+- Trading is a demo that runs in your browser. You get a guest account with 1,000 play credits on your first bet,
+  and bets move prices on a copy of the live market maker (LMSR), update your balance and positions, and show up in
+  the feeds. You can also pick a username and follow or copy an agent. Nothing is saved: reloading the page resets it.
+- The theory backtest and the WhatsApp chat need the live server, so they are off.
 - The waitlist works. It posts straight to Supabase from the browser, using the project's publishable key, which is
   safe to put in a browser.
 
