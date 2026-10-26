@@ -235,8 +235,8 @@ def build(base_url: str, out: Path) -> None:
     copy_assets(out)
     (out / "waitlist" / "index.html").write_text(waitlist(api), encoding="utf-8")
     (out / "404.html").write_text(redirect_page(), encoding="utf-8")
-    for route in (*ROUTES, "app", "harvest"):
-        (out / route).mkdir(exist_ok=True)
+    for route in (*ROUTES, "app", "harvest", *(f"market/{m['qid']}" for m in body["markets"])):  # deep links answer 200, not 404.html
+        (out / route).mkdir(parents=True, exist_ok=True)
         (out / route / "index.html").write_text(redirect_page(), encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
     (out / "snapshot.json").write_text(json.dumps({"snapshot": snapshot, "markets": len(body["markets"]), "ledger_seq": body.get("seq")}) + "\n", encoding="utf-8")
