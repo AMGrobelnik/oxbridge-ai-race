@@ -1,0 +1,64 @@
+/* The Crophecy theme: the waitlist page's look (waitlist/index.html) as shared tokens.
+   Misty field greens and creams, near-black soil ink, ripe-grain ochre for the italic accent;
+   Instrument Serif display with italic emphasis, Geist Mono labels with letter-spacing, Geist body.
+   Loaded after each page's inline <style>, so it also maps the page's older token names onto this palette. */
+:root{
+  /* palette */
+  --mist:#f3f5f0;          /* page ground */
+  --paper:#fbfcf9;         /* raised surfaces */
+  --field:#e6eadf;         /* sunk surfaces, globe shadow side */
+  --soil:#14190f;          /* ink */
+  --soil-2:#2a3322;        /* secondary ink */
+  --stalk:#55604c;         /* muted text */
+  --chaff:#8a9180;         /* faint text */
+  --hairline:#dfe3d7;      /* hairlines */
+  --hairline-strong:#c9cebf;
+  --wheat:#c99a3b;         /* ripe grain: highlights, risk */
+  --wheat-ink:#8a6517;     /* grain text on light: the accent */
+  --wheat-deep:#6b4d10;
+  --cream:#efe7d3;         /* selected / current */
+  --cream-soft:#f3ead4;    /* hover wash, focus ring */
+  --leaf:#2e6b3c;          /* growth */
+  --hanko:#b4372a;         /* seal ink: the logo only */
+  --up:#2f7a45;            /* YES */
+  --down:#b8432f;          /* NO */
+
+  /* type */
+  --f-display:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --f-body:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --label-track:.14em;     /* mono uppercase labels */
+
+  /* shape */
+  --r-card:24px; --r-panel:16px; --r-field:12px; --r-pill:999px;
+  --shadow-card:0 1px 0 rgba(255,255,255,.9) inset,0 30px 70px -30px rgba(30,40,20,.35);
+  --shadow-lift:0 18px 40px -28px rgba(30,40,20,.35);
+  --glass:rgba(251,252,249,.66); --glass-edge:rgba(255,255,255,.85);
+
+  /* the pages' own token names, mapped onto the palette */
+  --page:var(--mist); --ink:var(--soil); --ink-2:var(--soil-2); --muted:var(--stalk); --faint:var(--chaff);
+  --line:var(--hairline); --line-strong:var(--hairline-strong); --soft:var(--paper); --lilac:var(--cream);
+  --violet:var(--wheat-ink); --violet-ink:var(--wheat-deep); --violet-soft:var(--cream-soft);
+  --yes:var(--up); --no:var(--down); --sol-a:var(--leaf);
+  --spot:rgba(201,154,59,.14); --glass-bg:var(--glass); --glass-line:var(--glass-edge); --glass-shadow:var(--shadow-card);
+  --t-bg:var(--mist); --t-pn:var(--paper); --t-ln:var(--hairline); --t-tx:var(--soil); --t-mu:var(--stalk); --t-dim:var(--chaff);
+  --t-vi:var(--wheat-ink); --t-up:var(--up); --t-dn:var(--down);
+  --f-serif:var(--f-display);
+}
+.tm{--tm-bg:var(--mist);--tm-pn:var(--paper);--tm-soft:var(--mist);--tm-hover:var(--cream);--tm-ln:var(--hairline);--tm-ln2:var(--hairline-strong);
+  --tm-tx:var(--soil);--tm-mu:var(--stalk);--tm-dim:var(--chaff);--tm-vi:var(--wheat-ink);--tm-vi2:var(--wheat-deep);--tm-up:var(--up);--tm-dn:var(--down)}
+
+/* every view shares the waitlist's chrome (the landing view already had it) */
+:focus-visible{outline-color:var(--wheat)}
+.topbar{background:rgba(243,245,240,.86)}
+@media (max-width:860px){.topbar{background:rgba(243,245,240,.97)}.links{background:rgba(251,252,249,.9)}}
+.brand{font:400 23px/1 var(--f-display);letter-spacing:0}
+.btn.dark{color:var(--paper)}
+.btn.dark:hover{background:var(--soil-2);box-shadow:none}
+.kicker{color:var(--wheat-ink)}
+em.s{color:var(--wheat-ink)}
+
+/* display type: serif headings as on the waitlist */
+.dt-head h1{font:400 clamp(32px,4vw,52px)/1.02 var(--f-display);letter-spacing:-.02em}
+.panel-h h2{font:400 26px/1.1 var(--f-display);letter-spacing:-.01em}
+.sec-head h2{font-family:var(--f-display);font-weight:400;letter-spacing:-.02em;line-height:.98}

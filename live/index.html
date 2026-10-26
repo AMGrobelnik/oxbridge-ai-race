@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crophecy</title><meta name="robots" content="noindex"><script>
+(function () {
+  var p = location.pathname, seg = p.split("/").filter(Boolean);
+  var root = /\.github\.io$/.test(location.hostname) && seg.length ? "/" + seg.shift() + "/" : "/";
+  var rest = seg.join("/").replace(/\/index\.html$|^index\.html$/, "");
+  var m = /^market\/(.+)$/.exec(rest), r = m ? "m-" + decodeURIComponent(m[1]) : rest.split("/")[0];
+  location.replace(root + (r ? "#" + r : location.hash));
+})();
+</script></head><body><p><a href="/">The Crophecy</a></p></body></html>
