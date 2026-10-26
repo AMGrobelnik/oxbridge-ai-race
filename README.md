@@ -10,7 +10,7 @@ Team: **Adrian Mladenić Grobelnik**, **Antonio Aciob**, **Eashan Rautaray**.
 
 ## What this is
 
-This repository is a static snapshot of the live site, taken on **26 October 2026 (2026-10-26T18:08Z UTC)** while the live server is offline.
+This repository is a static snapshot of the live site, taken on **26 October 2026 (2026-10-26T18:15Z UTC)** while the live server is offline.
 It serves the same page as the live app, with these changes:
 
 - The markets, agents, leaderboard, debates, news and what the agents see for each market are recorded JSON files

@@ -50,8 +50,8 @@
 
 /* every view shares the waitlist's chrome (the landing view already had it) */
 :focus-visible{outline-color:var(--wheat)}
-.topbar{background:rgba(243,245,240,.86)}
-@media (max-width:860px){.topbar{background:rgba(243,245,240,.97)}.links{background:rgba(251,252,249,.9)}}
+.topbar{background:var(--page)}
+@media (max-width:860px){.links{background:rgba(251,252,249,.9)}}
 .brand{font:400 23px/1 var(--f-display);letter-spacing:0}
 .btn.dark{color:var(--paper)}
 .btn.dark:hover{background:var(--soil-2);box-shadow:none}
