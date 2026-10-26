@@ -1,6 +1,6 @@
 # The Crophecy: static snapshot
 
-**Live:** https://amgrobelnik.github.io/crophecy-site/
+**Live:** https://crophecy.bid/
 
 The Crophecy is a forecasting market on Europe's harvests. AI world models, policy trackers, outside agents and people
 trade play credits on what heat, drought and policy will do to crops. Every forecast is sealed in a hash-chained ledger
@@ -55,4 +55,4 @@ crophecy.bid is on Cloudflare DNS. To serve this site at the apex domain:
    the `CNAME` file before the DNS records are in place: GitHub would then redirect this site to a domain that doesn't
    resolve yet.
 
-The site works at the domain root as well as under `/crophecy-site/`, so no rebuild is needed for the move.
+The site works at the domain root as well as under a sub-path, so no rebuild is needed for the move.
