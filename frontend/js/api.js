@@ -11,7 +11,12 @@
    missing, the page keeps its demo data under a visible "Preview" banner, so nothing simulated is ever shown as real.
 
    Endpoints: GET /harvest/api/site (feed), /news, /site/anchors; POST /join, /bet, /croppy, /farmer/chat, /byo, /follow.
-   Follow and copy: POST /harvest/api/follow {token, agent: persona id, follow, copy}. */
+   Follow and copy: POST /harvest/api/follow {token, agent: persona id, follow, copy}.
+
+   Static mode (window.CROPHECY_STATIC, set only by scripts/build_static.py; off on the live server): every /harvest/api read,
+   the page's and croppy.js's included, comes from the snapshot's api/*.json; the recorded agent bets replay at their real pace
+   instead of the poll; routes are hash routes, so the copy works under any sub-path; writes show "live trading is paused"
+   with a link to the waitlist; Croppy and the farm chat answer their suggested questions from recorded replies. */
 (() => {
   const API = "/harvest/api";
   const KEY = "harvest-player"; // the player saved by /harvest/play and /app, so one login works everywhere
@@ -23,7 +28,71 @@
     "sunflower oil": "Oils", "sunflower": "Oils", "coffee": "Softs", "cocoa": "Softs", "sugar beet": "Softs", "farmland": "Land",
     "water": "Weather", "all crops": "Policy" };
   const EXTRA_VIEWS = ["theory", "farmer"];
+  const STATIC = window.CROPHECY_STATIC || null;
+  const WAITLIST = STATIC ? `${STATIC.root}waitlist/` : "/waitlist/";
+  const PAUSED = "Live trading is paused while the live site is down.";
+  const PAUSED_HTML = `<b>${PAUSED}</b><span>Join the waitlist and we will tell you when it is back. <a href="${WAITLIST}">Join the waitlist →</a></span>`;
+  const RESTING = "Croppy is resting while the live site is down; the live version comes back soon. Try one of the suggested questions, or join the waitlist to hear when it is back.";
+  if (STATIC) staticFetch();
   window.CROPHECY_LIVE = HOOKS.includes("boot") && HOOKS.includes("sim");
+
+  // ---------------------------------------------------------------- static mode: /harvest/api from the snapshot
+  function staticFetch() {
+    const real = window.fetch.bind(window), base = new URL(STATIC.root, location.href);
+    const canned = real(new URL("api/canned.json", base)).then((r) => r.json()).catch(() => ({}));
+    const safe = (s) => String(s).replace(/[^A-Za-z0-9._-]/g, "_");
+    const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    window.fetch = async (input, init = {}) => {
+      const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url, location.href);
+      if (url.origin !== location.origin || !url.pathname.startsWith("/harvest/api/")) return real(input, init);
+      const path = url.pathname.slice("/harvest/api/".length), method = String(init.method || (input && input.method) || "GET").toUpperCase();
+      if (method !== "GET") {
+        if (path !== "croppy" && path !== "farmer/chat") return reply({ error: PAUSED, paused: true }, 503);
+        let msg = ""; try { msg = String(JSON.parse(init.body || "{}").message || "").trim(); } catch (_) { /* no body */ }
+        const hit = ((await canned)[path === "croppy" ? "croppy" : "farmer"] || {})[msg] || { reply: RESTING, actions: [{ label: "Join the waitlist", href: "waitlist/" }] };
+        const abs = (h) => { const u = new URL(h || "./", base); return u.pathname + u.hash; }; // croppy.js only follows site-absolute links
+        return reply({ ...hit, actions: (hit.actions || []).map((a) => ({ ...a, href: abs(a.href) })) });
+      }
+      const agent = /^markets\/(.+)\/agent$/.exec(path), qid = url.searchParams.get("qid");
+      const file = agent ? `agent-view/${safe(decodeURIComponent(agent[1]))}` : path === "debate" && qid ? `debate/${safe(qid)}` : path.replace(/\//g, "-");
+      const r = await real(new URL(`api/${file}.json`, base));
+      return r.ok ? r : reply({ error: "Not part of this snapshot." }, 404);
+    };
+  }
+  function staticLink(u) { // a live-site link in a recorded reply, as the snapshot's own hash route
+    const p = u.replace(/^https?:\/\/[^/]+/, "").split(/[?#]/)[0].replace(/^\/app(?=\/)/, ""), m = /^\/market\/(.+)$/.exec(p), r = p.split("/")[1] || "";
+    return m ? `#m-${m[1]}` : ["live", "markets", "leaderboard", "farmer", "theory"].includes(r) ? `#${r}` : r === "map" ? "#live" : "#home";
+  }
+  function staticBanner() {
+    const when = new Date(STATIC.snapshot.replace(/Z$/, ":00Z"));
+    const day = isNaN(when) ? STATIC.snapshot : when.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const bar = document.createElement("div");
+    bar.className = "cr-static";
+    bar.innerHTML = `<span><b>Snapshot</b> of the live market on ${escH(day)}, replaying the agents' recorded bets. Live trading is paused.</span><a href="${WAITLIST}">Join the waitlist →</a>`;
+    document.body.prepend(bar);
+    qa("footer.foot .wrap span:last-child").forEach((e) => { e.textContent = `Snapshot of ${day}. Play credits only, no cash value.`; });
+  }
+  function pausedModal() {
+    const w = modal(`<h3>Live trading is paused</h3><p>The live site is down for now. The markets, agents and bets here are a snapshot you can browse; join the waitlist to trade when it is back.</p><div class="cr-pz"><a class="btn dark" href="${WAITLIST}">Join the waitlist</a><button type="button" class="btn ghost" data-cr-close>Keep browsing</button></div>`);
+    q1("[data-cr-close]", w).addEventListener("click", () => w.remove());
+  }
+  async function replay() { // the recorded bets, looped at their real pace (gaps capped), drive the globe, tape and feeds as live trades do
+    let rows = [];
+    try { const r = await call("/replay-bets"); rows = (r.bets || []).filter((t) => MK[t.qid]); S.names = { ...(r.names || {}), ...S.names }; } catch (e) { console.warn("crophecy replay", e); }
+    if (!rows.length) return;
+    let i = 0, seq = S.seq;
+    const step = () => {
+      if (document.hidden) { setTimeout(step, 1000); return; }
+      const t = rows[i], next = rows[(i + 1) % rows.length];
+      i = (i + 1) % rows.length; seq += 1;
+      pushTrade({ ...t, seq, at: new Date().toISOString() });
+      if (S.head) S.head = { ...S.head, seq: S.head.seq + 1 };
+      paintLedger(); if (VIEW === "live" && seq % 4 === 0) paintAgentCards();
+      const gap = Date.parse(next.at) - Date.parse(t.at);
+      setTimeout(step, i === 0 || !(gap > 0) ? 1500 : Math.min(6000, Math.max(400, gap)));
+    };
+    setTimeout(step, 1200);
+  }
 
   // ---------------------------------------------------------------- helpers
   const q1 = (s, r = document) => r.querySelector(s), qa = (s, r = document) => [...r.querySelectorAll(s)];
@@ -347,7 +416,7 @@
     const host = q1("[data-cr-acards]"); if (!host) return;
     const seen = new Set(), rows = [];
     for (const e of EVENTS) { const k = e.kind === "ai" ? "a" + e.ai : e.code; if (!e.why || seen.has(k)) continue; seen.add(k); rows.push(e); if (rows.length === 6) break; }
-    host.innerHTML = rows.map((e) => `<a class="cr-acard" href="/market/${encodeURIComponent(e.m.id)}"><span class="cr-ah"><span class="cr-av" style="background:${escH(e.a.c || "#14190f")}">${escH(e.a.ab || "AI")}</span><b>${escH(e.a.n)}</b><small>${escH(e.time)}</small></span>
+    host.innerHTML = rows.map((e) => `<a class="cr-acard" href="${STATIC ? `#m-${escH(e.m.id)}` : `/market/${encodeURIComponent(e.m.id)}`}"><span class="cr-ah"><span class="cr-av" style="background:${escH(e.a.c || "#14190f")}">${escH(e.a.ab || "AI")}</span><b>${escH(e.a.n)}</b><small>${escH(e.time)}</small></span>
       <span class="cr-abet"><i class="${e.side === "YES" ? "y" : "n"}">${e.side} ${money(e.stake)}</i> ${escH(e.m.q)}</span><span class="cr-awhy">${escH(quoteFor(e))}</span></a>`).join("") || '<p class="mono">Waiting for the next bet…</p>';
   }
   async function paintDebate() {
@@ -440,7 +509,7 @@
     };
     desActors = function (kind) {
       const evs = EVENTS.filter((e) => e.kind === kind).slice(0, 14);
-      des(`DES · ${kind === "hum" ? "HUM · HUMAN TRADERS" : "EXT · API TRADERS"}`, `<p>${kind === "hum" ? `Players trading alongside the agents with play credits (${num(S.users)} joined).` : `Outside agents trading through the public agent API (${num(S.agents)} registered). <a href="/harvest/api/agents" style="color:var(--t-vi)">API docs</a>`}</p><div class="tt-wrap"><table class="tt"><thead><tr><th>TIME</th><th>WHO</th><th>MKT</th><th>SIDE</th><th class="r">SIZE</th></tr></thead><tbody>${evs.map((e) => `<tr data-act="mkt:${escH(e.m.id)}"><td>${e.time}</td><td>${escH(e.code)}</td><td class="tk">${e.m.tk}</td><td class="${e.side === "YES" ? "t-up" : "t-dn"}">${e.side}</td><td class="r">${money(e.stake)}</td></tr>`).join("") || '<tr><td colspan="5">No recent trades.</td></tr>'}</tbody></table></div>`);
+      des(`DES · ${kind === "hum" ? "HUM · HUMAN TRADERS" : "EXT · API TRADERS"}`, `<p>${kind === "hum" ? `Players trading alongside the agents with play credits (${num(S.users)} joined).` : `Outside agents trading through the public agent API (${num(S.agents)} registered). <a href="${STATIC ? `${STATIC.root}api/agents.json` : "/harvest/api/agents"}" style="color:var(--t-vi)">API docs</a>`}</p><div class="tt-wrap"><table class="tt"><thead><tr><th>TIME</th><th>WHO</th><th>MKT</th><th>SIDE</th><th class="r">SIZE</th></tr></thead><tbody>${evs.map((e) => `<tr data-act="mkt:${escH(e.m.id)}"><td>${e.time}</td><td>${escH(e.code)}</td><td class="tk">${e.m.tk}</td><td class="${e.side === "YES" ? "t-up" : "t-dn"}">${e.side}</td><td class="r">${money(e.stake)}</td></tr>`).join("") || '<tr><td colspan="5">No recent trades.</td></tr>'}</tbody></table></div>`);
     };
     desRegion = function (k) {
       const r = REGIONS[k], ms = r.ms.map((id) => MK[id]);
@@ -454,7 +523,7 @@
       des("DES · SEAL · LATEST ANCHORS", "<p>Loading anchors…</p>");
       let rows = S.anchors;
       try { rows = (await call("/site/anchors")).anchors; } catch (_) { /* keep the boot copy */ }
-      q1("[data-des-b]").innerHTML = `<p>The ledger is hash-chained; every ${10} entries its head is written to Solana devnet as a memo. Anyone can recompute it at <a href="/harvest/api/verify" style="color:var(--t-vi)">/harvest/api/verify</a>.</p><div class="tt-wrap"><table class="tt"><thead><tr><th>KIND</th><th class="r">ENTRIES</th><th>TX</th><th>STATUS</th><th>TIME</th></tr></thead><tbody>${rows.map((a) => `<tr><td>${escH(String(a.kind).toUpperCase())}</td><td class="r">${num(a.count || 0)}</td><td>${a.explorer_url ? `<a href="${escH(a.explorer_url)}" target="_blank" rel="noopener" style="color:var(--t-vi)">${escH(String(a.signature).slice(0, 10))}…</a>` : "–"}</td><td>${escH(String(a.status).toUpperCase())}</td><td>${escH(String(a.at || "").slice(11, 19))}</td></tr>`).join("") || '<tr><td colspan="5">No anchors yet.</td></tr>'}</tbody></table></div>`;
+      q1("[data-des-b]").innerHTML = `<p>The ledger is hash-chained; every ${10} entries its head is written to Solana devnet as a memo. Anyone can recompute it at <a href="${STATIC ? `${STATIC.root}api/verify.json` : "/harvest/api/verify"}" style="color:var(--t-vi)">/harvest/api/verify</a>${STATIC ? " (as recorded in this snapshot)" : ""}.</p><div class="tt-wrap"><table class="tt"><thead><tr><th>KIND</th><th class="r">ENTRIES</th><th>TX</th><th>STATUS</th><th>TIME</th></tr></thead><tbody>${rows.map((a) => `<tr><td>${escH(String(a.kind).toUpperCase())}</td><td class="r">${num(a.count || 0)}</td><td>${a.explorer_url ? `<a href="${escH(a.explorer_url)}" target="_blank" rel="noopener" style="color:var(--t-vi)">${escH(String(a.signature).slice(0, 10))}…</a>` : "–"}</td><td>${escH(String(a.status).toUpperCase())}</td><td>${escH(String(a.at || "").slice(11, 19))}</td></tr>`).join("") || '<tr><td colspan="5">No anchors yet.</td></tr>'}</tbody></table></div>`;
     };
     desNews = function () {
       des("DES · NEWS", `<div class="tt-wrap"><table class="tt"><tbody>${(S.news || []).map((n) => `<tr><td style="white-space:normal"><a href="${escH(n.url)}" target="_blank" rel="noopener" style="color:var(--t-tx)">${escH(n.title)}</a><br><span style="color:var(--t-mu)">${escH(n.source)} · ${escH(String(n.published_at).slice(0, 16).replace("T", " "))}${n.direction ? ` · ${escH(n.direction.toUpperCase())}` : ""}</span></td></tr>`).join("") || "<tr><td>No headlines yet.</td></tr>"}</tbody></table></div>`);
@@ -470,16 +539,19 @@
   // each view change is a history entry, so Back returns to the previous view instead of leaving the site
   let histReady = false, popping = false;
   function setPath(path) {
-    try { if (histReady && !popping && location.pathname !== path) history.pushState(null, "", path); else history.replaceState(null, "", path); } catch (_) { /* sandboxed */ }
+    const here = STATIC ? location.hash || "#home" : location.pathname;
+    try { if (histReady && !popping && here !== path) history.pushState(null, "", path); else history.replaceState(null, "", path); } catch (_) { /* sandboxed */ }
   }
   addEventListener("popstate", () => { popping = true; try { go(routeFromPath(), { keep: true }); } finally { popping = false; } });
   function pathFor(route, opt) {
+    if (STATIC) return opt && opt.anchor === "h-agents" ? "#leaderboard" : `#${route}`; // hash routes: the snapshot may live under any sub-path
     if (opt && opt.anchor === "h-agents") return "/leaderboard";
     if (route === "home") return "/";
     if (route.startsWith("m-")) return "/market/" + encodeURIComponent(route.slice(2));
     return "/" + route;
   }
   function routeFromPath() {
+    if (STATIC) return decodeURIComponent((location.hash || "#home").slice(1));
     const p = location.pathname.replace(/\/+$/, "");
     if (p.startsWith("/market/")) return "m-" + decodeURIComponent(p.slice(8));
     if (["/home", "/live", "/markets", "/leaderboard", "/theory", "/farmer"].includes(p)) return p.slice(1);
@@ -560,6 +632,7 @@
     const ok = q1("[data-ok]", tk);
     const say = (html, bad) => { ok.style.color = bad ? "var(--no)" : ""; ok.style.background = bad ? "color-mix(in srgb,var(--no) 8%,#fff)" : ""; ok.innerHTML = html; ok.classList.add("on"); };
     btn.addEventListener("click", async () => {
+      if (STATIC) { say(PAUSED_HTML, true); return; }
       const a = Math.min(500, +inp.value || 0);
       if (a < 1) { say("<b>Enter between 1 and 500 credits.</b>", true); return; }
       const me = await ensurePlayer(); if (!me) return;
@@ -623,6 +696,7 @@
     return wrap;
   }
   function ensurePlayer() {
+    if (STATIC) { pausedModal(); return Promise.resolve(null); }
     const me = player();
     if (me && me.token) return Promise.resolve(me);
     return new Promise((resolve) => {
@@ -668,7 +742,7 @@
     qa("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === name));
     qa(".topbar nav.links a[data-anchor]").forEach((x) => x.removeAttribute("aria-current"));
     scrollTo(0, 0);
-    setPath("/" + name);
+    setPath(pathFor(name));
   }
   function renderTheory(view) {
     view.innerHTML = `<div class="wrap cr-page"><header class="sec-head"><span class="kicker">Write your theory</span><h2>Can your <em class="s">world model</em> beat the agents?</h2><p>Describe in a few sentences how climate, politics and money move food prices. We hash it, commit it to the ledger, then backtest it on the sealed holdout questions and rank it against the house world models.</p></header>
@@ -682,7 +756,7 @@
         const r = await call("/byo", { name: f.name.value, world_model: f.wm.value, ...(me ? { token: me.token } : {}) });
         const mkt = ((S.lb || {}).baselines || {}).market;
         out.innerHTML = `<div class="panel"><h3>${escH(r.name)}</h3><p class="mono">Brier on the sealed holdout <b>${r.brier_holdout != null ? r.brier_holdout.toFixed(3) : "–"}</b> over ${r.n || 0} questions · rank <b>${r.rank || "–"}</b>${r.of ? ` of ${r.of}` : ""}${mkt != null ? ` · market ${mkt.toFixed(3)}` : ""}</p><p class="mono" style="color:var(--muted)">World model hash ${escH(String(r.world_model_sha256 || "").slice(0, 16))}… committed before it saw a question.</p></div>`;
-      } catch (err) { out.innerHTML = `<p class="cr-err">${escH(err.message)}</p>`; } finally { btn.disabled = false; }
+      } catch (err) { out.innerHTML = STATIC ? `<p class="cr-err cr-paused">${PAUSED_HTML}</p>` : `<p class="cr-err">${escH(err.message)}</p>`; } finally { btn.disabled = false; }
     });
   }
   function chatUI(view, { title, kicker, lede, placeholder, send }) {
@@ -697,7 +771,8 @@
       log.scrollTop = log.scrollHeight;
     });
   }
-  const WA = "https://wa.me/14155238886?text=" + encodeURIComponent("join globe-transportation");
+  const WA_JOIN = "join globe-transportation"; // the Twilio sandbox join phrase (scripts/build_static.py blanks it in the snapshot)
+  const WA = "https://wa.me/14155238886?text=" + encodeURIComponent(WA_JOIN);
   const FARM_ASKS = ["I grow olives near Jaén. Will prices fall?", "Should I sell my wheat now or store it?", "Will drought hit maize in Hungary?", "Is it a bad year for rice in Spain?"];
   function farmOdds() { // three live markets a grower would watch: one each for weather, grains and oils, the most traded first
     const picks = [], byVol = [...MARKETS].sort((x, y) => (y.vol || 0) - (x.vol || 0));
@@ -709,7 +784,7 @@
     view.innerHTML = `<div class="wrap fm"><header class="fm-head"><span class="kicker">For farmers</span><h1>Ask about <em>your crop.</em></h1><p>Tell us what you grow and where. You get the market’s live odds, what the agents think and how sure they are, in plain words. Free, no sign-up.</p></header>
       <div class="fm-ask"><div class="cr-log fm-log" data-log aria-live="polite" hidden></div><form data-ask><input name="m" maxlength="400" placeholder="Ask about your crop…" aria-label="Ask about your crop" required><button class="btn dark lg" type="submit">Ask</button></form></div>
       <div class="fm-chips" role="group" aria-label="Example questions">${FARM_ASKS.map((q) => `<button type="button" data-fq="${escH(q)}">${escH(q)}</button>`).join("")}</div>
-      <div class="fm-wa"><a class="btn wa lg" href="${WA}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Chat on WhatsApp</a><span>Opens WhatsApp with <b class="mono">join globe-transportation</b>. Send it, then ask in your own words.</span></div>
+      <div class="fm-wa">${STATIC ? `<span>The WhatsApp chat is paused while the live site is down. <a href="${WAITLIST}">Join the waitlist</a> to hear when it is back.</span>` : `<a class="btn wa lg" href="${WA}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Chat on WhatsApp</a><span>Opens WhatsApp with <b class="mono">${WA_JOIN}</b>. Send it, then ask in your own words.</span>`}</div>
       <section class="fm-odds"><header><span class="kicker">Odds that matter on a farm</span><a href="#markets">All markets →</a></header><div class="fm-cards" data-fm-odds>${farmOdds()}</div></section>
       <details class="fm-more" data-fm-more><summary>More tools: pricing ladder, hedge calculator, toolkit</summary><div data-fm-tools></div></details></div>`;
     const log = q1("[data-log]", view), f = q1("[data-ask]", view);
@@ -720,7 +795,7 @@
       try {
         const r = await call("/farmer/chat", { message: text });
         wait.classList.remove("fm-wait");
-        wait.innerHTML = `${escH(r.reply).replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, (u) => `<a href="${u}">${u.replace(/^https?:\/\/[^/]+/, "")}</a>`).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
+        wait.innerHTML = `${escH(r.reply).replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, (u) => `<a href="${STATIC ? staticLink(u) : u}">${u.replace(/^https?:\/\/[^/]+/, "")}</a>`).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
       } catch (err) { wait.classList.remove("fm-wait"); wait.textContent = err.message; }
       log.scrollTop = Math.max(0, wait.offsetTop - log.offsetTop - 8); // start reading at the top of the answer
     };
@@ -775,6 +850,8 @@
   }
   function styles() {
     const css = `.cr-preview{position:sticky;top:0;z-index:80;background:#fff4d6;color:#5c4400;font:500 13px var(--f-body);padding:8px 16px;text-align:center}
+.cr-static{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 14px;background:#f3ead4;color:#4d3a0c;font:500 13px/1.4 var(--f-body);padding:8px 16px;text-align:center}.cr-static a{color:#6b4d10;font-weight:600;white-space:nowrap}
+.cr-pz{display:flex;gap:8px;flex-wrap:wrap}.cr-paused{display:grid;gap:4px}.cr-paused a,[data-ok] a{color:inherit;text-decoration:underline}
 .cr-page{padding-top:40px;padding-bottom:80px;max-width:820px}.cr-page .sec-head{margin-bottom:24px}.cr-page .sec-head p{margin-top:10px;color:var(--muted)}
 .cr-form{display:grid;gap:14px}.cr-form label{display:grid;gap:6px;font-weight:500}.cr-form input,.cr-form textarea,.cr-chat input,.cr-card input{font:inherit;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:#fbfcf9;width:100%}
 .cr-form .btn{justify-self:start}.cr-out{margin-top:24px}.cr-out .panel{padding:18px;border:1px solid var(--line);border-radius:14px}.cr-out h3{margin-bottom:6px}
@@ -836,13 +913,17 @@
       if (!body) await new Promise((r) => setTimeout(r, 700 * (i + 1)));
     }
     if (!body) { preview("The live market is unreachable right now."); start(); setInterval(tick, 1000); return; }
+    if (STATIC) { // the snapshot's recent trades keep their spacing but end just before the visit, so the feeds read as current
+      const at = (body.recent_trades || []).map((t) => Date.parse(t.at)).filter((t) => t > 0), off = at.length ? Date.now() - 30000 - Math.max(...at) : 0;
+      for (const t of body.recent_trades || []) if (Date.parse(t.at) > 0) t.at = new Date(Date.parse(t.at) + off).toISOString();
+    }
     apply(body);
     install();
     wireGlobalClicks();
-    paintChrome(); paintMe();
+    paintChrome(); if (STATIC) staticBanner(); else paintMe();
     if (!window.__croppyLoaded && !document.querySelector("script[src*=\"/harvest/static/croppy.js\"]")) croppy(); // the site-wide Croppy (/harvest/static/croppy.js, deferred) replaces this one
     go(routeFromPath(), { keep: true }); histReady = true;
-    setTimeout(poll, POLL_MS);
+    if (STATIC) replay(); else setTimeout(poll, POLL_MS);
   }
   window.crophecyBoot = (start) => {
     const run = () => boot(start).catch((e) => {
