@@ -45,7 +45,7 @@ em.s{font:italic 400 1.08em/1 var(--f-serif);letter-spacing:-.01em;color:var(--v
 canvas{display:block}
 
 /* ---------- top bar ---------- */
-.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:rgba(255,255,255,.84);border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--page);border-bottom:1px solid var(--line)}
 .bar{display:flex;align-items:center;gap:32px;height:var(--hdr)}
 .brand{display:flex;align-items:center;gap:7px;text-decoration:none;font-weight:600;font-size:19px;letter-spacing:-.025em;flex:none;color:var(--ink)}
 .brand svg{width:34px;height:34px;color:var(--ink);margin-top:-4px}.brand .wm{font:400 26px/1 var(--f-serif);letter-spacing:0}.brand .wm i{font-style:italic;color:var(--wheat-ink)}
@@ -66,7 +66,7 @@ canvas{display:block}
 .btn.lg{height:50px;padding:0 24px;font-size:15px}
 .btn .arr{transition:transform .25s}.btn:hover .arr{transform:translateX(3px)}
 @media (max-width:1060px){.chain{display:none}}
-@media (max-width:860px){.topbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.97)}.links{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));margin:0;padding:5px;border-radius:999px;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--line);box-shadow:0 18px 40px -16px rgba(20,25,15,.35);z-index:70}.links a{padding:8px 13px}.links a.opt{display:none}}
+@media (max-width:860px){.topbar{-webkit-backdrop-filter:none;backdrop-filter:none}.links{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));margin:0;padding:5px;border-radius:999px;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--line);box-shadow:0 18px 40px -16px rgba(20,25,15,.35);z-index:70}.links a{padding:8px 13px}.links a.opt{display:none}}
 @media (max-width:560px){.bar .btn.ghost{display:none}.bar{gap:12px}}
 
 /* ---------- shared ---------- */
@@ -194,7 +194,6 @@ canvas{display:block}
 
 /* =============================== LANDING (waitlist look: misty field, hanko seal, katakana) =============================== */
 body[data-view="home"]{--page:#f3f5f0;--ink:#14190f;--ink-2:#2a3322;--muted:#55604c;--faint:#8a9180;--line:#dfe3d7;--line-strong:#c9cebf;--soft:#fbfcf9;--lilac:#efe7d3;--violet:#8a6517;--violet-ink:#6b4d10;--violet-soft:#f3ead4;--spot:rgba(201,154,59,.14);--glass-bg:rgba(251,252,249,.66);--glass-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 30px 70px -30px rgba(30,40,20,.35)}
-body[data-view="home"] .topbar{background:rgba(243,245,240,.86)}
 body[data-view="home"] .brand{font:400 23px/1 var(--f-serif);letter-spacing:0}
 body[data-view="home"] .btn.dark:hover{background:var(--ink-2);box-shadow:none}
 body[data-view="home"] .sec-head h2,body[data-view="home"] .h-intro h2,body[data-view="home"] .h-cta h2{font-family:var(--f-serif);font-weight:400;letter-spacing:-.02em;line-height:.98}

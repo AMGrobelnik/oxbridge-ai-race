@@ -34,7 +34,8 @@
   const STATIC = window.CROPHECY_STATIC || null;
   const WAITLIST = STATIC ? `${STATIC.root}waitlist/` : "/waitlist/";
   const OFF = "Backtesting runs on the live server, so it is off in this demo.";
-  const RESTING = "Croppy is resting while the live site is down; the live version comes back soon. Try one of the suggested questions, or join the waitlist to hear when it is back.";
+  const DEMO_ONLY = "In this demo Croppy answers the suggested questions — try one of those.";
+  const DEMO_ONLY_FARMER = "In this demo the assistant answers the suggested questions — try one of those.";
   if (STATIC) staticFetch();
   window.CROPHECY_LIVE = HOOKS.includes("boot") && HOOKS.includes("sim");
 
@@ -55,7 +56,7 @@
       }
       if (method !== "GET") {
         let msg = ""; try { msg = String(JSON.parse(init.body || "{}").message || "").trim(); } catch (_) { /* no body */ }
-        const hit = ((await canned)[path === "croppy" ? "croppy" : "farmer"] || {})[msg] || { reply: RESTING, actions: [{ label: "Join the waitlist", href: "waitlist/" }] };
+        const hit = ((await canned)[path === "croppy" ? "croppy" : "farmer"] || {})[msg] || { reply: path === "croppy" ? DEMO_ONLY : DEMO_ONLY_FARMER, actions: [] };
         const abs = (h) => { const u = new URL(h || "./", base); return u.pathname + u.hash; }; // croppy.js only follows site-absolute links
         return reply({ ...hit, actions: (hit.actions || []).map((a) => ({ ...a, href: abs(a.href) })) });
       }
