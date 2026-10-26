@@ -3,12 +3,14 @@
     python scripts/build_static.py --base-url http://127.0.0.1:3001 --out site
 
 It saves every GET response the site pages read (frontend/index.html, frontend/js/api.js, croppy.js) under <out>/api/,
-the most recent agent bets for a looped replay, Croppy's and the farm chat's answers to their suggested questions, and the
-page itself with every absolute URL made relative, so the copy works under a sub-path such as /crophecy-site/.
+the most recent agent bets for a looped replay, Croppy's and the farm chat's answers to their suggested questions and to
+about twenty more likely ones each, the sealed-holdout backtest of each preset theory, and the page itself with every
+absolute URL made relative, so the copy works under a sub-path such as /crophecy-site/.
 The page sets window.CROPHECY_STATIC, which switches api.js into static mode: reads come from api/*.json, the
 recorded bets replay at their real pace instead of polling, and trading (bet, sign-up, follow and copy) is a demo held in
-the page's memory on a port of the LMSR book, which resets on reload. The theory backtest and WhatsApp show as off. The
-waitlist keeps working (it posts straight to Supabase).
+the page's memory on a port of the LMSR book, which resets on reload. A chat question gets the recorded answer to the
+closest recorded question; the theory page backtests the preset theories from their recorded runs. WhatsApp shows as
+off (no conversation is recorded to show). The waitlist keeps working (it posts straight to Supabase).
 Routes are hash routes (#live, #markets, #m-<qid>); /live etc. redirect to them through small stub pages and 404.html.
 Nothing private is copied: test accounts are already left out of the feeds, and keys that look like credentials or
 contact details are dropped from every saved response.
@@ -30,11 +32,33 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 STATIC = ROOT / "agent" / "harvest" / "static"
 WAITLIST = ROOT / "waitlist"
-CROPPY_ASKS = ("What is this site?", "Which AI is winning right now?", "How do I play?")  # croppy.js SUGGEST
-FARM_ASKS = ("I grow olives near Jaén. Will prices fall?", "Should I sell my wheat now or store it?",
-             "Will drought hit maize in Hungary?", "Is it a bad year for rice in Spain?")  # api.js FARM_ASKS
+CROPPY_SUGGEST = ("What is this site?", "Which AI is winning right now?", "How do I play?")  # croppy.js SUGGEST
+CROPPY_ASKS = (*CROPPY_SUGGEST, "What is a world model?", "What is a Brier score?", "How does the leaderboard work?",
+               "Is this real money?", "How do prices move when I bet?", "How do you stop the AI from knowing the answers?", "How are markets resolved?",
+               "What is the sealed holdout?", "Can I write my own theory?", "How do I follow or copy an agent?",
+               "What does Solana have to do with this?", "Which market is traded the most?", "Do the AI agents beat the market?",
+               "How can my own AI agent trade here?", "Which agent should I follow?", "Which markets are about olive oil?",
+               "Can I sell my position?", "Is this financial advice?", "Who built The Crophecy?", "How do I get more credits?")
+FARM_SUGGEST = ("I grow olives near Jaén. Will prices fall?", "Should I sell my wheat now or store it?",
+                "Will drought hit maize in Hungary?", "Is it a bad year for rice in Spain?")  # api.js FARM_ASKS
+FARM_ASKS = (*FARM_SUGGEST, "Will olive oil prices rise next year?", "Will wheat prices go up?", "Is a drought coming in Italy?",
+             "Should I hedge my sunflower crop?", "Will Spain have a good olive harvest?", "Will maize prices fall?",
+             "Will rice prices rise?", "Is there a risk of water rationing in Greece?", "I grow wheat in France. What should I watch?",
+             "Will Russia ban grain exports?", "How sure are the agents about wheat?", "Will cocoa prices keep rising?",
+             "I grow sunflowers in Romania. What is the outlook?", "What does the market say about sugar beet?",
+             "I farm olives in Greece. Should I worry about the heat?", "When should I sell my olive oil?",
+             "Will coffee prices go up?", "Is farmland a good buy right now?")
+THEORIES = (  # the theory page's presets in static mode; the first is the form's default text in api.js renderTheory
+    {"name": "Heat bites first", "world_model": "Heat waves and droughts hit southern Europe harder every year, and markets are slow to price it in. "
+     "When stocks are thin, a single bad harvest pushes prices up fast, and prices that start rising keep rising for a while."},
+    {"name": "The dollar decides", "world_model": "Food commodities are priced in dollars, so a strong dollar and high interest rates pull prices down "
+     "and a weak dollar lifts them. Weather matters less than people think: global supply adjusts within a season, and prices drift back to their long-run average."},
+    {"name": "Politics moves first", "world_model": "Export bans, wars and subsidies move food prices more than the weather. When a big exporter such as "
+     "Russia, Ukraine or India restricts sales, prices jump within weeks; when governments are calm, prices follow last year's trend and rarely break out."},
+)
 ROUTES = ("home", "live", "markets", "leaderboard", "theory", "farmer")
 PRIVATE_KEY = re.compile(r"token|email|e_mail|password|secret|phone|whatsapp_from|contact|admin|api_key|apikey", re.I)
+ENGLISH = {"the", "and", "on", "of", "to", "is", "in", "for", "by", "your", "a", "be", "will", "our", "are", "with", "that"}
 JUNK_RATIONALE = re.compile(r"<=\s*\d+\s*chars|^\s*(\.\.\.|…)?\s*$")
 LEDGER_LIMIT = 5000  # the most the ledger endpoint returns
 logger = logging.getLogger("build_static")
@@ -76,6 +100,13 @@ def clean_rationale(text: Any) -> str:
     return "" if JUNK_RATIONALE.search(body) else text[:280]
 
 
+def english(text: Any) -> bool:
+    """True when common English function words make up a fair share of the text (the farm model sometimes answers in
+    the language of the region named in the question, which the snapshot must not keep)."""
+    words = re.findall(r"[a-zà-ÿ]+", str(text or "").lower())
+    return bool(words) and sum(w in ENGLISH for w in words) / len(words) >= 0.08
+
+
 def write_json(out: Path, name: str, value: Any) -> None:
     path = out / "api" / f"{name}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,16 +145,46 @@ def replay_bets(api: Client) -> dict[str, Any]:
     return {"bets": bets, "names": names}
 
 
-def canned(api: Client) -> dict[str, dict[str, Any]]:
-    """Croppy's and the farm chat's live answers to their suggested questions; links point at the static routes."""
-    out: dict[str, dict[str, Any]] = {"croppy": {}, "farmer": {}}
+def canned(api: Client) -> dict[str, Any]:
+    """Croppy's and the farm chat's live answers to their suggested and likely questions; links point at the static routes.
+    api.js answers any question with the closest of these and offers the suggested ones when none is close."""
+    out: dict[str, Any] = {"croppy": {}, "farmer": {}, "suggest": {"croppy": list(CROPPY_SUGGEST), "farmer": list(FARM_SUGGEST)}}
     for q in CROPPY_ASKS:
-        r = api.json("/harvest/api/croppy", body={"message": q, "history": [], "page": "/"})
+        for attempt in range(5):  # a reply without "model" is the route's canned fallback (the chat model timed out): ask again
+            r = api.json("/harvest/api/croppy", body={"message": q, "history": [], "page": "/"})
+            if r.get("model"):
+                break
+            time.sleep(2 + 2 * attempt)
+        else:
+            logger.warning("croppy: %s answered only with the canned fallback; not recorded", q)
+            continue
         out["croppy"][q] = {"reply": r.get("reply"), "actions": [{"label": a.get("label"), "href": static_href(a.get("href", ""))} for a in r.get("actions") or []]}
+        logger.info("croppy: %s (%s)", q, r.get("model") or r.get("source") or "-")
     for q in FARM_ASKS:
-        r = api.json("/harvest/api/farmer/chat", body={"message": q})
+        for attempt in range(3):  # ask again, asking for English outright, when the answer drifted into the region's language
+            r = api.json("/harvest/api/farmer/chat", body={"message": q + (" Please answer in English." if attempt else "")})
+            if english(r.get("reply")):
+                break
+        else:
+            logger.warning("farmer: %s answered only outside English; not recorded", q)
+            continue
         out["farmer"][q] = {k: r.get(k) for k in ("reply", "probability", "crop", "region", "confidence")}
+        logger.info("farmer: %s (%s)", q, r.get("model") or r.get("source") or "-")
     return out
+
+
+def theories(api: Client) -> dict[str, Any]:
+    """The sealed-holdout backtest of each preset theory, as POST /harvest/api/byo answers it (the server caches a theory by its hash,
+    so a rebuild re-reads the recorded run instead of paying for a new one)."""
+    keep = ("model_id", "name", "brier_holdout", "n", "rank", "of", "field", "world_model_sha256", "model", "model_label", "source", "rationales")
+    presets = []
+    for t in THEORIES:
+        r = json.loads(api.raw("/harvest/api/byo", body=t, timeout=900))
+        if r.get("brier_holdout") is None:
+            raise RuntimeError(f"the backtest of {t['name']!r} recorded no Brier score")
+        presets.append({**t, "result": {**{k: r.get(k) for k in keep}, "rationales": (r.get("rationales") or [])[:3]}})
+        logger.info("theory %s: Brier %.3f over %s questions, rank %s of %s", t["name"], r["brier_holdout"], r.get("n"), r.get("rank"), r.get("of"))
+    return {"presets": presets}
 
 
 def static_href(href: str) -> str:
@@ -231,6 +292,7 @@ def build(base_url: str, out: Path) -> None:
         write_json(out, f"agent-view/{safe(m['qid'])}", api.json(f"/harvest/api/markets/{qid}/agent"))
     write_json(out, "replay-bets", replay_bets(api))
     write_json(out, "canned", canned(api))
+    write_json(out, "theories", theories(api))
     (out / "index.html").write_text(page(api, snapshot), encoding="utf-8")
     (out / "waitlist" / "index.html").parent.mkdir(parents=True, exist_ok=True)
     copy_assets(out)

@@ -15,11 +15,12 @@
 
    Static mode (window.CROPHECY_STATIC, set only by scripts/build_static.py; off on the live server): every /harvest/api read,
    the page's and croppy.js's included, comes from the snapshot's api/*.json; the recorded agent bets replay at their real pace
-   instead of the poll; routes are hash routes, so the copy works under any sub-path; Croppy and the farm chat answer their
-   suggested questions from recorded replies. Trading is a demo kept in this page's memory (DEMO below): the visitor gets a
-   guest account with the usual play credits on their first action, and /bet, /join, /me and /follow are answered by a port
-   of the server's LMSR book (agent/harvest/lmsr.py, market.py Book.buy, follow.py), which the replayed bets trade on too.
-   Nothing is stored, so a reload starts over. The theory backtest and WhatsApp need the server and show as off. */
+   instead of the poll; routes are hash routes, so the copy works under any sub-path; Croppy and the farm chat answer a question
+   with the recorded reply to the closest recorded question (word overlap, see closest below), or offer their suggested
+   questions as chips when none is close; the theory page backtests its preset theories from their recorded runs. Trading
+   is a demo kept in this page's memory (DEMO below): the visitor gets a guest account with the usual play credits on their
+   first action, and /bet, /join, /me and /follow are answered by a port of the server's LMSR book (agent/harvest/lmsr.py, market.py Book.buy, follow.py), which the replayed bets trade on too.
+   Nothing is stored, so a reload starts over. A new theory's backtest and WhatsApp need the server and show as off. */
 (() => {
   const API = "/harvest/api";
   const KEY = "harvest-player"; // the player saved by /harvest/play and /app, so one login works everywhere
@@ -33,9 +34,10 @@
   const EXTRA_VIEWS = ["theory", "farmer"];
   const STATIC = window.CROPHECY_STATIC || null;
   const WAITLIST = STATIC ? `${STATIC.root}waitlist/` : "/waitlist/";
-  const OFF = "Backtesting runs on the live server, so it is off in this demo.";
-  const DEMO_ONLY = "In this demo Croppy answers the suggested questions — try one of those.";
-  const DEMO_ONLY_FARMER = "In this demo the assistant answers the suggested questions — try one of those.";
+  const OFF = "Backtesting a new theory runs on the live server. In this demo, pick one of the preset theories above: each shows its recorded backtest.";
+  const DEMO_ONLY = "I don't have a recorded answer close to that in this demo. Try one of these:";
+  const DEMO_ONLY_FARMER = "This demo answers from recorded questions, and none is close to that one. Try one of these:";
+  let staticTheories = Promise.resolve([]); // static mode: the preset theories with their recorded backtests (api/theories.json)
   if (STATIC) staticFetch();
   window.CROPHECY_LIVE = HOOKS.includes("boot") && HOOKS.includes("sim");
 
@@ -43,6 +45,7 @@
   function staticFetch() {
     const real = window.fetch.bind(window), base = new URL(STATIC.root, location.href);
     const canned = real(new URL("api/canned.json", base)).then((r) => r.json()).catch(() => ({}));
+    staticTheories = real(new URL("api/theories.json", base)).then((r) => (r.ok ? r.json() : {})).then((d) => d.presets || []).catch(() => []);
     const safe = (s) => String(s).replace(/[^A-Za-z0-9._-]/g, "_");
     const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
     window.fetch = async (input, init = {}) => {
@@ -50,13 +53,22 @@
       if (url.origin !== location.origin || !url.pathname.startsWith("/harvest/api/")) return real(input, init);
       const path = url.pathname.slice("/harvest/api/".length), method = String(init.method || (input && input.method) || "GET").toUpperCase();
       const chat = path === "croppy" || path === "farmer/chat";
+      if (path === "byo" && method !== "GET") { // a preset theory's recorded backtest; any other theory needs the server
+        let d = {}; try { d = JSON.parse(init.body || "{}") || {}; } catch (_) { /* no body */ }
+        const flat = (t) => String(t || "").split(/\s+/).filter(Boolean).join(" ");
+        const hit = (await staticTheories).find((t) => flat(t.world_model) === flat(d.world_model));
+        return hit ? reply({ ...hit.result, name: hit.name, recorded: true }) : reply({ error: OFF }, 503);
+      }
       if (path === "me" || (method !== "GET" && !chat)) {
         const [status, body] = demoApi(path, url, init) || [503, { error: "Not part of this demo." }];
         return reply(body, status);
       }
       if (method !== "GET") {
         let msg = ""; try { msg = String(JSON.parse(init.body || "{}").message || "").trim(); } catch (_) { /* no body */ }
-        const hit = ((await canned)[path === "croppy" ? "croppy" : "farmer"] || {})[msg] || { reply: path === "croppy" ? DEMO_ONLY : DEMO_ONLY_FARMER, actions: [] };
+        const all = await canned, kind = path === "croppy" ? "croppy" : "farmer", bank = all[kind] || {}, near = closest(msg, Object.keys(bank));
+        const suggest = ((all.suggest || {})[kind] || Object.keys(bank).slice(0, 3));
+        const hit = near.score >= MATCH ? { ...bank[near.q], ...(near.exact ? {} : { matched: near.q }) }
+          : { reply: kind === "croppy" ? DEMO_ONLY : DEMO_ONLY_FARMER, actions: [], suggest };
         const abs = (h) => { const u = new URL(h || "./", base); return u.pathname + u.hash; }; // croppy.js only follows site-absolute links
         return reply({ ...hit, actions: (hit.actions || []).map((a) => ({ ...a, href: abs(a.href) })) });
       }
@@ -65,6 +77,23 @@
       const r = await real(new URL(`api/${file}.json`, base));
       return r.ok ? r : reply({ error: "Not part of this snapshot." }, 404);
     };
+  }
+  // closest: the recorded question sharing the most content words with the asked one (Dice overlap, accents, case,
+  // punctuation, plurals and common function words ignored). MATCH is the overlap below which the demo offers its suggestions.
+  const MATCH = 0.5;
+  const STOP = new Set(("a an the is are was am be been will would should could can do does did i im my me we our you your it its this that these those " +
+    "of in on at to for and or with about near now right what whats which who how why when there any some much many get here tell please").split(" "));
+  const words = (t) => new Set(String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/'s\b/g, "").replace(/[^a-z0-9]+/g, " ")
+    .split(" ").filter((w) => w.length > 1 && !STOP.has(w)).map((w) => w.replace(/ies$/, "y").replace(/([^s])s$/, "$1")));
+  function closest(msg, qs) {
+    const a = words(msg), flat = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    let best = { q: null, score: 0, exact: false };
+    for (const q of qs) {
+      if (flat(q) === flat(msg)) return { q, score: 1, exact: true };
+      const b = words(q), common = [...a].filter((w) => b.has(w)).length, score = a.size + b.size ? (2 * common) / (a.size + b.size) : 0;
+      if (score > best.score) best = { q, score, exact: false };
+    }
+    return best;
   }
   function staticLink(u) { // a live-site link in a recorded reply, as the snapshot's own hash route
     const p = u.replace(/^https?:\/\/[^/]+/, "").split(/[?#]/)[0].replace(/^\/app(?=\/)/, ""), m = /^\/market\/(.+)$/.exec(p), r = p.split("/")[1] || "";
@@ -860,10 +889,15 @@
     view.innerHTML = `<div class="wrap cr-page"><header class="sec-head"><span class="kicker">Write your theory</span><h2>Can your <em class="s">world model</em> beat the agents?</h2><p>Describe in a few sentences how climate, politics and money move food prices. We hash it, commit it to the ledger, then backtest it on the sealed holdout questions and rank it against the house world models.</p></header>
       <form class="cr-form" data-cr-theory><label>Name<input name="name" maxlength="40" required placeholder="Heat bites first"></label><label>Your world model<textarea name="wm" rows="6" maxlength="1200" required minlength="20">Heat waves and droughts hit southern Europe harder every year, and markets are slow to price it in. When stocks are thin, a single bad harvest pushes prices up fast, and prices that start rising keep rising for a while.</textarea></label><button class="btn dark lg" type="submit">Backtest my theory</button></form>
       <div data-cr-out class="cr-out"></div></div>`;
-    if (STATIC) { // the backtest scores a new world model on the server; the demo has no recorded result for it
-      const b = q1("[data-cr-theory] button", view); b.disabled = true; b.title = OFF;
-      q1("[data-cr-out]", view).innerHTML = `<p class="mono cr-off">${escH(OFF)}</p>`;
-    }
+    if (STATIC) staticTheories.then((list) => { // preset theories with recorded backtests; a new theory needs the server
+      if (!list.length) return;
+      const form = q1("[data-cr-theory]", view);
+      form.insertAdjacentHTML("afterbegin", `<div class="cr-presets" role="group" aria-label="Preset theories"><span class="mono">Preset theories, backtested for this snapshot</span><div>${list.map((t, i) => `<button type="button" data-cr-preset="${i}" aria-pressed="${i === 0}">${escH(t.name)}</button>`).join("")}</div></div>`);
+      const pick = (i) => { form.name.value = list[i].name; form.wm.value = list[i].world_model; qa("[data-cr-preset]", form).forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.crPreset === i))); };
+      qa("[data-cr-preset]", form).forEach((b) => b.addEventListener("click", () => { pick(+b.dataset.crPreset); q1("[data-cr-out]", view).innerHTML = ""; }));
+      form.wm.addEventListener("input", () => qa("[data-cr-preset]", form).forEach((b) => b.setAttribute("aria-pressed", String(list[+b.dataset.crPreset].world_model === form.wm.value))));
+      pick(0);
+    });
     q1("[data-cr-theory]", view).addEventListener("submit", async (e) => {
       e.preventDefault();
       const f = e.currentTarget, out = q1("[data-cr-out]", view), btn = q1("button", f), me = player();
@@ -871,9 +905,13 @@
       try {
         const r = await call("/byo", { name: f.name.value, world_model: f.wm.value, ...(me ? { token: me.token } : {}) });
         const mkt = ((S.lb || {}).baselines || {}).market;
-        out.innerHTML = `<div class="panel"><h3>${escH(r.name)}</h3><p class="mono">Brier on the sealed holdout <b>${r.brier_holdout != null ? r.brier_holdout.toFixed(3) : "–"}</b> over ${r.n || 0} questions · rank <b>${r.rank || "–"}</b>${r.of ? ` of ${r.of}` : ""}${mkt != null ? ` · market ${mkt.toFixed(3)}` : ""}</p><p class="mono" style="color:var(--muted)">World model hash ${escH(String(r.world_model_sha256 || "").slice(0, 16))}… committed before it saw a question.</p></div>`;
-      } catch (err) { out.innerHTML = `<p class="cr-err">${escH(err.message)}</p>`; } finally { btn.disabled = STATIC; }
+        out.innerHTML = `<div class="panel"><h3>${escH(r.name)}</h3><p class="mono">Brier on the sealed holdout <b>${r.brier_holdout != null ? r.brier_holdout.toFixed(3) : "–"}</b> over ${r.n || 0} questions · rank <b>${r.rank || "–"}</b>${r.of ? ` of ${r.of}` : ""}${mkt != null ? ` · market ${mkt.toFixed(3)}` : ""}</p><p class="mono" style="color:var(--muted)">World model hash ${escH(String(r.world_model_sha256 || "").slice(0, 16))}… committed before it saw a question.</p>${r.recorded ? staticRun(r) : ""}</div>`;
+      } catch (err) { out.innerHTML = `<p class="${STATIC && err.status === 503 ? "mono cr-off" : "cr-err"}">${escH(err.message)}</p>`; } finally { btn.disabled = false; }
     });
+  }
+  function staticRun(r) { // the recorded run's most confident calls, from the snapshot
+    const rows = (r.rationales || []).map((x) => `<li><b>${escH(x.title)}</b> <span class="mono">${Math.round(x.p_yes * 100)}% YES · ${x.outcome ? "it happened" : "it did not"}</span><p>${escH(x.rationale)}</p></li>`).join("");
+    return `${rows ? `<h4 class="cr-rh">Its most confident calls</h4><ul class="cr-runs">${rows}</ul>` : ""}<p class="mono" style="color:var(--muted)">Recorded on the live server for this snapshot${r.model_label || r.model ? ` · ${escH(r.model_label || r.model)}` : ""}.</p>`;
   }
   function chatUI(view, { title, kicker, lede, placeholder, send }) {
     view.innerHTML = `<div class="wrap cr-page"><header class="sec-head"><span class="kicker">${kicker}</span><h2>${title}</h2><p>${lede}</p></header><div class="cr-chat"><div class="cr-log" data-log aria-live="polite"></div><form data-ask><input name="m" maxlength="400" placeholder="${escH(placeholder)}" required><button class="btn dark" type="submit">Send</button></form></div></div>`;
@@ -911,7 +949,8 @@
       try {
         const r = await call("/farmer/chat", { message: text });
         wait.classList.remove("fm-wait");
-        wait.innerHTML = `${escH(r.reply).replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, (u) => `<a href="${STATIC ? staticLink(u) : u}">${u.replace(/^https?:\/\/[^/]+/, "")}</a>`).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}`;
+        wait.innerHTML = `${r.matched ? `<div class="mono cr-meta cr-near">Closest recorded question: “${escH(r.matched)}”</div>` : ""}${escH(r.reply).replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, (u) => `<a href="${STATIC ? staticLink(u) : u}">${u.replace(/^https?:\/\/[^/]+/, "")}</a>`).replace(/\n/g, "<br>")}${r.probability != null ? `<div class="mono cr-meta">${escH(r.crop || "")}${r.region ? " · " + escH(r.region) : ""} · ${Math.round(r.probability * 100)}% · confidence ${escH(r.confidence || "")}</div>` : ""}${(r.suggest || []).length ? `<div class="cr-acts cr-sugg">${r.suggest.map((q) => `<button type="button" data-fq="${escH(q)}">${escH(q)}</button>`).join("")}</div>` : ""}`;
+        qa("[data-fq]", wait).forEach((b) => b.addEventListener("click", () => ask(b.dataset.fq)));
       } catch (err) { wait.classList.remove("fm-wait"); wait.textContent = err.message; }
       log.scrollTop = Math.max(0, wait.offsetTop - log.offsetTop - 8); // start reading at the top of the answer
     };
@@ -996,6 +1035,10 @@
 .cr-awhy{font:italic 400 17px/1.3 var(--f-serif);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .cr-debate{gap:14px}.cr-debate:empty{display:none}.cr-dh h3{font:400 26px/1.1 var(--f-serif);margin-top:6px}.cr-post{display:grid;gap:6px;padding-top:12px;border-top:1px solid var(--line)}.cr-post p{font-size:14px;line-height:1.5;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 @media (max-width:900px){.cr-acards{grid-template-columns:1fr 1fr}}@media (max-width:600px){.cr-acards{grid-template-columns:1fr}}
+.cr-presets{display:grid;gap:8px}.cr-presets span{color:var(--muted);font-size:12px}.cr-presets div{display:flex;flex-wrap:wrap;gap:8px}
+.cr-presets button,.cr-sugg button{font:400 14px var(--f-body);color:var(--ink-2);background:var(--paper,#fbfcf9);border:1px solid var(--hairline,#dfe3d7);border-radius:999px;padding:7px 13px;cursor:pointer;text-align:left}
+.cr-presets button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}.cr-sugg{margin-top:10px}.cr-near{margin:0 0 6px}
+.cr-rh{margin-top:14px;font-size:14px}.cr-runs{display:grid;gap:10px;margin:8px 0 12px;padding:0;list-style:none}.cr-runs li{display:grid;gap:3px;font-size:14px}.cr-runs p{color:var(--muted);font-size:13px;line-height:1.45}
 .cr-follow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}.cr-bal{color:var(--muted);margin:4px 0 10px}
 .fm{max-width:880px;padding-top:56px;padding-bottom:110px;display:grid;gap:22px}
 .fm-head{display:grid;gap:12px;text-align:center;justify-items:center}.fm-head h1{font:400 clamp(48px,7vw,92px)/.95 var(--f-display,var(--f-serif));letter-spacing:-.02em;color:var(--ink)}

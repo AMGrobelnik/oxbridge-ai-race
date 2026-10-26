@@ -12,7 +12,7 @@
 
   const css = document.createElement("link");
   css.rel = "stylesheet";
-  css.href = "/harvest/static/croppy.css?v=4";
+  css.href = "/harvest/static/croppy.css?v=5";
   document.head.appendChild(css);
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -88,19 +88,26 @@
     dots.remove();
     fab.classList.remove("croppy-thinking");
     panel.classList.remove("croppy-thinking");
-    say("bot", body.reply);
+    const reply = say("bot", body.reply);
+    if (body.matched) reply.prepend(el("small", "croppy-near", `Closest recorded question: “${body.matched}”`)); // the static snapshot's nearest recorded answer
     actions(body.actions);
+    if (Array.isArray(body.suggest) && body.suggest.length) suggestions(body.suggest); // the static snapshot offers these when nothing is close
     history.push({ role: "user", text }, { role: "croppy", text: body.reply });
     busy = false;
     send.disabled = false;
     input.focus();
   }
 
+  function suggestions(list) {
+    const row = el("div", "croppy-sugg");
+    for (const q of list) { const b = el("button", null, q); b.type = "button"; b.addEventListener("click", () => ask(q)); row.appendChild(b); }
+    log.appendChild(row);
+    scroll();
+  }
+
   function greet() {
     say("bot", GREETING);
-    const row = el("div", "croppy-sugg");
-    for (const q of SUGGEST) { const b = el("button", null, q); b.type = "button"; b.addEventListener("click", () => ask(q)); row.appendChild(b); }
-    log.appendChild(row);
+    suggestions(SUGGEST);
   }
 
   function toggle(open) {
