@@ -34,6 +34,7 @@
 .croppy-msg.bot { align-self: flex-start; background: var(--c-mist); border: 1px solid var(--c-line); border-bottom-left-radius: 4px; }
 .croppy-msg.user { align-self: flex-end; background: var(--c-leaf); color: #fff; border-bottom-right-radius: 4px; }
 .croppy-msg.dots { color: var(--c-stalk); }
+.croppy-near { display: block; margin-bottom: 4px; font-size: 11.5px; color: var(--c-stalk); white-space: normal; }
 .croppy-acts, .croppy-sugg { display: flex; flex-wrap: wrap; gap: 6px; align-self: flex-start; }
 .croppy-acts a, .croppy-sugg button { font: inherit; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; cursor: pointer; margin: 0;
   border: 1px solid var(--c-line); background: #fff; color: var(--c-leaf); text-decoration: none; font-weight: 600; }
