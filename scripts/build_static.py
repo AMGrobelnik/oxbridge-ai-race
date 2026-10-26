@@ -6,8 +6,9 @@ It saves every GET response the site pages read (frontend/index.html, frontend/j
 the most recent agent bets for a looped replay, Croppy's and the farm chat's answers to their suggested questions, and the
 page itself with every absolute URL made relative, so the copy works under a sub-path such as /crophecy-site/.
 The page sets window.CROPHECY_STATIC, which switches api.js into static mode: reads come from api/*.json, the
-recorded bets replay at their real pace instead of polling, and every write (bet, sign-up, follow, theory backtest)
-shows "live trading is paused" with a link to the waitlist, which keeps working (it posts straight to Supabase).
+recorded bets replay at their real pace instead of polling, and trading (bet, sign-up, follow and copy) is a demo held in
+the page's memory on a port of the LMSR book, which resets on reload. The theory backtest and WhatsApp show as off. The
+waitlist keeps working (it posts straight to Supabase).
 Routes are hash routes (#live, #markets, #m-<qid>); /live etc. redirect to them through small stub pages and 404.html.
 Nothing private is copied: test accounts are already left out of the feeds, and keys that look like credentials or
 contact details are dropped from every saved response.

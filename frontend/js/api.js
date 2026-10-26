@@ -15,8 +15,11 @@
 
    Static mode (window.CROPHECY_STATIC, set only by scripts/build_static.py; off on the live server): every /harvest/api read,
    the page's and croppy.js's included, comes from the snapshot's api/*.json; the recorded agent bets replay at their real pace
-   instead of the poll; routes are hash routes, so the copy works under any sub-path; writes show "live trading is paused"
-   with a link to the waitlist; Croppy and the farm chat answer their suggested questions from recorded replies. */
+   instead of the poll; routes are hash routes, so the copy works under any sub-path; Croppy and the farm chat answer their
+   suggested questions from recorded replies. Trading is a demo kept in this page's memory (DEMO below): the visitor gets a
+   guest account with the usual play credits on their first action, and /bet, /join, /me and /follow are answered by a port
+   of the server's LMSR book (agent/harvest/lmsr.py, market.py Book.buy, follow.py), which the replayed bets trade on too.
+   Nothing is stored, so a reload starts over. The theory backtest and WhatsApp need the server and show as off. */
 (() => {
   const API = "/harvest/api";
   const KEY = "harvest-player"; // the player saved by /harvest/play and /app, so one login works everywhere
@@ -30,8 +33,7 @@
   const EXTRA_VIEWS = ["theory", "farmer"];
   const STATIC = window.CROPHECY_STATIC || null;
   const WAITLIST = STATIC ? `${STATIC.root}waitlist/` : "/waitlist/";
-  const PAUSED = "Live trading is paused while the live site is down.";
-  const PAUSED_HTML = `<b>${PAUSED}</b><span>Join the waitlist and we will tell you when it is back. <a href="${WAITLIST}">Join the waitlist →</a></span>`;
+  const OFF = "Backtesting runs on the live server, so it is off in this demo.";
   const RESTING = "Croppy is resting while the live site is down; the live version comes back soon. Try one of the suggested questions, or join the waitlist to hear when it is back.";
   if (STATIC) staticFetch();
   window.CROPHECY_LIVE = HOOKS.includes("boot") && HOOKS.includes("sim");
@@ -46,8 +48,12 @@
       const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url, location.href);
       if (url.origin !== location.origin || !url.pathname.startsWith("/harvest/api/")) return real(input, init);
       const path = url.pathname.slice("/harvest/api/".length), method = String(init.method || (input && input.method) || "GET").toUpperCase();
+      const chat = path === "croppy" || path === "farmer/chat";
+      if (path === "me" || (method !== "GET" && !chat)) {
+        const [status, body] = demoApi(path, url, init) || [503, { error: "Not part of this demo." }];
+        return reply(body, status);
+      }
       if (method !== "GET") {
-        if (path !== "croppy" && path !== "farmer/chat") return reply({ error: PAUSED, paused: true }, 503);
         let msg = ""; try { msg = String(JSON.parse(init.body || "{}").message || "").trim(); } catch (_) { /* no body */ }
         const hit = ((await canned)[path === "croppy" ? "croppy" : "farmer"] || {})[msg] || { reply: RESTING, actions: [{ label: "Join the waitlist", href: "waitlist/" }] };
         const abs = (h) => { const u = new URL(h || "./", base); return u.pathname + u.hash; }; // croppy.js only follows site-absolute links
@@ -68,30 +74,132 @@
     const day = isNaN(when) ? STATIC.snapshot : when.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     const bar = document.createElement("div");
     bar.className = "cr-static";
-    bar.innerHTML = `<span><b>Snapshot</b> of the live market on ${escH(day)}, replaying the agents' recorded bets. Live trading is paused.</span><a href="${WAITLIST}">Join the waitlist →</a>`;
+    bar.innerHTML = `<span><b>Snapshot</b> of the live market on ${escH(day)}, replaying the agents' recorded bets. Trades here are a demo and reset when you reload.</span><a href="${WAITLIST}">Join the waitlist →</a>`;
     document.body.prepend(bar);
     qa("footer.foot .wrap span:last-child").forEach((e) => { e.textContent = `Snapshot of ${day}. Play credits only, no cash value.`; });
   }
-  function pausedModal() {
-    const w = modal(`<h3>Live trading is paused</h3><p>The live site is down for now. The markets, agents and bets here are a snapshot you can browse; join the waitlist to trade when it is back.</p><div class="cr-pz"><a class="btn dark" href="${WAITLIST}">Join the waitlist</a><button type="button" class="btn ghost" data-cr-close>Keep browsing</button></div>`);
-    q1("[data-cr-close]", w).addEventListener("click", () => w.remove());
-  }
-  async function replay() { // the recorded bets, looped at their real pace (gaps capped), drive the globe, tape and feeds as live trades do
+  async function replay() { // the recorded bets, looped at their real pace (gaps capped), trade on the demo book and drive the globe, tape and feeds as live trades do
     let rows = [];
-    try { const r = await call("/replay-bets"); rows = (r.bets || []).filter((t) => MK[t.qid]); S.names = { ...(r.names || {}), ...S.names }; } catch (e) { console.warn("crophecy replay", e); }
+    try { const r = await call("/replay-bets"); rows = (r.bets || []).filter((t) => MK[t.qid] && DEMO.mk[t.qid]); S.names = { ...(r.names || {}), ...S.names }; } catch (e) { console.warn("crophecy replay", e); }
     if (!rows.length) return;
-    let i = 0, seq = S.seq;
+    let i = 0;
     const step = () => {
       if (document.hidden) { setTimeout(step, 1000); return; }
       const t = rows[i], next = rows[(i + 1) % rows.length];
-      i = (i + 1) % rows.length; seq += 1;
-      pushTrade({ ...t, seq, at: new Date().toISOString() });
-      if (S.head) S.head = { ...S.head, seq: S.head.seq + 1 };
-      paintLedger(); if (VIEW === "live" && seq % 4 === 0) paintAgentCards();
+      i = (i + 1) % rows.length;
+      const tr = demoBuy(t.trader, t.qid, t.side, t.spend); // the recorded stake, priced on the book the visitor trades on
+      demoTrade({ ...t, ...tr }, tr.seq % 4 === 0);
+      demoCopy(tr);
       const gap = Date.parse(next.at) - Date.parse(t.at);
       setTimeout(step, i === 0 || !(gap > 0) ? 1500 : Math.min(6000, Math.max(400, gap)));
     };
     setTimeout(step, 1200);
+  }
+
+  // ---------------------------------------------------------------- static mode: the demo book, in memory only (a reload starts over)
+  const FEE_RATE = 0.02, START_CREDITS = 1000, SPEND_MIN = 1, SPEND_MAX = 500; // agent/harvest/market.py, agent/routes/harvest.py
+  const COPY = { fraction: 0.5, cap: 25, min: 1 }; // agent/harvest/follow.py defaults
+  const DEMO = { mk: {}, me: null, cash: START_CREDITS, hold: {}, follows: {}, seq: 0 };
+  const lmsrCost = (qy, qn, b) => { const m = Math.max(qy, qn) / b; return b * (m + Math.log(Math.exp(qy / b - m) + Math.exp(qn / b - m))); };
+  const lmsrPrice = (qy, qn, b) => 1 / (1 + Math.exp((qn - qy) / b));
+  function lmsrShares(qy, qn, b, side, spend) { // lmsr.shares_for_spend: shares s with cost_to_buy(...) == spend, closed form
+    const [mine, other] = side === "YES" ? [qy, qn] : [qn, qy];
+    const target = (lmsrCost(qy, qn, b) + spend) / b, m = Math.max(target, other / b);
+    return b * (m + Math.log(Math.exp(target - m) - Math.exp(other / b - m))) - mine;
+  }
+  function demoSeed(body) { // each open market's LMSR state at its snapshot price (q_no = 0, as lmsr.initial_q)
+    DEMO.seq = body.seq || 0;
+    for (const v of body.markets) {
+      if (v.status !== "open") continue;
+      const b = v.b > 0 ? v.b : 400, p = Math.min(1 - 1e-6, Math.max(1e-6, v.p_yes));
+      DEMO.mk[v.qid] = { b, qy: b * Math.log(p / (1 - p)), qn: 0 };
+    }
+  }
+  function demoBuy(trader, qid, side, spend) { // market.py Book.buy: 2% fee to the fund, the rest buys shares on the LMSR
+    const k = DEMO.mk[qid], fee = FEE_RATE * spend, before = lmsrPrice(k.qy, k.qn, k.b), shares = lmsrShares(k.qy, k.qn, k.b, side, spend - fee);
+    if (side === "YES") k.qy += shares; else k.qn += shares;
+    DEMO.seq += 1;
+    return { seq: DEMO.seq, trader, qid, side, spend, fee, shares, price_before: before, price_after: lmsrPrice(k.qy, k.qn, k.b), at: new Date().toISOString() };
+  }
+  function demoMine(t) { // the visitor's side of a trade: cash out, shares in
+    DEMO.cash -= t.spend;
+    const h = DEMO.hold[t.qid] || (DEMO.hold[t.qid] = { YES: 0, NO: 0, spent: 0 });
+    h[t.side] += t.shares; h.spent += t.spend;
+  }
+  function demoTrade(t, cards = true) { // a trade on the demo book reaches the feeds, tape, volume and the open market page as a polled one does
+    pushTrade(t);
+    if (S.head) S.head = { ...S.head, seq: S.head.seq + 1 };
+    paintLedger(); if (VIEW === "live" && cards) paintAgentCards();
+    if (VIEW === "market" && S.mid === t.qid) demoDetail(MK[t.qid]);
+  }
+  function demoCopy(t) { // follow.py: a copy-on follow buys the leader's side for half its stake, at most 25 credits and the balance.
+    // The recorded agent stakes are all under 2 credits, which follow.py would skip as under MIN_COPY, so the demo rounds a copy up to it.
+    const key = t.trader.startsWith("agent:") ? t.trader.slice(6).split("--")[0] : "", f = DEMO.follows[key];
+    if (!f || !f.copy || !DEMO.me || DEMO.cash < COPY.min) return;
+    const spend = Math.round(Math.min(Math.max(t.spend * COPY.fraction, COPY.min), COPY.cap, DEMO.cash) * 100) / 100;
+    const lead = AGENTS.find((a) => a.id === key), c = demoBuy(DEMO.me.user_id, t.qid, t.side, spend);
+    c.rationale = `copied from ${lead ? lead.n : key}`;
+    demoMine(c); demoTrade(c); paintMe();
+  }
+  function demoDetail(m) { // the open market page follows the book: odds, side buttons, volume, chart, recent trades, ticket maths
+    const root = q1("[data-detail]"); if (!root || !m) return;
+    m.p = Math.round(m.last);
+    const odds = q1(".dt-odds b", root); if (odds) odds.textContent = `${m.p}%`;
+    const yn = qa("[data-ticket] .yn button", root); if (yn[0]) yn[0].textContent = `Yes · ${m.p}%`; if (yn[1]) yn[1].textContent = `No · ${100 - m.p}%`;
+    const vol = qa(".dt-meta span", root).find((s) => /^Volume/.test(s.textContent)); if (vol && q1("b", vol)) q1("b", vol).textContent = money(m.vol);
+    const mk = q1(".big-stance .mk", root); if (mk) { mk.style.left = `${m.p}%`; const l = q1("span", mk); if (l) l.textContent = `Market ${m.p}%`; }
+    qa(".panel-h .mono", root).forEach((s) => { if (/^Agent average/.test(s.textContent)) s.textContent = s.textContent.replace(/market \d+%$/, `market ${m.p}%`); });
+    const rg = q1('[data-rg][aria-pressed="true"]', root); if (rg) rg.click(); // redraws the chart at its current range
+    if (typeof dtTrades === "function") dtTrades(m);
+    const inp = q1("#tk-amt", root); if (inp) inp.dispatchEvent(new Event("input"));
+  }
+  function demoGuest() { // the visitor's account, made on their first action: the usual starting credits, no sign-up
+    if (!DEMO.me) {
+      const id = Math.random().toString(16).slice(2, 8).padEnd(6, "0");
+      DEMO.me = { token: `demo-${id}`, user_id: `user:guest-${id}`, username: "guest", nickname: "guest", type: "human", credits: START_CREDITS };
+      S.names[DEMO.me.user_id] = "guest";
+    }
+    return DEMO.me;
+  }
+  function demoMe() {
+    const me = DEMO.me, positions = Object.entries(DEMO.hold).map(([qid, h]) => {
+      const k = DEMO.mk[qid], p = lmsrPrice(k.qy, k.qn, k.b), value = h.YES * p + h.NO * (1 - p);
+      return { qid, yes: h.YES, no: h.NO, spent: h.spent, value, pnl: value - h.spent, p_yes: p, status: "open", outcome: null };
+    });
+    const equity = DEMO.cash + positions.reduce((s, x) => s + x.value, 0);
+    return { user_id: me.user_id, username: me.username, type: "human", nickname: me.nickname, balance: DEMO.cash, equity, pnl: equity - START_CREDITS, positions };
+  }
+  function demoApi(path, url, init) { // [status, body] for the writes and /me, as agent/routes/harvest.py answers them; null for anything else
+    let d = {};
+    try { d = JSON.parse(init.body || "{}") || {}; } catch (_) { /* no body */ }
+    const mine = (token) => !!DEMO.me && token === DEMO.me.token, who = [401, { error: "unknown token; join first" }];
+    if (path === "me") return mine(url.searchParams.get("token")) ? [200, demoMe()] : who;
+    if (path === "join") {
+      const u = String(d.username || d.nickname || "").trim().replace(/^@/, "").toLowerCase();
+      if (!/^[a-z0-9][a-z0-9_-]{2,23}$/.test(u)) return [422, { error: "pick a username of 3-24 characters: lowercase letters, digits, - and _, starting with a letter or digit" }];
+      const me = demoGuest(); me.username = u; me.nickname = u; S.names[me.user_id] = u;
+      return [200, { ...me, credits: DEMO.cash }];
+    }
+    if (path === "bet") {
+      if (!mine(d.token)) return who;
+      const side = String(d.side || "").toUpperCase(), raw = Number(d.spend);
+      if (side !== "YES" && side !== "NO") return [422, { error: "side must be YES or NO" }];
+      if (!Number.isFinite(raw)) return [422, { error: "spend must be a number" }];
+      if (!DEMO.mk[d.qid]) return [404, { error: `unknown market '${d.qid}'` }];
+      const spend = Math.round(Math.min(SPEND_MAX, Math.max(SPEND_MIN, raw)) * 100) / 100;
+      if (spend > DEMO.cash + 1e-9) return [422, { error: `insufficient credits: ${DEMO.cash.toFixed(2)} available, ${spend.toFixed(2)} asked` }];
+      const t = demoBuy(DEMO.me.user_id, d.qid, side, spend);
+      demoMine(t); demoTrade(t);
+      return [200, { trade: t, market: { qid: t.qid, p_yes: t.price_after }, balance: DEMO.cash, entry: { seq: t.seq } }];
+    }
+    if (path === "follow") {
+      if (!mine(d.token)) return who;
+      const key = String(d.agent || "").split("--")[0];
+      if (d.follow === false) delete DEMO.follows[key]; else DEMO.follows[key] = { copy: !!d.copy };
+      return [200, { ok: true }];
+    }
+    if (path === "byo") return [503, { error: OFF }];
+    return null;
   }
 
   // ---------------------------------------------------------------- helpers
@@ -108,8 +216,8 @@
     if (!r.ok) { const e = new Error(data.error || `Request failed (HTTP ${r.status})`); e.status = r.status; throw e; }
     return data;
   }
-  const player = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) { return null; } };
-  const savePlayer = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (_) { /* storage blocked */ } };
+  const player = () => { if (STATIC) return DEMO.me; try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (_) { return null; } };
+  const savePlayer = (v) => { if (STATIC) return; try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (_) { /* storage blocked */ } };
   const initials = (n) => { const w = String(n).replace(/[^A-Za-z /-]/g, "").split(/[\s/-]+/).filter(Boolean); return ((w[0] || "?")[0] + (w.length > 1 ? w[w.length - 1][0] : (w[0] || "?")[1] || "")).toUpperCase(); };
   const monthEnd = (ym) => { const [y, m] = ym.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
 
@@ -615,7 +723,8 @@
     const unit = q1(".amt i", tk); if (unit) { unit.textContent = "cr"; unit.style.fontSize = "11px"; }
     inp.max = 500; if (+inp.value > 500) inp.value = 50;
     qa('.quick button[data-add="max"]', tk).forEach((b) => { b.dataset.add = "500"; b.textContent = "Max"; });
-    const note = q1(".note", tk); if (note) note.textContent = "Play credits only · no real money. Beta: everyone gets 1,000 play credits to forecast with. 2% of each bet goes to the Resilience Fund.";
+    const note = q1(".note", tk); if (note) note.textContent = STATIC ? "Play credits only · no real money. Demo: you get 1,000 play credits, and your trades reset when you reload. 2% of each bet goes to the Resilience Fund."
+      : "Play credits only · no real money. Beta: everyone gets 1,000 play credits to forecast with. 2% of each bet goes to the Resilience Fund.";
     const side = () => (q1('.yn button[aria-pressed="true"]', tk) || {}).dataset?.s || "YES";
     const calc = () => {
       const p = Math.min(0.99, Math.max(0.01, m.last / 100)), pp = side() === "YES" ? p : 1 - p, a = Math.max(0, Math.min(500, +inp.value || 0)), net = a * 0.98, b = m.b || 100;
@@ -632,7 +741,6 @@
     const ok = q1("[data-ok]", tk);
     const say = (html, bad) => { ok.style.color = bad ? "var(--no)" : ""; ok.style.background = bad ? "color-mix(in srgb,var(--no) 8%,#fff)" : ""; ok.innerHTML = html; ok.classList.add("on"); };
     btn.addEventListener("click", async () => {
-      if (STATIC) { say(PAUSED_HTML, true); return; }
       const a = Math.min(500, +inp.value || 0);
       if (a < 1) { say("<b>Enter between 1 and 500 credits.</b>", true); return; }
       const me = await ensurePlayer(); if (!me) return;
@@ -640,7 +748,7 @@
       try {
         const r = await call("/bet", { token: me.token, qid: m.id, side: side(), spend: a });
         const e = typeof endInfo === "function" ? endInfo(m) : null;
-        say(`<b>${r.trade.side} ${money(r.trade.spend)} placed · ledger #${num(r.entry.seq)}</b><span class="mono">price now ${Math.round(r.market.p_yes * 100)}% YES · balance ${money(r.balance)}</span>${e ? `<span class="cr-settle">${escH(e.settles)}</span>` : ""}`);
+        say(`<b>${r.trade.side} ${money(r.trade.spend)} placed · ${STATIC ? "demo trade" : "ledger"} #${num(r.entry.seq)}</b><span class="mono">price now ${Math.round(r.market.p_yes * 100)}% YES · balance ${money(r.balance)}</span>${e ? `<span class="cr-settle">${escH(e.settles)}</span>` : ""}`);
         balanceLine(tk, r.balance); paintPos();
       } catch (e) {
         if (e.status === 401) { localStorage.removeItem(KEY); say("<b>Your session expired. Press the button again to rejoin.</b>", true); } else say(`<b>${escH(e.message)}</b>`, true);
@@ -661,14 +769,14 @@
     let chip = q1("[data-cr-me]");
     if (!me || !me.token) { if (chip) chip.remove(); return; }
     const bar = q1(".topbar .bar-cta");
-    if (!chip && bar) { chip = document.createElement("a"); chip.dataset.crMe = ""; chip.className = "cr-me"; chip.href = "/app"; chip.innerHTML = `<i></i>@${escH(me.username || me.nickname || "")}<b>…</b>`; bar.append(chip); } // made before the await, so overlapping calls share one chip
+    if (!chip && bar) { chip = document.createElement("a"); chip.dataset.crMe = ""; chip.className = "cr-me"; chip.href = STATIC ? "#markets" : "/app"; chip.innerHTML = `<i></i>@${escH(me.username || me.nickname || "")}<b>…</b>`; bar.append(chip); } // made before the await, so overlapping calls share one chip
     let r;
     try { r = await call(`/me?token=${encodeURIComponent(me.token)}`); } catch (e) {
       if (e.status === 401) { localStorage.removeItem(KEY); if (chip) chip.remove(); }
       return;
     }
     S.me = r;
-    if (chip) { chip.title = "Your play credits. No real money."; chip.innerHTML = `<i></i>@${escH(r.username || r.nickname)}<b>${money(r.balance)}</b>`; }
+    if (chip) { chip.title = STATIC ? "Your demo play credits; they reset when you reload. Click to pick a username." : "Your play credits. No real money."; chip.innerHTML = `<i></i>@${escH(r.username || r.nickname)}<b>${money(r.balance)}</b>`; }
     const tk = q1("[data-ticket]");
     if (!tk || VIEW !== "market" || !S.mid) return;
     balanceLine(tk, r.balance);
@@ -696,11 +804,14 @@
     return wrap;
   }
   function ensurePlayer() {
-    if (STATIC) { pausedModal(); return Promise.resolve(null); }
+    if (STATIC) { const me = demoGuest(); paintMe(); return Promise.resolve(me); } // the demo needs no sign-up: a guest account with the usual credits
     const me = player();
     if (me && me.token) return Promise.resolve(me);
+    return joinModal();
+  }
+  function joinModal() {
     return new Promise((resolve) => {
-      const w = modal(`<h3>Create your account</h3><p>Beta: everyone gets 1,000 play credits to forecast with. Play credits only · no real money.</p><form><input name="n" maxlength="24" placeholder="pick a username, e.g. olive_ana" autocomplete="username" autocapitalize="none" spellcheck="false" required><button class="btn dark" type="submit">Create</button></form><p class="cr-hint">3-24 characters: lowercase letters, digits, - and _. Same account as /app.</p><p class="cr-err" role="alert"></p>`);
+      const w = modal(`${STATIC ? "<h3>Pick a username</h3><p>Your demo account keeps its play credits and positions until you reload the page.</p>" : "<h3>Create your account</h3><p>Beta: everyone gets 1,000 play credits to forecast with. Play credits only · no real money.</p>"}<form><input name="n" maxlength="24" placeholder="pick a username, e.g. olive_ana" autocomplete="username" autocapitalize="none" spellcheck="false" required><button class="btn dark" type="submit">Create</button></form><p class="cr-hint">3-24 characters: lowercase letters, digits, - and _.${STATIC ? "" : " Same account as /app."}</p><p class="cr-err" role="alert"></p>`);
       const f = q1("form", w), inp = q1("input", w);
       inp.focus();
       w.addEventListener("click", (e) => { if (e.target === w) resolve(null); });
@@ -748,6 +859,10 @@
     view.innerHTML = `<div class="wrap cr-page"><header class="sec-head"><span class="kicker">Write your theory</span><h2>Can your <em class="s">world model</em> beat the agents?</h2><p>Describe in a few sentences how climate, politics and money move food prices. We hash it, commit it to the ledger, then backtest it on the sealed holdout questions and rank it against the house world models.</p></header>
       <form class="cr-form" data-cr-theory><label>Name<input name="name" maxlength="40" required placeholder="Heat bites first"></label><label>Your world model<textarea name="wm" rows="6" maxlength="1200" required minlength="20">Heat waves and droughts hit southern Europe harder every year, and markets are slow to price it in. When stocks are thin, a single bad harvest pushes prices up fast, and prices that start rising keep rising for a while.</textarea></label><button class="btn dark lg" type="submit">Backtest my theory</button></form>
       <div data-cr-out class="cr-out"></div></div>`;
+    if (STATIC) { // the backtest scores a new world model on the server; the demo has no recorded result for it
+      const b = q1("[data-cr-theory] button", view); b.disabled = true; b.title = OFF;
+      q1("[data-cr-out]", view).innerHTML = `<p class="mono cr-off">${escH(OFF)}</p>`;
+    }
     q1("[data-cr-theory]", view).addEventListener("submit", async (e) => {
       e.preventDefault();
       const f = e.currentTarget, out = q1("[data-cr-out]", view), btn = q1("button", f), me = player();
@@ -756,7 +871,7 @@
         const r = await call("/byo", { name: f.name.value, world_model: f.wm.value, ...(me ? { token: me.token } : {}) });
         const mkt = ((S.lb || {}).baselines || {}).market;
         out.innerHTML = `<div class="panel"><h3>${escH(r.name)}</h3><p class="mono">Brier on the sealed holdout <b>${r.brier_holdout != null ? r.brier_holdout.toFixed(3) : "–"}</b> over ${r.n || 0} questions · rank <b>${r.rank || "–"}</b>${r.of ? ` of ${r.of}` : ""}${mkt != null ? ` · market ${mkt.toFixed(3)}` : ""}</p><p class="mono" style="color:var(--muted)">World model hash ${escH(String(r.world_model_sha256 || "").slice(0, 16))}… committed before it saw a question.</p></div>`;
-      } catch (err) { out.innerHTML = STATIC ? `<p class="cr-err cr-paused">${PAUSED_HTML}</p>` : `<p class="cr-err">${escH(err.message)}</p>`; } finally { btn.disabled = false; }
+      } catch (err) { out.innerHTML = `<p class="cr-err">${escH(err.message)}</p>`; } finally { btn.disabled = STATIC; }
     });
   }
   function chatUI(view, { title, kicker, lede, placeholder, send }) {
@@ -784,7 +899,7 @@
     view.innerHTML = `<div class="wrap fm"><header class="fm-head"><span class="kicker">For farmers</span><h1>Ask about <em>your crop.</em></h1><p>Tell us what you grow and where. You get the market’s live odds, what the agents think and how sure they are, in plain words. Free, no sign-up.</p></header>
       <div class="fm-ask"><div class="cr-log fm-log" data-log aria-live="polite" hidden></div><form data-ask><input name="m" maxlength="400" placeholder="Ask about your crop…" aria-label="Ask about your crop" required><button class="btn dark lg" type="submit">Ask</button></form></div>
       <div class="fm-chips" role="group" aria-label="Example questions">${FARM_ASKS.map((q) => `<button type="button" data-fq="${escH(q)}">${escH(q)}</button>`).join("")}</div>
-      <div class="fm-wa">${STATIC ? `<span>The WhatsApp chat is paused while the live site is down. <a href="${WAITLIST}">Join the waitlist</a> to hear when it is back.</span>` : `<a class="btn wa lg" href="${WA}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Chat on WhatsApp</a><span>Opens WhatsApp with <b class="mono">${WA_JOIN}</b>. Send it, then ask in your own words.</span>`}</div>
+      <div class="fm-wa">${STATIC ? `<span class="cr-off">The WhatsApp chat needs the live server, so it is off in this demo.</span>` : `<a class="btn wa lg" href="${WA}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>Chat on WhatsApp</a><span>Opens WhatsApp with <b class="mono">${WA_JOIN}</b>. Send it, then ask in your own words.</span>`}</div>
       <section class="fm-odds"><header><span class="kicker">Odds that matter on a farm</span><a href="#markets">All markets →</a></header><div class="fm-cards" data-fm-odds>${farmOdds()}</div></section>
       <details class="fm-more" data-fm-more><summary>More tools: pricing ladder, hedge calculator, toolkit</summary><div data-fm-tools></div></details></div>`;
     const log = q1("[data-log]", view), f = q1("[data-ask]", view);
@@ -840,6 +955,8 @@
     document.addEventListener("click", (e) => {
       const st = e.target.closest("[data-start]");
       if (st) { e.preventDefault(); e.stopPropagation(); ensurePlayer().then(() => go("markets")); return; }
+      const chip = STATIC && e.target.closest("[data-cr-me]");
+      if (chip) { e.preventDefault(); e.stopPropagation(); joinModal(); return; } // the demo's sign-up: name the guest account
       const f = e.target.closest("[data-cr-f]");
       if (f) { const box = f.closest("[data-cr-follow]"); follow(+box.dataset.crFollow, f.dataset.crF === "copy", box.parentElement.querySelector("[data-cr-fmsg]")); return; }
       const d = e.target.closest("[data-cr-desf]");
@@ -851,7 +968,7 @@
   function styles() {
     const css = `.cr-preview{position:sticky;top:0;z-index:80;background:#fff4d6;color:#5c4400;font:500 13px var(--f-body);padding:8px 16px;text-align:center}
 .cr-static{display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:4px 14px;background:#f3ead4;color:#4d3a0c;font:500 13px/1.4 var(--f-body);padding:8px 16px;text-align:center}.cr-static a{color:#6b4d10;font-weight:600;white-space:nowrap}
-.cr-pz{display:flex;gap:8px;flex-wrap:wrap}.cr-paused{display:grid;gap:4px}.cr-paused a,[data-ok] a{color:inherit;text-decoration:underline}
+[data-ok] a{color:inherit;text-decoration:underline}.cr-off{color:var(--muted)}
 .cr-page{padding-top:40px;padding-bottom:80px;max-width:820px}.cr-page .sec-head{margin-bottom:24px}.cr-page .sec-head p{margin-top:10px;color:var(--muted)}
 .cr-form{display:grid;gap:14px}.cr-form label{display:grid;gap:6px;font-weight:500}.cr-form input,.cr-form textarea,.cr-chat input,.cr-card input{font:inherit;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:#fbfcf9;width:100%}
 .cr-form .btn{justify-self:start}.cr-out{margin-top:24px}.cr-out .panel{padding:18px;border:1px solid var(--line);border-radius:14px}.cr-out h3{margin-bottom:6px}
@@ -918,6 +1035,7 @@
       for (const t of body.recent_trades || []) if (Date.parse(t.at) > 0) t.at = new Date(Date.parse(t.at) + off).toISOString();
     }
     apply(body);
+    if (STATIC) demoSeed(body);
     install();
     wireGlobalClicks();
     paintChrome(); if (STATIC) staticBanner(); else paintMe();
