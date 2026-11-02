@@ -59,3 +59,15 @@ def test_no_public_page_renders_the_waitlist_count():
     assert "waitlist_count" not in page and 'id="count"' not in page and "on the list ·" not in page
     app_js = (Path(harvest_pages.__file__).resolve().parents[1] / "harvest" / "static" / "app" / "app.js").read_text()
     assert "on the waitlist" not in app_js
+
+
+def test_privacy_page_is_served_public_and_linked(client):
+    """The privacy notice explains the visitor statistics and carries the opt-out; the pages link to it."""
+    assert client.get("/privacy", follow_redirects=False).headers["location"] == "/privacy/"
+    r = client.get("/privacy/")
+    assert r.status_code == 200
+    assert 'id="out"' in r.text and "crophecyAnalytics" in r.text and "/harvest/static/analytics.js" in r.text
+    assert public_mode.is_public("GET", "/privacy/")
+    root = harvest_pages.PRIVACY_PAGE.parents[1]
+    assert 'href="/privacy/"' in (root / "frontend" / "index.html").read_text()
+    assert 'href="/privacy/"' in (harvest_pages.WAITLIST_DIR / "index.html").read_text()

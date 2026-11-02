@@ -2,6 +2,7 @@
 
 /waitlist/ serves the static waitlist landing page in waitlist/ with SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY injected, so
 its form inserts straight into the Supabase "waitlist" table (row-level security only lets the publishable key insert).
+/privacy/ serves the privacy notice in privacy/ (what the visitor statistics collect, and the opt-out).
 
 GET /harvest/api/story is a compact digest of the frozen replay for the pages (the full replay is ~2 MB of trades):
 per-quarter Brier and PnL per world model, the commodity price paths, the sealed holdout with its commitment, and the
@@ -32,6 +33,7 @@ APP_PAGES = {"/app": "app/index.html", "/app/markets": "app/markets.html", "/app
 # /app/market/{qid} and /app/agent/{id} are served by harvest_growth.py, which adds Open Graph tags
 PRICES_FROM = "2021-01"
 WAITLIST_DIR = Path(__file__).resolve().parents[2] / "waitlist"
+PRIVACY_PAGE = Path(__file__).resolve().parents[2] / "privacy" / "index.html"
 FAVICON = Path(__file__).resolve().parents[2] / "frontend" / "assets" / "crophecy-favicon.svg"
 WAITLIST_ASSETS = {"hero-loop.mp4": "video/mp4", "hero.jpg": "image/jpeg"}
 _WAITLIST_CONST = {"SUPABASE_URL": re.compile(r"const SUPABASE_URL = '[^']*';"), "SUPABASE_ANON_KEY": re.compile(r"const SUPABASE_ANON_KEY = '[^']*';")}
@@ -157,6 +159,14 @@ def register(app: FastAPI) -> None:
     @app.get("/waitlist/", response_class=HTMLResponse)
     async def waitlist_page() -> HTMLResponse:
         return HTMLResponse(waitlist_html(), headers={"Cache-Control": "no-cache"})
+
+    @app.get("/privacy", include_in_schema=False)
+    async def privacy_redirect() -> RedirectResponse:
+        return RedirectResponse("/privacy/", status_code=308)
+
+    @app.get("/privacy/", response_class=HTMLResponse)
+    async def privacy_page() -> HTMLResponse:
+        return HTMLResponse(PRIVACY_PAGE.read_text(), headers={"Cache-Control": "no-cache"})
 
     @app.get("/waitlist/{name}", response_model=None)
     async def waitlist_asset(name: str) -> Response:

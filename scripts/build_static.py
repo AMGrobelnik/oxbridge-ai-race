@@ -208,6 +208,7 @@ def page(api: Client, snapshot: str) -> str:
     html = re.sub(r'src="/frontend/js/api\.js', 'src="js/api.js', html)
     html = re.sub(r'(src|href)="/harvest/static/', r'\1="static/', html)
     html = re.sub(r'href="/waitlist/', 'href="waitlist/', html)
+    html = html.replace('href="/privacy/"', 'href="privacy/"')
     flag = f"<script>window.CROPHECY_STATIC={json.dumps({'root': './', 'snapshot': snapshot})};</script>"
     if "window.CROPHECY_HOOKS=" not in html:
         raise RuntimeError("the served page carries no CROPHECY_HOOKS: is this the Crophecy server?")
@@ -225,11 +226,23 @@ def waitlist(api: Client) -> str:
     html = re.sub(r'(src|href)="/frontend/assets/', r'\1="../assets/', html)
     html = re.sub(r'<script src="/harvest/static/croppy\.js[^"]*"[^>]*></script>\n?', "", html)
     html = re.sub(r'src="/harvest/static/analytics\.js', 'src="../static/analytics.js', html)
+    html = html.replace('href="/privacy/"', 'href="../privacy/"')
     if "charset" not in html[:2000]:  # the server sends the charset as a header; a static host may not
         html = '<meta charset="utf-8">\n<link rel="icon" type="image/svg+xml" href="../assets/crophecy-favicon.svg">\n' + html
     left = sorted(set(re.findall(r'(?:src|href)="(/[^/"][^"]*)"', html)))
     if left:
         raise RuntimeError(f"absolute URLs left in the waitlist page: {left[:8]}")
+    return html
+
+
+def privacy() -> str:
+    """The privacy notice (privacy/index.html) with relative URLs, served at privacy/ in the snapshot."""
+    html = (ROOT / "privacy" / "index.html").read_text(encoding="utf-8")
+    html = html.replace('src="/harvest/static/', 'src="../static/').replace('href="/frontend/assets/', 'href="../assets/')
+    html = html.replace('href="/waitlist/"', 'href="../waitlist/"').replace('href="/"', 'href="../"')
+    left = sorted(set(re.findall(r'(?:src|href)="(/[^/"][^"]*)"', html)))
+    if left:
+        raise RuntimeError(f"absolute URLs left in the privacy page: {left[:8]}")
     return html
 
 
@@ -298,6 +311,8 @@ def build(base_url: str, out: Path) -> None:
     (out / "waitlist" / "index.html").parent.mkdir(parents=True, exist_ok=True)
     copy_assets(out)
     (out / "waitlist" / "index.html").write_text(waitlist(api), encoding="utf-8")
+    (out / "privacy").mkdir(parents=True, exist_ok=True)
+    (out / "privacy" / "index.html").write_text(privacy(), encoding="utf-8")
     (out / "404.html").write_text(redirect_page(), encoding="utf-8")
     for route in (*ROUTES, "app", "harvest", *(f"market/{m['qid']}" for m in body["markets"])):  # deep links answer 200, not 404.html
         (out / route).mkdir(parents=True, exist_ok=True)
