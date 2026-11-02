@@ -15,8 +15,9 @@
 
   function send() {
     var page = location.href;  // the full URL, utm_* parameters included
-    if (page === last) return;
-    last = page;
+    var view = page.replace(/#home$/, "");  // "/" and "/#home" are the same view
+    if (view === last) return;
+    last = view;
     hit += 1;
     var q = new URLSearchParams({
       v: "2", tid: ID, cid: cid, sid: sid, sct: "1", seg: "1", _s: String(hit), _p: pid,
@@ -31,9 +32,11 @@
   }
 
   send();
-  // The site switches views with history.pushState/replaceState, back/forward fire popstate, and
-  // some views route by hash (#live, #markets, #m-<qid>). Each sends a page_view for the new URL;
-  // send() drops a repeat of the URL just sent, so hashchange firing alongside popstate counts once.
+  // The site switches views with history.replaceState('#<route>') (also once right after load, which
+  // rewrites "/" to "/#home"), back/forward fire popstate, and some views route by hash (#live,
+  // #markets, #m-<qid>). Each sends a page_view for the new URL; send() drops a repeat of the view
+  // just sent ("/" and "/#home" count as one), so the load-time rewrite and hashchange firing
+  // alongside popstate each count once.
   // The hit is deferred a tick so document.title already reflects the new view.
   function later() { setTimeout(send, 0); }
   ["pushState", "replaceState"].forEach(function (m) {
