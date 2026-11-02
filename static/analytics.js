@@ -9,20 +9,24 @@
   var ID = "G-J6Q2K51RVP", URL = "https://www.google-analytics.com/g/collect";
   if (!/(^|\.)crophecy\.bid$/.test(location.hostname) || !navigator.sendBeacon) return;
 
-  var cid = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
-  var sid = String(Math.floor(Date.now() / 1000)), hit = 0, last = "";
+  function rand() { return String(1 + Math.floor(Math.random() * 2147483646)); }
+  // client id, session id and page id: random per page load, kept only in this closure
+  var cid = rand() + "." + Math.floor(Date.now() / 1000), sid = rand(), pid = rand(), hit = 0, last = "";
 
   function send() {
-    var page = location.href;
+    var page = location.href;  // the full URL, utm_* parameters included
     if (page === last) return;
     last = page;
     hit += 1;
     var q = new URLSearchParams({
-      v: "2", tid: ID, cid: cid, sid: sid, sct: "1", seg: "0", _s: String(hit), _p: sid + hit,
+      v: "2", tid: ID, cid: cid, sid: sid, sct: "1", seg: "1", _s: String(hit), _p: pid,
       en: "page_view", dl: page, dt: document.title, ul: (navigator.language || "").toLowerCase(),
       sr: screen.width + "x" + screen.height, npa: "1", _ee: "1"
     });
-    if (hit === 1) { q.set("_ss", "1"); q.set("_fv", "1"); q.set("_nsi", "1"); if (document.referrer) q.set("dr", document.referrer); }
+    if (hit === 1) {  // a new user and a new session on every page load, since nothing is remembered
+      q.set("_fv", "1"); q.set("_ss", "1"); q.set("_nsi", "1");
+      if (document.referrer) q.set("dr", document.referrer);
+    }
     navigator.sendBeacon(URL + "?" + q.toString());
   }
 
