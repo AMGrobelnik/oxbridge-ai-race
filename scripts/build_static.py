@@ -224,6 +224,7 @@ def waitlist(api: Client) -> str:
     html = api.raw("/waitlist/", accept="text/html").decode()
     html = re.sub(r'(src|href)="/frontend/assets/', r'\1="../assets/', html)
     html = re.sub(r'<script src="/harvest/static/croppy\.js[^"]*"[^>]*></script>\n?', "", html)
+    html = re.sub(r'src="/harvest/static/consent\.js', 'src="../static/consent.js', html)
     if "charset" not in html[:2000]:  # the server sends the charset as a header; a static host may not
         html = '<meta charset="utf-8">\n<link rel="icon" type="image/svg+xml" href="../assets/crophecy-favicon.svg">\n' + html
     left = sorted(set(re.findall(r'(?:src|href)="(/[^/"][^"]*)"', html)))
@@ -236,7 +237,7 @@ def redirect_page() -> str:
     """A stub at /<route>/ (and 404.html for /market/<qid>) that sends the visitor to the hash route on the root page.
     The root is /<repo>/ on a *.github.io project site and / on a custom domain."""
     return """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crophecy</title><meta name="robots" content="noindex"><script>
+<title>Crophecy</title><meta name="robots" content="noindex"><script src="/static/consent.js" defer></script><script>
 (function () {
   var p = location.pathname, seg = p.split("/").filter(Boolean);
   var root = /\\.github\\.io$/.test(location.hostname) && seg.length ? "/" + seg.shift() + "/" : "/";
@@ -260,7 +261,7 @@ def copy_assets(out: Path) -> None:
         raise RuntimeError("api.js: the WhatsApp join phrase appears twice; blank it in one place")
     (out / "js" / "api.js").write_text(js, encoding="utf-8")
     (out / "static").mkdir(parents=True, exist_ok=True)
-    for name in ("croppy.css", "croppy-face.png", "croppy-256.webp"):
+    for name in ("croppy.css", "croppy-face.png", "croppy-256.webp", "consent.js"):
         shutil.copy2(STATIC / name, out / "static" / name)
     croppy = (STATIC / "croppy.js").read_text(encoding="utf-8").replace('"/harvest/static/', '"static/')
     (out / "static" / "croppy.js").write_text(croppy, encoding="utf-8")
