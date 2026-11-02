@@ -31,5 +31,15 @@
   }
 
   send();
-  addEventListener("hashchange", send);  // the site routes by hash (#live, #markets, #m-<qid>)
+  // The site switches views with history.pushState/replaceState, back/forward fire popstate, and
+  // some views route by hash (#live, #markets, #m-<qid>). Each sends a page_view for the new URL;
+  // send() drops a repeat of the URL just sent, so hashchange firing alongside popstate counts once.
+  // The hit is deferred a tick so document.title already reflects the new view.
+  function later() { setTimeout(send, 0); }
+  ["pushState", "replaceState"].forEach(function (m) {
+    var orig = history[m];
+    history[m] = function () { var r = orig.apply(this, arguments); later(); return r; };
+  });
+  addEventListener("popstate", later);
+  addEventListener("hashchange", later);
 })();
